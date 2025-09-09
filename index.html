@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能周报生成工具</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📊 智能周报生成工具</h1>
+            <p class="subtitle">基于 AI 的智能工作周报生成助手</p>
+        </header>
+
+        <main class="main-content">
+            <!-- 配置区域 -->
+            <section class="config-section">
+                <h2>🔧 Dify 配置</h2>
+                <div class="config-form">
+                    <div class="form-group">
+                        <label for="difyApiUrl">Dify API 地址:</label>
+                        <input type="url" id="difyApiUrl" placeholder="https://api.dify.ai/v1/workflows/run" class="config-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="difyApiKey">API 密钥:</label>
+                        <input type="password" id="difyApiKey" placeholder="app-xxxxxxxxxxxxxxxx" class="config-input">
+                    </div>
+                    <button type="button" id="saveConfig" class="btn btn-secondary">保存配置</button>
+                </div>
+            </section>
+
+            <!-- 数据输入区域 -->
+            <section class="input-section">
+                <h2>📝 输入工作数据</h2>
+                
+                <div class="input-grid">
+                    <div class="input-card">
+                        <h3>📋 上周工作计划</h3>
+                        <textarea 
+                            id="lastWeekPlan" 
+                            placeholder="请输入上周的工作计划，格式示例：&#10;项目A | 需求分析 | 完成用户需求调研和分析&#10;项目B | 代码开发 | 实现登录模块功能"
+                            rows="6"
+                        ></textarea>
+                    </div>
+
+                    <div class="input-card">
+                        <h3>✅ 上周工作内容</h3>
+                        <textarea 
+                            id="lastWeekWork" 
+                            placeholder="请输入上周实际完成的工作内容，格式示例：&#10;项目A | 需求分析 | 已完成80%，完成用户访谈和需求文档草稿&#10;项目B | 代码开发 | 已完成100%，登录模块已上线测试"
+                            rows="6"
+                        ></textarea>
+                    </div>
+
+                    <div class="input-card">
+                        <h3>📅 下周工作计划</h3>
+                        <textarea 
+                            id="nextWeekPlan" 
+                            placeholder="请输入下周的工作计划，格式示例：&#10;项目A | 原型设计 | 根据需求文档设计交互原型&#10;项目C | 测试验收 | 进行功能测试和用户验收"
+                            rows="6"
+                        ></textarea>
+                    </div>
+
+                    <div class="input-card">
+                        <h3>💡 上周工作额外说明</h3>
+                        <textarea 
+                            id="additionalNotes" 
+                            placeholder="请输入额外说明，如：遇到的问题、需要协调的事项、特殊情况说明等"
+                            rows="6"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button type="button" id="generateReport" class="btn btn-primary">
+                        <span class="btn-text">🚀 生成周报</span>
+                        <span class="loading-spinner" style="display: none;">⏳ 生成中...</span>
+                    </button>
+                    <button type="button" id="clearAll" class="btn btn-secondary">🗑️ 清空所有</button>
+                    <button type="button" id="saveData" class="btn btn-secondary">💾 保存数据</button>
+                    <button type="button" id="loadData" class="btn btn-secondary">📂 加载数据</button>
+                </div>
+            </section>
+
+            <!-- 结果展示区域 -->
+            <section class="result-section" id="resultSection" style="display: none;">
+                <h2>📄 生成的周报</h2>
+                
+                <div class="result-actions">
+                    <button type="button" id="copyReport" class="btn btn-success">📋 复制周报</button>
+                    <button type="button" id="downloadReport" class="btn btn-success">💾 下载周报</button>
+                    <button type="button" id="printReport" class="btn btn-success">🖨️ 打印周报</button>
+                </div>
+
+                <div class="result-content" id="resultContent">
+                    <!-- AI 生成的周报内容将显示在这里 -->
+                </div>
+            </section>
+
+            <!-- 错误提示区域 -->
+            <div class="error-message" id="errorMessage" style="display: none;">
+                <span class="error-icon">❌</span>
+                <span class="error-text" id="errorText"></span>
+                <button class="error-close" id="closeError">×</button>
+            </div>
+
+            <!-- 成功提示区域 -->
+            <div class="success-message" id="successMessage" style="display: none;">
+                <span class="success-icon">✅</span>
+                <span class="success-text" id="successText"></span>
+                <button class="success-close" id="closeSuccess">×</button>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2025 智能周报生成工具 | 基于 Dify AI 平台</p>
+        </footer>
+    </div>
+
+    <script src="markdown-processor.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
