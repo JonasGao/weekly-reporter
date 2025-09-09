@@ -6,6 +6,7 @@ class WeeklyReporter {
         this.currentConfigId = null;
         this.history = [];
         this.contentProcessor = new AiContentProcessor();
+        this.dingTalkClient = null;
         this.init();
     }
 
@@ -215,10 +216,24 @@ class WeeklyReporter {
         const apiUrl = document.getElementById('difyApiUrl').value.trim();
         const apiKey = document.getElementById('difyApiKey').value.trim();
         
+        // 钉钉周报API配置
+        const dingTalkEnabled = document.getElementById('dingTalkEnabled').checked;
+        const dingTalkCorpId = document.getElementById('dingTalkCorpId').value.trim();
+        const dingTalkAppKey = document.getElementById('dingTalkAppKey').value.trim();
+        const dingTalkAppSecret = document.getElementById('dingTalkAppSecret').value.trim();
+        const dingTalkUserId = document.getElementById('dingTalkUserId').value.trim();
+        
         return {
             name,
             apiUrl,
-            apiKey
+            apiKey,
+            dingtalk: {
+                enabled: dingTalkEnabled,
+                corpId: dingTalkCorpId,
+                appKey: dingTalkAppKey,
+                appSecret: dingTalkAppSecret,
+                userId: dingTalkUserId
+            }
         };
     }
     
@@ -230,6 +245,21 @@ class WeeklyReporter {
         document.getElementById('configName').value = currentConfig.name || '';
         document.getElementById('difyApiUrl').value = currentConfig.apiUrl || '';
         document.getElementById('difyApiKey').value = currentConfig.apiKey || '';
+        
+        // 钉钉周报API配置
+        const dingtalk = currentConfig.dingtalk || { 
+            enabled: false,
+            corpId: '',
+            appKey: '',
+            appSecret: '',
+            userId: ''
+        };
+        
+        document.getElementById('dingTalkEnabled').checked = dingtalk.enabled || false;
+        document.getElementById('dingTalkCorpId').value = dingtalk.corpId || '';
+        document.getElementById('dingTalkAppKey').value = dingtalk.appKey || '';
+        document.getElementById('dingTalkAppSecret').value = dingtalk.appSecret || '';
+        document.getElementById('dingTalkUserId').value = dingtalk.userId || '';
     }
     
     // 获取当前配置
@@ -254,7 +284,14 @@ class WeeklyReporter {
             id: this.generateId(),
             name: '新配置',
             apiUrl: '',
-            apiKey: ''
+            apiKey: '',
+            dingtalk: {
+                enabled: false,
+                corpId: '',
+                appKey: '',
+                appSecret: '',
+                userId: ''
+            }
         };
         
         this.configs.push(newConfig);
@@ -379,6 +416,16 @@ class WeeklyReporter {
             // 处理结果
             if (result) {
                 this.displayResult(result);
+                
+                // 如果启用了钉钉周报API，发送到钉钉
+                if (currentConfig.dingtalk && currentConfig.dingtalk.enabled) {
+                    try {
+                        await this.sendToDingTalk(result);
+                    } catch (dingTalkError) {
+                        console.error('发送到钉钉失败：', dingTalkError);
+                        this.showError(`周报已生成，但发送到钉钉失败：${dingTalkError.message}`);
+                    }
+                }
             }
 
         } catch (error) {
@@ -439,6 +486,85 @@ class WeeklyReporter {
         // 备用清理逻辑
         return result.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
     }
+    
+    // 初始化钉钉客户端
+    initDingTalkClient() {
+        try {
+            const currentConfig = this.getCurrentConfig();
+            if (!currentConfig || !currentConfig.dingtalk || !currentConfig.dingtalk.enabled) {
+                return null;
+            }
+            
+            const { corpId, appKey, appSecret } = currentConfig.dingtalk;
+            
+            // 验证必要参数
+            if (!corpId || !appKey || !appSecret) {
+                console.error('钉钉配置不完整');
+                return null;
+            }
+            
+            // 创建钉钉客户端
+            return new DingTalkClient({
+                corpId,
+                appKey,
+                appSecret
+            });
+            
+        } catch (error) {
+            console.error('初始化钉钉客户端失败:', error);
+            return null;
+        }
+    }
+    
+    // 发送周报到钉钉
+    async sendToDingTalk(reportContent) {
+        try {
+            const currentConfig = this.getCurrentConfig();
+            if (!currentConfig || !currentConfig.dingtalk || !currentConfig.dingtalk.enabled) {
+                throw new Error('钉钉周报功能未启用或配置不完整');
+            }
+            
+            const { userId } = currentConfig.dingtalk;
+            if (!userId) {
+                throw new Error('请提供钉钉用户ID');
+            }
+            
+            // 初始化钉钉客户端
+            if (!this.dingTalkClient) {
+                this.dingTalkClient = this.initDingTalkClient();
+            }
+            
+            if (!this.dingTalkClient) {
+                throw new Error('钉钉客户端初始化失败');
+            }
+            
+            // 准备周报内容
+            // 这里需要根据周报实际内容格式进行适当处理
+            // 假设周报有清晰的结构，可以提取相应内容
+            const inputData = this.collectInputData();
+            
+            let cleanContent = this.cleanupResult(reportContent);
+            
+            // 提取周报各部分内容（这需要根据实际输出格式调整）
+            // 这里是一个简单的实现，可能需要针对实际格式进行调整
+            let sections = {
+                lastWeekSummary: inputData.lastWeekWork,
+                thisWeekSummary: cleanContent,
+                nextWeekPlan: inputData.nextWeekPlan,
+                notes: inputData.additionalNotes || ""
+            };
+            
+            // 调用钉钉API发送周报
+            const result = await this.dingTalkClient.sendWorkReport(userId, sections);
+            
+            this.showSuccess('周报已成功发送到钉钉');
+            return result;
+            
+        } catch (error) {
+            console.error('发送周报到钉钉失败:', error);
+            throw new Error(`发送周报到钉钉失败: ${error.message}`);
+        }
+    }
 
     // 显示结果
     displayResult(result) {
@@ -484,9 +610,12 @@ class WeeklyReporter {
             // 保存到历史记录
             this.addToHistory(result, processedResult);
             
+            return processedResult;
+            
         } catch (error) {
             console.error('显示结果失败：', error);
             this.showError(`显示结果失败：${error.message}`);
+            throw error;
         }
     }
 

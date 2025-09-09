@@ -30,14 +30,44 @@
                         <label for="configName">配置名称:</label>
                         <input type="text" id="configName" placeholder="例如：工作周报模型" class="config-input">
                     </div>
+                    
+                    <!-- Dify API 配置 -->
+                    <div class="config-section-title">Dify API 配置</div>
                     <div class="form-group">
-                        <label for="difyApiUrl">Dify API 地址:</label>
+                        <label for="difyApiUrl">API 地址:</label>
                         <input type="url" id="difyApiUrl" placeholder="https://api.dify.ai/v1/workflows/run" class="config-input">
                     </div>
                     <div class="form-group">
                         <label for="difyApiKey">API 密钥:</label>
                         <input type="password" id="difyApiKey" placeholder="app-xxxxxxxxxxxxxxxx" class="config-input">
                     </div>
+                    
+                    <!-- 钉钉 API 配置 -->
+                    <div class="config-section-title">钉钉周报API配置</div>
+                    <div class="form-group">
+                        <label for="dingTalkEnabled">启用钉钉周报:</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="dingTalkEnabled" class="toggle-input">
+                            <label for="dingTalkEnabled" class="toggle-label"></label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="dingTalkCorpId">企业ID(CorpId):</label>
+                        <input type="text" id="dingTalkCorpId" placeholder="企业ID，例如：ding12345..." class="config-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="dingTalkAppKey">应用AppKey:</label>
+                        <input type="text" id="dingTalkAppKey" placeholder="应用的AppKey" class="config-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="dingTalkAppSecret">应用AppSecret:</label>
+                        <input type="password" id="dingTalkAppSecret" placeholder="应用的AppSecret" class="config-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="dingTalkUserId">用户ID:</label>
+                        <input type="text" id="dingTalkUserId" placeholder="钉钉用户ID" class="config-input">
+                    </div>
+                    
                     <button type="button" id="saveConfig" class="btn btn-secondary">保存配置</button>
                 </div>
             </section>
@@ -171,6 +201,7 @@
     </div>
 
     <script src="AiContentProcessor.js"></script>
+    <script src="DingTalkClient.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

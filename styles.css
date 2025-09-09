@@ -84,9 +84,64 @@ body {
 
 .config-form {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 15px;
-    align-items: end;
+    align-items: start;
+}
+
+.config-section-title {
+    grid-column: 1 / -1;
+    margin-top: 15px;
+    padding: 5px 0;
+    font-weight: 500;
+    color: #3498db;
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* 切换开关样式 */
+.toggle-switch {
+    position: relative;
+    width: 60px;
+    height: 30px;
+    margin-top: 5px;
+}
+
+.toggle-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    border-radius: 34px;
+    cursor: pointer;
+    transition: .4s;
+}
+
+.toggle-label:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    border-radius: 50%;
+    transition: .4s;
+}
+
+.toggle-input:checked + .toggle-label {
+    background-color: #3498db;
+}
+
+.toggle-input:checked + .toggle-label:before {
+    transform: translateX(30px);
 }
 
 .form-group {
@@ -767,6 +822,11 @@ body {
     .action-buttons {
         flex-direction: column;
         align-items: center;
+    }
+    
+    .config-section-title {
+        margin-top: 20px;
+        padding-top: 10px;
     }
     
     .btn {
