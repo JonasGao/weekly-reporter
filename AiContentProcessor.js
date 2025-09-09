@@ -84,42 +84,42 @@ class AiContentProcessor {
         
         const sections = [];
         
-        // 本周工作内容
-        if (jsonData.current_week_summary) {
+        // 上周工作计划
+        if (jsonData.last_week_plan_table) {
             sections.push(`
                 <div class="report-section">
-                    <h3>📝 本周工作内容</h3>
-                    ${this.formatTableOrText(jsonData.current_week_summary)}
+                    <h3>� 上周工作计划</h3>
+                    ${this.formatTableOrText(jsonData.last_week_plan_table)}
+                </div>
+            `);
+        }
+        
+        // 上周工作实际内容
+        if (jsonData.last_week_actual_table) {
+            sections.push(`
+                <div class="report-section">
+                    <h3>✅ 上周工作内容</h3>
+                    ${this.formatTableOrText(jsonData.last_week_actual_table)}
                 </div>
             `);
         }
         
         // 下周工作计划
-        if (jsonData.next_week_plan) {
+        if (jsonData.next_week_plan_table) {
             sections.push(`
                 <div class="report-section">
-                    <h3>📅 下周工作计划</h3>
-                    ${this.formatTableOrText(jsonData.next_week_plan)}
+                    <h3>� 下周工作计划</h3>
+                    ${this.formatTableOrText(jsonData.next_week_plan_table)}
                 </div>
             `);
         }
         
-        // 本周工作总结
-        if (jsonData.work_summary) {
+        // 工作总结
+        if (jsonData.summary) {
             sections.push(`
                 <div class="report-section">
-                    <h3>📊 本周工作总结</h3>
-                    ${this.formatTableOrText(jsonData.work_summary, true)}
-                </div>
-            `);
-        }
-        
-        // 额外说明（如果有）
-        if (jsonData.additional_notes) {
-            sections.push(`
-                <div class="report-section">
-                    <h3>💡 额外说明</h3>
-                    ${this.formatTableOrText(jsonData.additional_notes, true)}
+                    <h3>� 工作总结</h3>
+                    ${this.formatTableOrText(jsonData.summary, true)}
                 </div>
             `);
         }
