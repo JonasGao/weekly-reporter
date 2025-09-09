@@ -110,6 +110,46 @@
                 </div>
             </section>
 
+            <!-- 历史记录区域 -->
+            <section class="history-section" id="historySection">
+                <h2>📜 历史记录</h2>
+                
+                <div class="history-actions">
+                    <button type="button" id="clearHistory" class="btn btn-secondary">🗑️ 清空历史</button>
+                    <button type="button" id="exportHistory" class="btn btn-secondary">📊 导出历史</button>
+                </div>
+                
+                <div class="history-table-container">
+                    <table class="history-table" id="historyTable">
+                        <thead>
+                            <tr>
+                                <th width="20%">时间</th>
+                                <th width="25%">上周计划摘要</th>
+                                <th width="25%">上周内容摘要</th>
+                                <th width="20%">下周计划摘要</th>
+                                <th width="10%">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <!-- 历史记录将动态插入这里 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            
+            <!-- 历史记录详情模态框 -->
+            <div class="modal" id="historyDetailModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>历史记录详情</h3>
+                        <span class="close-modal" id="closeHistoryDetail">&times;</span>
+                    </div>
+                    <div class="modal-body" id="historyDetailContent">
+                        <!-- 历史记录详情将显示在这里 -->
+                    </div>
+                </div>
+            </div>
+
             <!-- 错误提示区域 -->
             <div class="error-message" id="errorMessage" style="display: none;">
                 <span class="error-icon">❌</span>

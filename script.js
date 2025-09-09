@@ -4,14 +4,17 @@ class WeeklyReporter {
     constructor() {
         this.configs = [];
         this.currentConfigId = null;
+        this.history = [];
         this.contentProcessor = new AiContentProcessor();
         this.init();
     }
 
     init() {
         this.loadConfigs();
+        this.loadHistory();
         this.bindEvents();
         this.loadSavedData();
+        this.renderHistoryTable();
     }
 
     // 绑定事件监听器
@@ -100,6 +103,33 @@ class WeeklyReporter {
                     inputElement.addEventListener('input', () => this.autoSave());
                 }
             });
+            
+            // 历史记录相关
+            const clearHistoryBtn = document.getElementById('clearHistory');
+            if (clearHistoryBtn) {
+                clearHistoryBtn.addEventListener('click', () => this.clearHistory());
+            }
+            
+            const exportHistoryBtn = document.getElementById('exportHistory');
+            if (exportHistoryBtn) {
+                exportHistoryBtn.addEventListener('click', () => this.exportHistory());
+            }
+            
+            // 历史记录详情模态框关闭按钮
+            const closeHistoryDetailBtn = document.getElementById('closeHistoryDetail');
+            if (closeHistoryDetailBtn) {
+                closeHistoryDetailBtn.addEventListener('click', () => this.closeHistoryDetail());
+            }
+            
+            // 点击模态框外部关闭
+            const historyDetailModal = document.getElementById('historyDetailModal');
+            if (historyDetailModal) {
+                window.addEventListener('click', (event) => {
+                    if (event.target === historyDetailModal) {
+                        this.closeHistoryDetail();
+                    }
+                });
+            }
         } catch (error) {
             console.error('绑定事件时出错:', error);
         }
@@ -443,6 +473,9 @@ class WeeklyReporter {
             
             this.showSuccess('周报生成成功！');
             
+            // 保存到历史记录
+            this.addToHistory(result);
+            
         } catch (error) {
             console.error('显示结果失败：', error);
             this.showError(`显示结果失败：${error.message}`);
@@ -729,6 +762,267 @@ class WeeklyReporter {
             } catch (error) {
                 console.error('加载草稿失败：', error);
             }
+        }
+    }
+    
+    // ============== 历史记录功能 ==============
+    
+    // 加载历史记录
+    loadHistory() {
+        try {
+            const savedHistory = localStorage.getItem('weeklyReporter_history');
+            if (savedHistory) {
+                this.history = JSON.parse(savedHistory);
+            }
+        } catch (error) {
+            console.error('加载历史记录失败：', error);
+            this.history = [];
+        }
+    }
+    
+    // 保存历史记录到本地存储
+    saveHistory() {
+        try {
+            localStorage.setItem('weeklyReporter_history', JSON.stringify(this.history));
+        } catch (error) {
+            console.error('保存历史记录失败：', error);
+            this.showError('保存历史记录失败');
+        }
+    }
+    
+    // 获取文本摘要
+    getSummary(text, maxLength = 30) {
+        if (!text) return '';
+        
+        // 移除换行符，压缩空格
+        let processed = text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+        
+        if (processed.length <= maxLength) return processed;
+        
+        return processed.substring(0, maxLength) + '...';
+    }
+    
+    // 添加到历史记录
+    addToHistory(result) {
+        try {
+            const inputData = this.collectInputData();
+            const timestamp = new Date().toISOString();
+            const formattedDate = new Date().toLocaleString('zh-CN');
+            
+            const historyItem = {
+                id: `history_${Date.now()}`,
+                timestamp: timestamp,
+                formattedDate: formattedDate,
+                lastWeekPlan: inputData.lastWeekPlan,
+                lastWeekWork: inputData.lastWeekWork,
+                nextWeekPlan: inputData.nextWeekPlan,
+                additionalNotes: inputData.additionalNotes,
+                result: result
+            };
+            
+            // 将新记录添加到历史记录开头
+            this.history.unshift(historyItem);
+            
+            // 限制历史记录数量，保留最新的100条
+            if (this.history.length > 100) {
+                this.history = this.history.slice(0, 100);
+            }
+            
+            // 保存到本地存储
+            this.saveHistory();
+            
+            // 重新渲染历史表格
+            this.renderHistoryTable();
+        } catch (error) {
+            console.error('添加历史记录失败：', error);
+        }
+    }
+    
+    // 渲染历史记录表格
+    renderHistoryTable() {
+        const tableBody = document.getElementById('historyTableBody');
+        if (!tableBody) return;
+        
+        // 清空表格
+        tableBody.innerHTML = '';
+        
+        // 没有历史记录
+        if (this.history.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td colspan="5" style="text-align: center;">暂无历史记录</td>`;
+            tableBody.appendChild(row);
+            return;
+        }
+        
+        // 填充历史记录
+        this.history.forEach((item) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.formattedDate}</td>
+                <td>${this.getSummary(item.lastWeekPlan)}</td>
+                <td>${this.getSummary(item.lastWeekWork)}</td>
+                <td>${this.getSummary(item.nextWeekPlan)}</td>
+                <td>
+                    <button class="history-action-btn" data-id="${item.id}">查看</button>
+                </td>
+            `;
+            
+            // 绑定查看按钮事件
+            const viewBtn = row.querySelector('.history-action-btn');
+            viewBtn.addEventListener('click', () => this.showHistoryDetail(item.id));
+            
+            tableBody.appendChild(row);
+        });
+    }
+    
+    // 显示历史记录详情
+    showHistoryDetail(id) {
+        const item = this.history.find(h => h.id === id);
+        if (!item) return;
+        
+        const modalContent = document.getElementById('historyDetailContent');
+        if (!modalContent) return;
+        
+        // 生成详情HTML
+        const detailHtml = `
+            <div class="history-detail">
+                <div class="history-detail-header">
+                    <h4>生成时间: ${item.formattedDate}</h4>
+                </div>
+                <div class="history-detail-inputs">
+                    <div class="detail-section">
+                        <h5>上周工作计划:</h5>
+                        <pre>${item.lastWeekPlan}</pre>
+                    </div>
+                    <div class="detail-section">
+                        <h5>上周工作内容:</h5>
+                        <pre>${item.lastWeekWork}</pre>
+                    </div>
+                    <div class="detail-section">
+                        <h5>下周工作计划:</h5>
+                        <pre>${item.nextWeekPlan}</pre>
+                    </div>
+                    <div class="detail-section">
+                        <h5>额外说明:</h5>
+                        <pre>${item.additionalNotes || '无'}</pre>
+                    </div>
+                </div>
+                <div class="detail-section">
+                    <h5>生成结果:</h5>
+                    <div class="history-result">
+                        ${this.contentProcessor ? this.contentProcessor.processContent(item.result).formatted : item.result}
+                    </div>
+                </div>
+                <div class="detail-actions">
+                    <button id="useHistoryData" class="btn btn-primary" data-id="${item.id}">使用此数据</button>
+                    <button id="removeHistoryItem" class="btn btn-danger" data-id="${item.id}">删除记录</button>
+                </div>
+            </div>
+        `;
+        
+        modalContent.innerHTML = detailHtml;
+        
+        // 绑定操作按钮事件
+        const useBtn = document.getElementById('useHistoryData');
+        if (useBtn) {
+            useBtn.addEventListener('click', () => this.useHistoryData(id));
+        }
+        
+        const removeBtn = document.getElementById('removeHistoryItem');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => this.removeHistoryItem(id));
+        }
+        
+        // 显示模态框
+        const modal = document.getElementById('historyDetailModal');
+        if (modal) {
+            modal.style.display = 'block';
+        }
+    }
+    
+    // 关闭历史记录详情
+    closeHistoryDetail() {
+        const modal = document.getElementById('historyDetailModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+    
+    // 使用历史数据
+    useHistoryData(id) {
+        const item = this.history.find(h => h.id === id);
+        if (!item) return;
+        
+        // 填充表单
+        document.getElementById('lastWeekPlan').value = item.lastWeekPlan || '';
+        document.getElementById('lastWeekWork').value = item.lastWeekWork || '';
+        document.getElementById('nextWeekPlan').value = item.nextWeekPlan || '';
+        document.getElementById('additionalNotes').value = item.additionalNotes || '';
+        
+        // 关闭详情
+        this.closeHistoryDetail();
+        
+        // 显示成功消息
+        this.showSuccess('已加载历史数据');
+    }
+    
+    // 删除历史记录
+    removeHistoryItem(id) {
+        if (confirm('确定要删除此历史记录吗？')) {
+            const index = this.history.findIndex(h => h.id === id);
+            if (index !== -1) {
+                // 删除记录
+                this.history.splice(index, 1);
+                
+                // 保存到本地存储
+                this.saveHistory();
+                
+                // 重新渲染表格
+                this.renderHistoryTable();
+                
+                // 关闭详情
+                this.closeHistoryDetail();
+                
+                // 显示成功消息
+                this.showSuccess('历史记录已删除');
+            }
+        }
+    }
+    
+    // 清空所有历史记录
+    clearHistory() {
+        if (confirm('确定要清空所有历史记录吗？此操作无法撤销！')) {
+            this.history = [];
+            this.saveHistory();
+            this.renderHistoryTable();
+            this.showSuccess('所有历史记录已清空');
+        }
+    }
+    
+    // 导出历史记录
+    exportHistory() {
+        try {
+            const exportData = {
+                exportDate: new Date().toISOString(),
+                history: this.history
+            };
+            
+            const jsonString = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `周报生成历史记录_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.showSuccess('历史记录已导出');
+        } catch (error) {
+            console.error('导出历史记录失败：', error);
+            this.showError('导出历史记录失败');
         }
     }
 }
