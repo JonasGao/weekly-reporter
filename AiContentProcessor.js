@@ -1,7 +1,7 @@
-// Markdown处理器 - 独立模块
-// 负责处理think内容移除、markdown格式化、表格转换等功能
+// AI内容处理器 - 独立模块
+// 负责处理think内容移除、内容格式化、表格转换等功能
 
-class MarkdownProcessor {
+class AiContentProcessor {
     constructor() {
         // 可以在这里添加配置选项
     }
@@ -80,5 +80,5 @@ class MarkdownProcessor {
 
 // 浏览器环境支持
 if (typeof window !== 'undefined') {
-    window.MarkdownProcessor = MarkdownProcessor;
+    window.AiContentProcessor = AiContentProcessor;
 }

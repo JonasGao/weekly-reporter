@@ -6,7 +6,7 @@ class WeeklyReporter {
             apiUrl: '',
             apiKey: ''
         };
-        this.markdownProcessor = new MarkdownProcessor();
+        this.contentProcessor = new AiContentProcessor();
         this.init();
     }
 
@@ -212,8 +212,8 @@ class WeeklyReporter {
 
     // 处理API返回结果中的think内容
     cleanupResult(result) {
-        if (this.markdownProcessor) {
-            return this.markdownProcessor.removeThinkContent(result);
+        if (this.contentProcessor) {
+            return this.contentProcessor.removeThinkContent(result);
         }
         
         // 备用清理逻辑
@@ -231,9 +231,9 @@ class WeeklyReporter {
                 throw new Error('找不到结果内容容器元素，ID: resultContent');
             }
             
-            // 使用markdown处理器格式化结果
-            if (this.markdownProcessor) {
-                const processed = this.markdownProcessor.processContent(result);
+            // 使用内容处理器格式化结果
+            if (this.contentProcessor) {
+                const processed = this.contentProcessor.processContent(result);
                 resultContentElement.innerHTML = processed.formatted;
             } else {
                 // 备用处理
