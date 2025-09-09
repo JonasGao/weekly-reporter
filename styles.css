@@ -62,9 +62,29 @@ body {
     font-size: 1.3em;
 }
 
+.config-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.config-selection {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.config-select {
+    padding: 8px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    min-width: 200px;
+}
+
 .config-form {
     display: grid;
-    grid-template-columns: 1fr 1fr auto;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 15px;
     align-items: end;
 }
@@ -201,6 +221,21 @@ body {
 .btn-secondary:hover {
     background: #7f8c8d;
     transform: translateY(-2px);
+}
+
+.btn-small {
+    padding: 6px 12px;
+    min-width: 60px;
+    font-size: 12px;
+}
+
+.btn-danger {
+    background: #e74c3c;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
 }
 
 .btn-success {

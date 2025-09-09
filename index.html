@@ -17,7 +17,19 @@
             <!-- 配置区域 -->
             <section class="config-section">
                 <h2>🔧 Dify 配置</h2>
+                <div class="config-actions">
+                    <div class="config-selection">
+                        <label for="configSelector">选择配置:</label>
+                        <select id="configSelector" class="config-select"></select>
+                        <button type="button" id="newConfig" class="btn btn-small">+ 新建</button>
+                        <button type="button" id="deleteConfig" class="btn btn-small btn-danger">- 删除</button>
+                    </div>
+                </div>
                 <div class="config-form">
+                    <div class="form-group">
+                        <label for="configName">配置名称:</label>
+                        <input type="text" id="configName" placeholder="例如：工作周报模型" class="config-input">
+                    </div>
                     <div class="form-group">
                         <label for="difyApiUrl">Dify API 地址:</label>
                         <input type="url" id="difyApiUrl" placeholder="https://api.dify.ai/v1/workflows/run" class="config-input">

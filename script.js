@@ -2,16 +2,14 @@
 
 class WeeklyReporter {
     constructor() {
-        this.config = {
-            apiUrl: '',
-            apiKey: ''
-        };
+        this.configs = [];
+        this.currentConfigId = null;
         this.contentProcessor = new AiContentProcessor();
         this.init();
     }
 
     init() {
-        this.loadConfig();
+        this.loadConfigs();
         this.bindEvents();
         this.loadSavedData();
     }
@@ -20,9 +18,24 @@ class WeeklyReporter {
     bindEvents() {
         try {
             // 配置相关
+            const configSelector = document.getElementById('configSelector');
+            if (configSelector) {
+                configSelector.addEventListener('change', () => this.loadSelectedConfig());
+            }
+            
             const saveConfigBtn = document.getElementById('saveConfig');
             if (saveConfigBtn) {
                 saveConfigBtn.addEventListener('click', () => this.saveConfig());
+            }
+            
+            const newConfigBtn = document.getElementById('newConfig');
+            if (newConfigBtn) {
+                newConfigBtn.addEventListener('click', () => this.createNewConfig());
+            }
+            
+            const deleteConfigBtn = document.getElementById('deleteConfig');
+            if (deleteConfigBtn) {
+                deleteConfigBtn.addEventListener('click', () => this.deleteCurrentConfig());
             }
             
             // 主要功能按钮
@@ -93,26 +106,195 @@ class WeeklyReporter {
     }
 
     // 配置管理
-    loadConfig() {
-        const savedConfig = localStorage.getItem('weeklyReporter_config');
-        if (savedConfig) {
-            this.config = JSON.parse(savedConfig);
-            document.getElementById('difyApiUrl').value = this.config.apiUrl || '';
-            document.getElementById('difyApiKey').value = this.config.apiKey || '';
+    loadConfigs() {
+        try {
+            // 从本地存储加载配置
+            const savedConfigs = localStorage.getItem('weeklyReporter_configs');
+            if (savedConfigs) {
+                this.configs = JSON.parse(savedConfigs);
+            } else {
+                // 初始化默认配置
+                this.configs = [{
+                    id: this.generateId(),
+                    name: '默认配置',
+                    apiUrl: '',
+                    apiKey: ''
+                }];
+                this.saveConfigsToStorage();
+            }
+            
+            // 加载最后使用的配置ID
+            const lastUsedConfigId = localStorage.getItem('weeklyReporter_currentConfigId');
+            if (lastUsedConfigId && this.configs.some(config => config.id === lastUsedConfigId)) {
+                this.currentConfigId = lastUsedConfigId;
+            } else if (this.configs.length > 0) {
+                this.currentConfigId = this.configs[0].id;
+            }
+            
+            // 填充配置选择器
+            this.populateConfigSelector();
+            
+            // 加载当前配置到表单
+            this.loadCurrentConfigToForm();
+        } catch (error) {
+            console.error('加载配置时出错:', error);
+            this.showError('配置加载失败');
         }
     }
-
-    saveConfig() {
+    
+    // 生成唯一ID
+    generateId() {
+        return 'config_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+    
+    // 填充配置选择器
+    populateConfigSelector() {
+        const selector = document.getElementById('configSelector');
+        if (!selector) return;
+        
+        // 清空现有选项
+        selector.innerHTML = '';
+        
+        // 添加所有配置选项
+        this.configs.forEach(config => {
+            const option = document.createElement('option');
+            option.value = config.id;
+            option.textContent = config.name;
+            selector.appendChild(option);
+        });
+        
+        // 选中当前配置
+        if (this.currentConfigId) {
+            selector.value = this.currentConfigId;
+        }
+    }
+    
+    // 将配置保存到本地存储
+    saveConfigsToStorage() {
+        localStorage.setItem('weeklyReporter_configs', JSON.stringify(this.configs));
+    }
+    
+    // 保存当前配置ID到本地存储
+    saveCurrentConfigId() {
+        localStorage.setItem('weeklyReporter_currentConfigId', this.currentConfigId);
+    }
+    
+    // 从表单获取当前配置
+    getCurrentConfigFromForm() {
+        const name = document.getElementById('configName').value.trim() || '未命名配置';
         const apiUrl = document.getElementById('difyApiUrl').value.trim();
         const apiKey = document.getElementById('difyApiKey').value.trim();
         
-        if (!apiUrl || !apiKey) {
+        return {
+            name,
+            apiUrl,
+            apiKey
+        };
+    }
+    
+    // 加载当前配置到表单
+    loadCurrentConfigToForm() {
+        const currentConfig = this.getCurrentConfig();
+        if (!currentConfig) return;
+        
+        document.getElementById('configName').value = currentConfig.name || '';
+        document.getElementById('difyApiUrl').value = currentConfig.apiUrl || '';
+        document.getElementById('difyApiKey').value = currentConfig.apiKey || '';
+    }
+    
+    // 获取当前配置
+    getCurrentConfig() {
+        if (!this.currentConfigId) return null;
+        return this.configs.find(config => config.id === this.currentConfigId);
+    }
+    
+    // 加载所选配置
+    loadSelectedConfig() {
+        const selector = document.getElementById('configSelector');
+        if (!selector) return;
+        
+        this.currentConfigId = selector.value;
+        this.saveCurrentConfigId();
+        this.loadCurrentConfigToForm();
+    }
+    
+    // 创建新配置
+    createNewConfig() {
+        const newConfig = {
+            id: this.generateId(),
+            name: '新配置',
+            apiUrl: '',
+            apiKey: ''
+        };
+        
+        this.configs.push(newConfig);
+        this.currentConfigId = newConfig.id;
+        
+        this.saveConfigsToStorage();
+        this.saveCurrentConfigId();
+        this.populateConfigSelector();
+        this.loadCurrentConfigToForm();
+        
+        this.showSuccess('新配置已创建');
+    }
+    
+    // 删除当前配置
+    deleteCurrentConfig() {
+        if (this.configs.length <= 1) {
+            this.showError('至少需保留一个配置');
+            return;
+        }
+        
+        if (confirm('确定要删除当前配置吗？')) {
+            // 找到当前配置索引
+            const currentIndex = this.configs.findIndex(config => config.id === this.currentConfigId);
+            if (currentIndex === -1) return;
+            
+            // 删除配置
+            this.configs.splice(currentIndex, 1);
+            
+            // 选择新的当前配置
+            this.currentConfigId = this.configs[0].id;
+            
+            this.saveConfigsToStorage();
+            this.saveCurrentConfigId();
+            this.populateConfigSelector();
+            this.loadCurrentConfigToForm();
+            
+            this.showSuccess('配置已删除');
+        }
+    }
+    
+    // 保存当前配置
+    saveConfig() {
+        const formConfig = this.getCurrentConfigFromForm();
+        
+        if (!formConfig.apiUrl || !formConfig.apiKey) {
             this.showError('请填写完整的 API 配置信息');
             return;
         }
-
-        this.config = { apiUrl, apiKey };
-        localStorage.setItem('weeklyReporter_config', JSON.stringify(this.config));
+        
+        // 查找并更新当前配置
+        const configIndex = this.configs.findIndex(config => config.id === this.currentConfigId);
+        if (configIndex === -1) {
+            // 如果找不到配置，创建新配置
+            const newConfig = {
+                id: this.currentConfigId || this.generateId(),
+                ...formConfig
+            };
+            this.configs.push(newConfig);
+            this.currentConfigId = newConfig.id;
+        } else {
+            // 更新现有配置
+            this.configs[configIndex] = {
+                ...this.configs[configIndex],
+                ...formConfig
+            };
+        }
+        
+        this.saveConfigsToStorage();
+        this.populateConfigSelector();
+        
         this.showSuccess('配置已保存');
     }
 
@@ -140,8 +322,11 @@ class WeeklyReporter {
     // 主要功能：生成周报
     async generateReport() {
         try {
+            // 获取当前配置
+            const currentConfig = this.getCurrentConfig();
+            
             // 检查配置
-            if (!this.config.apiUrl || !this.config.apiKey) {
+            if (!currentConfig || !currentConfig.apiUrl || !currentConfig.apiKey) {
                 this.showError('请先配置 Dify API 信息');
                 return;
             }
@@ -176,6 +361,11 @@ class WeeklyReporter {
 
     // 调用 Dify API
     async callDifyAPI(inputData) {
+        const currentConfig = this.getCurrentConfig();
+        if (!currentConfig) {
+            throw new Error('无法获取当前配置');
+        }
+        
         const requestBody = {
             inputs: {
                 prev_week_plan: inputData.lastWeekPlan,
@@ -187,10 +377,10 @@ class WeeklyReporter {
             user: "weekly-reporter-user"
         };
 
-        const response = await fetch(this.config.apiUrl, {
+        const response = await fetch(currentConfig.apiUrl, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.config.apiKey}`,
+                'Authorization': `Bearer ${currentConfig.apiKey}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestBody)
