@@ -540,6 +540,46 @@ body {
     font-weight: bold;
 }
 
+/* 原始输出样式 */
+.raw-output-container {
+    position: relative;
+    margin-top: 10px;
+}
+
+.raw-output-code {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border-radius: 6px;
+    padding: 15px;
+    margin: 0;
+    overflow-x: auto;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    max-height: 300px;
+    overflow-y: auto;
+    border: none;
+    white-space: pre-wrap;
+}
+
+.btn-copy-raw {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #d4d4d4;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s ease;
+}
+
+.btn-copy-raw:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
 .result-content h1 {
     font-size: 1.5em;
 }

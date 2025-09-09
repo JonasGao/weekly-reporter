@@ -501,6 +501,19 @@ class WeeklyReporter {
             .replace(/`(.*?)`/g, '<code>$1</code>');
     }
 
+    // 通用复制到剪贴板方法
+    async copyToClipboard(text, successMessage = '内容已复制到剪贴板') {
+        try {
+            await navigator.clipboard.writeText(text);
+            this.showSuccess(successMessage);
+            return true;
+        } catch (error) {
+            console.error('复制失败：', error);
+            this.showError('复制失败，请手动选择复制');
+            return false;
+        }
+    }
+    
     // 复制周报
     async copyReport() {
         try {
@@ -510,11 +523,11 @@ class WeeklyReporter {
             }
             
             const content = resultContentElement.innerText;
-            await navigator.clipboard.writeText(content);
-            this.showSuccess('周报内容已复制到剪贴板');
+            return await this.copyToClipboard(content, '周报内容已复制到剪贴板');
         } catch (error) {
             console.error('复制失败：', error);
             this.showError('复制失败，请手动选择复制');
+            return false;
         }
     }
 
@@ -917,6 +930,16 @@ class WeeklyReporter {
             resultContent = `<pre>${item.result}</pre>`;
         }
         
+        // 转义原始输出用于显示
+        const escapeHtml = (text) => {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        };
+        
         // 生成详情HTML
         const detailHtml = `
             <div class="history-detail">
@@ -948,6 +971,13 @@ class WeeklyReporter {
                         ${resultContent}
                     </div>
                 </div>
+                <div class="detail-section">
+                    <h5>原始输出:</h5>
+                    <div class="raw-output-container">
+                        <pre class="raw-output-code">${escapeHtml(item.result)}</pre>
+                        <button class="btn btn-small btn-copy-raw" data-content="${escapeHtml(item.result)}">复制</button>
+                    </div>
+                </div>
                 <div class="detail-actions">
                     <button id="useHistoryData" class="btn btn-primary" data-id="${item.id}">使用此数据</button>
                     <button id="removeHistoryItem" class="btn btn-danger" data-id="${item.id}">删除记录</button>
@@ -966,6 +996,15 @@ class WeeklyReporter {
         const removeBtn = document.getElementById('removeHistoryItem');
         if (removeBtn) {
             removeBtn.addEventListener('click', () => this.removeHistoryItem(id));
+        }
+        
+        // 绑定原始输出复制按钮
+        const copyRawBtn = modalContent.querySelector('.btn-copy-raw');
+        if (copyRawBtn) {
+            copyRawBtn.addEventListener('click', (e) => {
+                const content = e.target.getAttribute('data-content');
+                this.copyToClipboard(content, '原始输出已复制到剪贴板');
+            });
         }
         
         // 显示模态框
