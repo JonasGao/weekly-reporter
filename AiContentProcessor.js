@@ -62,18 +62,145 @@ class AiContentProcessor {
         return `<div style="line-height: 1.6; white-space: pre-wrap;">${formatted}</div>`;
     }
 
+    // 尝试解析JSON内容
+    tryParseJson(content) {
+        if (!content) return null;
+        
+        try {
+            // 先清理内容，移除think部分
+            const cleaned = this.removeThinkContent(content);
+            
+            // 尝试解析JSON
+            return JSON.parse(cleaned);
+        } catch (error) {
+            console.log('内容不是有效的JSON格式，将使用普通文本处理', error);
+            return null;
+        }
+    }
+    
+    // 格式化JSON报告
+    formatJsonReport(jsonData) {
+        if (!jsonData) return '';
+        
+        const sections = [];
+        
+        // 本周工作内容
+        if (jsonData.current_week_summary) {
+            sections.push(`
+                <div class="report-section">
+                    <h3>📝 本周工作内容</h3>
+                    ${this.formatTableOrText(jsonData.current_week_summary)}
+                </div>
+            `);
+        }
+        
+        // 下周工作计划
+        if (jsonData.next_week_plan) {
+            sections.push(`
+                <div class="report-section">
+                    <h3>📅 下周工作计划</h3>
+                    ${this.formatTableOrText(jsonData.next_week_plan)}
+                </div>
+            `);
+        }
+        
+        // 本周工作总结
+        if (jsonData.work_summary) {
+            sections.push(`
+                <div class="report-section">
+                    <h3>📊 本周工作总结</h3>
+                    ${this.formatTableOrText(jsonData.work_summary, true)}
+                </div>
+            `);
+        }
+        
+        // 额外说明（如果有）
+        if (jsonData.additional_notes) {
+            sections.push(`
+                <div class="report-section">
+                    <h3>💡 额外说明</h3>
+                    ${this.formatTableOrText(jsonData.additional_notes, true)}
+                </div>
+            `);
+        }
+        
+        return `<div class="json-report">${sections.join('')}</div>`;
+    }
+    
+    // 格式化表格或文本
+    formatTableOrText(content, preferParagraph = false) {
+        // 如果是字符串，直接返回格式化的段落
+        if (typeof content === 'string') {
+            return `<p>${content.replace(/\n/g, '<br>')}</p>`;
+        }
+        
+        // 如果是数组但需要段落显示
+        if (Array.isArray(content) && preferParagraph) {
+            return content.map(item => `<p>${typeof item === 'string' ? item : JSON.stringify(item)}</p>`).join('');
+        }
+        
+        // 如果是数组，尝试渲染为表格
+        if (Array.isArray(content) && content.length > 0) {
+            // 检查是否是对象数组
+            if (typeof content[0] === 'object' && content[0] !== null) {
+                const headers = Object.keys(content[0]);
+                
+                return `
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                ${headers.map(h => `<th>${h}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${content.map(row => `
+                                <tr>
+                                    ${headers.map(key => {
+                                        const cellValue = row[key];
+                                        return `<td>${typeof cellValue === 'string' ? cellValue : JSON.stringify(cellValue)}</td>`;
+                                    }).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                // 普通数组，显示为列表
+                return `
+                    <ul>
+                        ${content.map(item => `<li>${typeof item === 'string' ? item : JSON.stringify(item)}</li>`).join('')}
+                    </ul>
+                `;
+            }
+        }
+        
+        // 对于其他复杂对象，显示为代码块
+        return `<pre class="code-block">${JSON.stringify(content, null, 2)}</pre>`;
+    }
+
     // 完整处理流程（便捷方法）
     processContent(content) {
         // 1. 移除think内容
         const cleanedContent = this.removeThinkContent(content);
         
-        // 2. 简单的文本格式化（不解析markdown）
-        const formattedResult = this.formatResult(cleanedContent);
+        // 2. 尝试解析JSON
+        const jsonData = this.tryParseJson(content);
+        
+        let formatted;
+        if (jsonData) {
+            // 如果成功解析为JSON，使用JSON格式化
+            formatted = this.formatJsonReport(jsonData);
+        } else {
+            // 否则使用普通文本格式化
+            formatted = this.formatResult(cleanedContent);
+        }
         
         return {
             original: content,
             cleaned: cleanedContent,
-            formatted: formattedResult
+            isJson: !!jsonData,
+            jsonData: jsonData,
+            formatted: formatted
         };
     }
 }

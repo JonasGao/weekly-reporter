@@ -451,14 +451,22 @@ class WeeklyReporter {
                 throw new Error('找不到结果内容容器元素，ID: resultContent');
             }
             
+            let processedResult;
+            
             // 使用内容处理器格式化结果
             if (this.contentProcessor) {
-                const processed = this.contentProcessor.processContent(result);
-                resultContentElement.innerHTML = processed.formatted;
+                processedResult = this.contentProcessor.processContent(result);
+                resultContentElement.innerHTML = processedResult.formatted;
+                
+                // 如果处理为JSON格式，显示处理成功消息
+                if (processedResult.isJson) {
+                    console.log('检测到JSON格式数据，已解析为结构化报告', processedResult.jsonData);
+                }
             } else {
                 // 备用处理
                 const formattedResult = this.formatResult(cleanedResult);
                 resultContentElement.innerHTML = formattedResult;
+                processedResult = { formatted: formattedResult, isJson: false };
             }
             
             // 显示结果区域
@@ -474,7 +482,7 @@ class WeeklyReporter {
             this.showSuccess('周报生成成功！');
             
             // 保存到历史记录
-            this.addToHistory(result);
+            this.addToHistory(result, processedResult);
             
         } catch (error) {
             console.error('显示结果失败：', error);
@@ -803,7 +811,7 @@ class WeeklyReporter {
     }
     
     // 添加到历史记录
-    addToHistory(result) {
+    addToHistory(result, processedResult) {
         try {
             const inputData = this.collectInputData();
             const timestamp = new Date().toISOString();
@@ -817,7 +825,9 @@ class WeeklyReporter {
                 lastWeekWork: inputData.lastWeekWork,
                 nextWeekPlan: inputData.nextWeekPlan,
                 additionalNotes: inputData.additionalNotes,
-                result: result
+                result: result,
+                isJsonResult: processedResult && processedResult.isJson === true,
+                jsonData: processedResult && processedResult.isJson ? processedResult.jsonData : null
             };
             
             // 将新记录添加到历史记录开头
@@ -883,11 +893,36 @@ class WeeklyReporter {
         const modalContent = document.getElementById('historyDetailContent');
         if (!modalContent) return;
         
+        // 生成结果内容
+        let resultContent;
+        
+        if (item.isJsonResult && this.contentProcessor) {
+            // 如果是JSON结果，使用JSON格式化
+            if (item.jsonData) {
+                resultContent = this.contentProcessor.formatJsonReport(item.jsonData);
+            } else {
+                // 尝试重新解析
+                const parsed = this.contentProcessor.tryParseJson(item.result);
+                if (parsed) {
+                    resultContent = this.contentProcessor.formatJsonReport(parsed);
+                } else {
+                    resultContent = this.contentProcessor.processContent(item.result).formatted;
+                }
+            }
+        } else if (this.contentProcessor) {
+            // 普通文本结果
+            resultContent = this.contentProcessor.processContent(item.result).formatted;
+        } else {
+            // 没有处理器，直接显示
+            resultContent = `<pre>${item.result}</pre>`;
+        }
+        
         // 生成详情HTML
         const detailHtml = `
             <div class="history-detail">
                 <div class="history-detail-header">
                     <h4>生成时间: ${item.formattedDate}</h4>
+                    ${item.isJsonResult ? '<span class="json-badge">JSON</span>' : ''}
                 </div>
                 <div class="history-detail-inputs">
                     <div class="detail-section">
@@ -910,7 +945,7 @@ class WeeklyReporter {
                 <div class="detail-section">
                     <h5>生成结果:</h5>
                     <div class="history-result">
-                        ${this.contentProcessor ? this.contentProcessor.processContent(item.result).formatted : item.result}
+                        ${resultContent}
                     </div>
                 </div>
                 <div class="detail-actions">
