@@ -7,6 +7,7 @@ class WeeklyReporter {
         this.history = [];
         this.contentProcessor = new AiContentProcessor();
         this.dingTalkClient = null;
+        this.configManager = new ConfigurationManager();
         this.init();
     }
 
@@ -16,6 +17,9 @@ class WeeklyReporter {
         this.bindEvents();
         this.loadSavedData();
         this.renderHistoryTable();
+        
+        // 初始化配置管理器
+        this.initializeConfigManager();
     }
 
     // 绑定事件监听器
@@ -115,6 +119,9 @@ class WeeklyReporter {
             if (exportHistoryBtn) {
                 exportHistoryBtn.addEventListener('click', () => this.exportHistory());
             }
+            
+            // 配置导入导出相关(由ConfigurationManager处理)
+            // exportConfig 和 importConfig 按钮事件将在 ConfigurationManager 中绑定
             
             // 历史记录详情模态框关闭按钮
             const closeHistoryDetailBtn = document.getElementById('closeHistoryDetail');
@@ -363,6 +370,76 @@ class WeeklyReporter {
         this.populateConfigSelector();
         
         this.showSuccess('配置已保存');
+    }
+
+    // 初始化配置管理器
+    initializeConfigManager() {
+        try {
+            if (this.configManager) {
+                // 初始化配置管理器，传递WeeklyReporter实例引用
+                this.configManager.initialize(this);
+                
+                // 注册配置导入导出事件监听器
+                this.configManager.on('configExported', (data) => {
+                    console.log('配置导出完成:', data);
+                });
+                
+                this.configManager.on('configImported', (data) => {
+                    console.log('配置导入完成:', data);
+                    // 可以在这里添加额外的后处理逻辑
+                });
+                
+                console.log('配置管理器初始化成功');
+            }
+        } catch (error) {
+            console.error('初始化配置管理器失败:', error);
+            this.showError('配置管理器初始化失败');
+        }
+    }
+
+    // 获取配置导入导出统计信息
+    getConfigExportStats() {
+        if (!this.configManager) return null;
+        
+        return {
+            totalConfigs: this.configs.length,
+            configsWithDingTalk: this.configs.filter(config => 
+                config.dingtalk && config.dingtalk.enabled
+            ).length,
+            currentConfig: this.getCurrentConfig()?.name || '未选择',
+            lastModified: localStorage.getItem('weeklyReporter_configs') ? 
+                new Date(parseInt(localStorage.getItem('weeklyReporter_configs_timestamp') || '0')).toLocaleString('zh-CN') : 
+                '未知'
+        };
+    }
+    
+    // 获取备份列表
+    getBackupList() {
+        if (!this.configManager) return [];
+        return this.configManager.getBackupList();
+    }
+    
+    // 恢复配置备份
+    async restoreConfigBackup(backupKey) {
+        if (!this.configManager) {
+            this.showError('配置管理器未初始化');
+            return false;
+        }
+        
+        const confirmed = confirm('确定要恢复此备份吗？当前配置将被替换。');
+        if (!confirmed) return false;
+        
+        return await this.configManager.restoreBackup(backupKey);
+    }
+    
+    // 导出单个配置
+    async exportSingleConfig(configId) {
+        if (!this.configManager) {
+            this.showError('配置管理器未初始化');
+            return false;
+        }
+        
+        return await this.configManager.exportSingleConfig(configId);
     }
 
     // 数据收集

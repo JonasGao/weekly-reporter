@@ -1,0 +1,40 @@
+{
+  "exportMetadata": {
+    "version": "1.0",
+    "exportDate": "2025-01-16T10:30:00.000Z",
+    "appName": "Weekly Reporter",
+    "description": "Weekly Reporter Configuration Export"
+  },
+  "configurations": {
+    "configs": [
+      {
+        "id": "config_1704715200000_abc123",
+        "name": "开发环境配置",
+        "apiUrl": "https://api.dify.ai/v1/workflows/run",
+        "apiKey": "app-dev123456789",
+        "dingtalk": {
+          "enabled": true,
+          "corpId": "ding1234567890123456",
+          "appKey": "dingoa8n3n6qm4fj6vj2",
+          "appSecret": "dev-secret-key-123456",
+          "userId": "dev-user-001"
+        }
+      },
+      {
+        "id": "config_1704715260000_def456",
+        "name": "生产环境配置",
+        "apiUrl": "https://api.production.com/v1/workflows/run",
+        "apiKey": "app-prod987654321",
+        "dingtalk": {
+          "enabled": false,
+          "corpId": "",
+          "appKey": "",
+          "appSecret": "",
+          "userId": ""
+        }
+      }
+    ],
+    "currentConfigId": "config_1704715200000_abc123"
+  },
+  "settings": {}
+}

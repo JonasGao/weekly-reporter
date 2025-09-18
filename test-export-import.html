@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>配置导入导出测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .btn { padding: 10px 15px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; background: #d4edda; }
+    </style>
+</head>
+<body>
+    <h1>配置导入导出功能测试</h1>
+    
+    <div class="test-section">
+        <h2>导出功能测试</h2>
+        <button class="btn" onclick="testExport()">测试导出服务</button>
+        <div id="exportResults"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>导入功能测试</h2>
+        <input type="file" id="testFile" accept=".json">
+        <button class="btn" onclick="testImport()">测试导入服务</button>
+        <div id="importResults"></div>
+    </div>
+
+    <script src="ConfigExportService.js"></script>
+    <script src="ConfigImportService.js"></script>
+    <script src="ConfigurationManager.js"></script>
+    
+    <script>
+        const testConfigs = [
+            {
+                id: 'test_1',
+                name: '测试配置1',
+                apiUrl: 'https://api.test.com',
+                apiKey: 'test-key-123',
+                dingtalk: { enabled: true, corpId: 'test' }
+            }
+        ];
+        
+        function testExport() {
+            try {
+                const service = new ConfigExportService();
+                const valid = service.validateConfigs(testConfigs);
+                const data = service.generateExportData(testConfigs, 'test_1');
+                document.getElementById('exportResults').innerHTML = 
+                    `<div class="result">验证: ${valid ? '成功' : '失败'}<br>数据生成: 成功</div>`;
+            } catch (error) {
+                document.getElementById('exportResults').innerHTML = 
+                    `<div class="result">错误: ${error.message}</div>`;
+            }
+        }
+        
+        function testImport() {
+            const file = document.getElementById('testFile').files[0];
+            if (!file) {
+                document.getElementById('importResults').innerHTML = 
+                    '<div class="result">请选择文件</div>';
+                return;
+            }
+            
+            const service = new ConfigImportService();
+            service.importConfigs(file).then(result => {
+                document.getElementById('importResults').innerHTML = 
+                    `<div class="result">导入: ${result.success ? '成功' : '失败'}</div>`;
+            });
+        }
+    </script>
+</body>
+</html>
