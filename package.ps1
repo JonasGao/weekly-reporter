@@ -55,8 +55,7 @@ function Test-ProjectFiles {
     $RequiredFiles = @(
         "index.html",
         "script.js", 
-        "styles.css",
-        "README.md"
+        "styles.css"
     )
     
     $MissingFiles = @()
@@ -112,12 +111,7 @@ function Copy-ProjectFiles {
     $IncludeFiles = @(
         "index.html",
         "script.js",
-        "styles.css",
-        "README.md",
-        "PROMPT.md",
-        "design-document.md",
-        "dify-config.md",
-        "EXPORT-IMPORT-IMPLEMENTATION.md"
+        "styles.css"
     )
     
     $IncludeJSFiles = @(
@@ -152,22 +146,8 @@ function Copy-ProjectFiles {
         }
     }
     
-    # 复制示例配置文件（如果存在）
-    $ExampleFiles = @(
-        "test-config-import.json",
-        "test-export-import.html"
-    )
-    
-    foreach ($file in $ExampleFiles) {
-        $sourcePath = Join-Path $SourceDir $file
-        if (Test-Path $sourcePath) {
-            $destPath = Join-Path $DestDir $file
-            Copy-Item $sourcePath $destPath
-            if ($Verbose) {
-                Write-ColorOutput "   ✓ $file (示例文件)" "Cyan"
-            }
-        }
-    }
+    # 跳过测试文件和示例文件的复制
+    # Test files are excluded from packaging
     
     Write-ColorOutput "✅ 项目文件复制完成" "Green"
 }
@@ -224,7 +204,6 @@ function New-InstallGuide {
 - \`script.js\` - 主要的JavaScript逻辑代码
 - \`styles.css\` - 样式文件
 - \`*.js\` - 模块化的JavaScript组件文件
-- \`README.md\` - 详细的使用说明文档
 - \`version.json\` - 版本信息文件
 
 ## 🚀 快速开始
@@ -260,7 +239,7 @@ function New-InstallGuide {
 
 ## 📞 技术支持
 
-如有问题请参考 README.md 或相关文档文件。
+如有问题请参考应用内置的帮助信息。
 
 ---
 构建时间: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
