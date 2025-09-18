@@ -1,5 +1,213 @@
 // 智能周报生成工具主要功能脚本
 
+// 配置区域折叠管理类
+class ConfigurationSection {
+    constructor() {
+        this.isCollapsed = false;
+        this.storageKey = 'weeklyReporter_configCollapsed';
+        this.init();
+    }
+
+    init() {
+        this.loadState();
+        this.bindEvents();
+        this.applyInitialState();
+    }
+
+    bindEvents() {
+        const toggleBtn = document.getElementById('configToggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => this.toggle());
+        }
+
+        // 也可以点击整个header来切换
+        const configHeader = document.querySelector('.config-header');
+        if (configHeader) {
+            configHeader.addEventListener('click', (e) => {
+                // 避免点击按钮时触发两次
+                if (e.target.id !== 'configToggle' && !e.target.closest('#configToggle')) {
+                    this.toggle();
+                }
+            });
+        }
+    }
+
+    toggle() {
+        this.isCollapsed = !this.isCollapsed;
+        this.applyState();
+        this.saveState();
+    }
+
+    collapse() {
+        if (!this.isCollapsed) {
+            this.isCollapsed = true;
+            this.applyState();
+            this.saveState();
+        }
+    }
+
+    expand() {
+        if (this.isCollapsed) {
+            this.isCollapsed = false;
+            this.applyState();
+            this.saveState();
+        }
+    }
+
+    applyState() {
+        const configSection = document.querySelector('.config-section');
+        if (configSection) {
+            if (this.isCollapsed) {
+                configSection.classList.add('collapsed');
+            } else {
+                configSection.classList.remove('collapsed');
+            }
+        }
+    }
+
+    applyInitialState() {
+        // 等待DOM完全加载后应用状态
+        requestAnimationFrame(() => {
+            this.applyState();
+        });
+    }
+
+    saveState() {
+        try {
+            localStorage.setItem(this.storageKey, JSON.stringify(this.isCollapsed));
+        } catch (error) {
+            console.error('保存配置折叠状态失败:', error);
+        }
+    }
+
+    loadState() {
+        try {
+            const saved = localStorage.getItem(this.storageKey);
+            if (saved !== null) {
+                this.isCollapsed = JSON.parse(saved);
+            }
+        } catch (error) {
+            console.error('加载配置折叠状态失败:', error);
+            this.isCollapsed = false;
+        }
+    }
+}
+
+// 加载覆盖层管理类
+class LoadingOverlay {
+    constructor() {
+        this.isVisible = false;
+        this.element = null;
+        this.cancelCallback = null;
+        this.init();
+    }
+
+    init() {
+        this.element = document.getElementById('loadingOverlay');
+        this.bindEvents();
+    }
+
+    bindEvents() {
+        const cancelBtn = document.getElementById('loadingCancelBtn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.cancel());
+        }
+
+        // 点击背景关闭（可选）
+        if (this.element) {
+            this.element.addEventListener('click', (e) => {
+                if (e.target === this.element || e.target.classList.contains('loading-backdrop')) {
+                    // 可以选择是否允许点击背景关闭
+                    // this.cancel();
+                }
+            });
+        }
+    }
+
+    show(message = '正在生成周报...', onCancel = null) {
+        this.cancelCallback = onCancel;
+        this.updateMessage(message);
+        
+        if (this.element) {
+            this.element.classList.add('active');
+            this.isVisible = true;
+            
+            // 禁用页面滚动
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    hide() {
+        if (this.element) {
+            this.element.classList.remove('active');
+            this.isVisible = false;
+            
+            // 恢复页面滚动
+            document.body.style.overflow = '';
+        }
+        
+        this.cancelCallback = null;
+    }
+
+    cancel() {
+        if (this.cancelCallback && typeof this.cancelCallback === 'function') {
+            this.cancelCallback();
+        }
+        this.hide();
+    }
+
+    updateMessage(text) {
+        const loadingText = document.getElementById('loadingText');
+        if (loadingText) {
+            loadingText.textContent = text;
+        }
+    }
+}
+
+// 加载管理器类
+class LoadingManager {
+    constructor() {
+        this.overlay = new LoadingOverlay();
+        this.currentController = null;
+    }
+
+    show(onCancel = null) {
+        // 创建 AbortController 用于取消请求
+        this.currentController = new AbortController();
+        
+        // 显示加载覆盖层
+        this.overlay.show('正在生成周报...', () => {
+            this.cancel();
+            if (onCancel && typeof onCancel === 'function') {
+                onCancel();
+            }
+        });
+        
+        return this.currentController;
+    }
+
+    cancel() {
+        if (this.currentController) {
+            this.currentController.abort();
+            this.currentController = null;
+        }
+        this.hide();
+    }
+
+    hide() {
+        this.overlay.hide();
+        this.currentController = null;
+    }
+
+    updateMessage(text) {
+        this.overlay.updateMessage(text);
+    }
+
+    getSignal() {
+        return this.currentController ? this.currentController.signal : null;
+    }
+}
+
 class WeeklyReporter {
     constructor() {
         this.configs = [];
@@ -8,6 +216,8 @@ class WeeklyReporter {
         this.contentProcessor = new AiContentProcessor();
         this.dingTalkClient = null;
         this.configManager = new ConfigurationManager();
+        this.configSection = new ConfigurationSection();
+        this.loadingManager = new LoadingManager();
         this.init();
     }
 
@@ -484,24 +694,35 @@ class WeeklyReporter {
                 return;
             }
 
-            // 显示加载状态
-            this.showLoading(true);
+            // 显示全屏加载覆盖层
+            const controller = this.loadingManager.show(() => {
+                this.showSuccess('周报生成已取消');
+            });
 
-            // 调用 Dify API
-            const result = await this.callDifyAPI(inputData);
-            
-            // 处理结果
-            if (result) {
-                this.displayResult(result);
+            try {
+                // 调用 Dify API，传递 AbortSignal
+                const result = await this.callDifyAPI(inputData, { signal: controller.signal });
                 
-                // 如果启用了钉钉周报API，发送到钉钉
-                if (currentConfig.dingtalk && currentConfig.dingtalk.enabled) {
-                    try {
-                        await this.sendToDingTalk(result);
-                    } catch (dingTalkError) {
-                        console.error('发送到钉钉失败：', dingTalkError);
-                        this.showError(`周报已生成，但发送到钉钉失败：${dingTalkError.message}`);
+                // 处理结果
+                if (result) {
+                    this.displayResult(result);
+                    
+                    // 如果启用了钉钉周报API，发送到钉钉
+                    if (currentConfig.dingtalk && currentConfig.dingtalk.enabled) {
+                        try {
+                            await this.sendToDingTalk(result);
+                        } catch (dingTalkError) {
+                            console.error('发送到钉钉失败：', dingTalkError);
+                            this.showError(`周报已生成，但发送到钉钉失败：${dingTalkError.message}`);
+                        }
                     }
+                }
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('请求已取消');
+                    return; // 取消操作，不显示错误
+                } else {
+                    throw error; // 其他错误继续向上抛出
                 }
             }
 
@@ -509,12 +730,13 @@ class WeeklyReporter {
             console.error('生成周报失败：', error);
             this.showError(`生成周报失败：${error.message}`);
         } finally {
-            this.showLoading(false);
+            // 隐藏加载覆盖层
+            this.loadingManager.hide();
         }
     }
 
     // 调用 Dify API
-    async callDifyAPI(inputData) {
+    async callDifyAPI(inputData, options = {}) {
         const currentConfig = this.getCurrentConfig();
         if (!currentConfig) {
             throw new Error('无法获取当前配置');
@@ -531,14 +753,21 @@ class WeeklyReporter {
             user: "weekly-reporter-user"
         };
 
-        const response = await fetch(currentConfig.apiUrl, {
+        const fetchOptions = {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${currentConfig.apiKey}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestBody)
-        });
+        };
+
+        // 如果提供了 AbortSignal，添加到请求中
+        if (options.signal) {
+            fetchOptions.signal = options.signal;
+        }
+
+        const response = await fetch(currentConfig.apiUrl, fetchOptions);
 
         if (!response.ok) {
             const errorText = await response.text();

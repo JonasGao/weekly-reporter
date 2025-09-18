@@ -16,7 +16,13 @@
         <main class="main-content">
             <!-- 配置区域 -->
             <section class="config-section">
-                <h2>🔧 Dify 配置</h2>
+                <div class="config-header">
+                    <h2 class="config-title">🔧 Dify 配置</h2>
+                    <button type="button" class="config-toggle-btn" id="configToggle" title="展开/收起配置">
+                        <span class="toggle-icon">▼</span>
+                    </button>
+                </div>
+                <div class="config-content">
                 <div class="config-actions">
                     <div class="config-selection">
                         <label for="configSelector">选择配置:</label>
@@ -73,6 +79,7 @@
                     </div>
                     
                     <button type="button" id="saveConfig" class="btn btn-secondary">保存配置</button>
+                </div>
                 </div>
             </section>
 
@@ -197,6 +204,20 @@
                 <span class="success-text" id="successText"></span>
                 <button class="success-close" id="closeSuccess">×</button>
             </div>
+
+            <!-- 全屏加载覆盖 -->
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-backdrop"></div>
+                <div class="loading-content">
+                    <div class="loading-animation">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text" id="loadingText">正在生成周报...</div>
+                    </div>
+                    <div class="loading-actions">
+                        <button type="button" class="loading-cancel-btn" id="loadingCancelBtn">取消</button>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <footer class="footer">
@@ -210,5 +231,36 @@
     <script src="ConfigImportService.js"></script>
     <script src="ConfigurationManager.js"></script>
     <script src="script.js"></script>
+    
+    <!-- 开发环境验证脚本 -->
+    <script>
+        // 简单的功能验证，仅在开发环境中运行
+        if (window.location.hostname === 'localhost' || window.location.hostname === '' || window.location.protocol === 'file:') {
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    console.log('🔧 开发环境功能验证开始...');
+                    
+                    // 检查新功能是否正确加载
+                    const checks = [
+                        { name: 'ConfigurationSection', exists: typeof ConfigurationSection !== 'undefined' },
+                        { name: 'LoadingOverlay', exists: typeof LoadingOverlay !== 'undefined' },
+                        { name: 'LoadingManager', exists: typeof LoadingManager !== 'undefined' },
+                        { name: '配置折叠按钮', exists: !!document.getElementById('configToggle') },
+                        { name: '加载覆盖层', exists: !!document.getElementById('loadingOverlay') }
+                    ];
+                    
+                    checks.forEach(check => {
+                        if (check.exists) {
+                            console.log(`✅ ${check.name} 正常`);
+                        } else {
+                            console.error(`❌ ${check.name} 缺失`);
+                        }
+                    });
+                    
+                    console.log('🔧 功能验证完成');
+                }, 1000);
+            });
+        }
+    </script>
 </body>
 </html>

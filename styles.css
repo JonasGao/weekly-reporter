@@ -999,3 +999,231 @@ body {
         padding: 15px;
     }
 }
+
+/* ============== 可折叠配置区域样式 ============== */
+
+/* 配置区域头部样式 */
+.config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 15px 20px;
+    margin: -20px -20px 15px -20px;
+    background: #f0f2f5;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 8px 8px 0 0;
+    transition: background-color 0.3s ease;
+}
+
+.config-header:hover {
+    background: #e9ecef;
+}
+
+.config-title {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.3em;
+}
+
+.config-toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    color: #3498db;
+    font-size: 16px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.config-toggle-btn:hover {
+    background: rgba(52, 152, 219, 0.1);
+    transform: scale(1.1);
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+    font-size: 14px;
+}
+
+/* 配置内容容器 */
+.config-content {
+    max-height: 1000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out, padding 0.3s ease;
+    padding: 0 20px 20px 20px;
+    margin: 0 -20px -20px -20px;
+}
+
+/* 折叠状态 */
+.config-section.collapsed .config-content {
+    max-height: 0;
+    padding: 0 20px;
+}
+
+.config-section.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.config-section.collapsed .config-header {
+    border-radius: 8px;
+}
+
+/* ============== 全屏加载覆盖层样式 ============== */
+
+/* 加载覆盖层 */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.loading-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 加载背景 */
+.loading-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+}
+
+/* 加载内容 */
+.loading-content {
+    background: white;
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+    position: relative;
+    z-index: 10000;
+}
+
+/* 加载动画区域 */
+.loading-animation {
+    margin-bottom: 20px;
+}
+
+/* 加载旋转器 */
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: loadingSpin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes loadingSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 加载文本 */
+.loading-text {
+    font-size: 16px;
+    color: #2c3e50;
+    font-weight: 500;
+    margin-bottom: 10px;
+}
+
+/* 加载操作按钮 */
+.loading-actions {
+    margin-top: 20px;
+}
+
+.loading-cancel-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    min-width: 100px;
+}
+
+.loading-cancel-btn:hover {
+    background: #c0392b;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+}
+
+.loading-cancel-btn:active {
+    transform: translateY(0);
+}
+
+/* 响应式设计 - 加载覆盖层 */
+@media (max-width: 768px) {
+    .loading-content {
+        margin: 20px;
+        padding: 30px 20px;
+        max-width: calc(100vw - 40px);
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .loading-text {
+        font-size: 14px;
+    }
+    
+    .loading-cancel-btn {
+        padding: 10px 20px;
+        font-size: 13px;
+    }
+}
+
+/* 响应式设计 - 配置区域 */
+@media (max-width: 768px) {
+    .config-header {
+        padding: 12px 15px;
+        margin: -20px -20px 15px -20px;
+    }
+    
+    .config-content {
+        padding: 0 15px 15px 15px;
+        margin: 0 -20px -20px -20px;
+    }
+    
+    .config-section.collapsed .config-content {
+        padding: 0 15px;
+    }
+    
+    .config-title {
+        font-size: 1.2em;
+    }
+    
+    .config-toggle-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+}
