@@ -30,7 +30,7 @@ body {
     font-family: var(--font-body);
     line-height: 1.6;
     color: var(--color-text);
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    background: var(--color-background);
     min-height: 100vh;
 }
 
@@ -51,7 +51,7 @@ body {
     padding: 20px 0;
     border-bottom: var(--border-width) solid transparent;
     margin-bottom: 20px;
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(249, 115, 22, 0.1) 100%);
+    background: var(--color-surface);
     border-radius: var(--radius) var(--radius) 0 0;
 }
 
@@ -71,7 +71,7 @@ body {
 
 /* 配置区域样式 */
 .config-section {
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(249, 115, 22, 0.05) 100%);
+    background: var(--color-surface);
     padding: 15px;
     border-radius: var(--radius);
     margin-bottom: 20px;
@@ -125,6 +125,11 @@ body {
     align-items: start;
 }
 
+.config-form > .btn {
+    align-self: end;
+    margin-top: 0;
+}
+
 .config-section-title {
     grid-column: 1 / -1;
     margin-top: 12px;
@@ -156,7 +161,7 @@ body {
     right: 0;
     bottom: 0;
     background-color: var(--color-muted);
-    border-radius: var(--radius);
+    border-radius: 34px;
     cursor: pointer;
     transition: .4s;
 }
@@ -304,23 +309,23 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--color-primary), var(--color-info));
+    background: var(--color-primary);
     color: white;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, var(--color-info), var(--color-primary));
+    background: var(--color-info);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(14, 165, 233, 0.3);
 }
 
 .btn-secondary {
-    background: linear-gradient(135deg, var(--color-muted), var(--color-text));
+    background: var(--color-muted);
     color: white;
 }
 
 .btn-secondary:hover {
-    background: linear-gradient(135deg, var(--color-text), var(--color-muted));
+    background: var(--color-text);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(100, 116, 139, 0.3);
 }
@@ -332,22 +337,22 @@ body {
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, var(--color-error), var(--color-accent));
+    background: var(--color-error);
     color: white;
 }
 
 .btn-danger:hover {
-    background: linear-gradient(135deg, var(--color-accent), var(--color-error));
+    background: var(--color-accent);
     box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
 }
 
 .btn-success {
-    background: linear-gradient(135deg, var(--color-success), #10b981);
+    background: var(--color-success);
     color: white;
 }
 
 .btn-success:hover {
-    background: linear-gradient(135deg, #10b981, var(--color-success));
+    background: #10b981;
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
 }
@@ -369,7 +374,7 @@ body {
 
 /* 结果区域样式 */
 .result-section {
-    background: linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, rgba(14, 165, 233, 0.05) 100%);
+    background: var(--color-surface);
     border-radius: var(--radius);
     padding: 20px;
     border-left: var(--border-width) solid transparent;
@@ -422,7 +427,7 @@ body {
 }
 
 .result-content th {
-    background: linear-gradient(135deg, var(--color-primary), var(--color-info));
+    background: var(--color-primary);
     color: white;
     font-weight: 500;
     font-family: var(--font-heading);
@@ -449,7 +454,7 @@ body {
 /* 历史记录区域样式 */
 .history-section {
     margin-top: 30px;
-    background: linear-gradient(135deg, rgba(249, 115, 22, 0.05) 0%, rgba(136, 19, 55, 0.05) 100%);
+    background: var(--color-surface);
     border-radius: var(--radius);
     padding: 20px;
     border-left: var(--border-width) solid transparent;
@@ -491,7 +496,7 @@ body {
 }
 
 .history-table th {
-    background: linear-gradient(135deg, var(--color-secondary), var(--color-accent));
+    background: var(--color-secondary);
     color: white;
     position: sticky;
     top: 0;
@@ -510,7 +515,7 @@ body {
     padding: 5px 10px;
     border: var(--border-width) solid transparent;
     border-radius: var(--radius);
-    background: linear-gradient(135deg, var(--color-secondary), var(--color-accent));
+    background: var(--color-secondary);
     color: white;
     cursor: pointer;
     font-size: 12px;
@@ -518,7 +523,7 @@ body {
 }
 
 .history-action-btn:hover {
-    background: linear-gradient(135deg, var(--color-accent), var(--color-secondary));
+    background: var(--color-accent);
     box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
 }
 
@@ -750,7 +755,7 @@ body {
 }
 
 .report-section h3 {
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(249, 115, 22, 0.05) 100%);
+    background: rgba(14, 165, 233, 0.05);
     border-bottom: var(--border-width) solid transparent;
     margin: 0;
     padding: 15px;
@@ -773,7 +778,7 @@ body {
 }
 
 .report-table th {
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(249, 115, 22, 0.1) 100%);
+    background: rgba(14, 165, 233, 0.1);
     color: var(--color-text);
     padding: 12px 15px;
     text-align: left;
@@ -810,7 +815,7 @@ body {
 
 /* 导入导出对话框样式 */
 .import-info {
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(249, 115, 22, 0.05) 100%);
+    background: rgba(14, 165, 233, 0.05);
     border-radius: var(--radius);
     padding: 15px;
     margin-bottom: 20px;
@@ -946,11 +951,11 @@ body {
 }
 
 .error-message {
-    background: linear-gradient(135deg, var(--color-error), var(--color-accent));
+    background: var(--color-error);
 }
 
 .success-message {
-    background: linear-gradient(135deg, var(--color-success), #10b981);
+    background: var(--color-success);
 }
 
 .error-close,
@@ -1068,14 +1073,14 @@ body {
     cursor: pointer;
     padding: 12px 15px;
     margin: -15px -15px 12px -15px;
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(249, 115, 22, 0.08) 100%);
+    background: rgba(14, 165, 233, 0.08);
     border-bottom: var(--border-width) solid transparent;
     border-radius: var(--radius) var(--radius) 0 0;
     transition: background-color 0.3s ease;
 }
 
 .config-header:hover {
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(249, 115, 22, 0.15) 100%);
+    background: rgba(14, 165, 233, 0.15);
 }
 
 .config-title {
@@ -1083,6 +1088,8 @@ body {
     font-family: var(--font-heading);
     color: var(--color-text);
     font-size: 1.3em;
+    display: flex;
+    align-items: center;
 }
 
 .config-toggle-btn {
@@ -1216,7 +1223,7 @@ body {
 }
 
 .loading-cancel-btn {
-    background: linear-gradient(135deg, var(--color-error), var(--color-accent));
+    background: var(--color-error);
     color: white;
     border: var(--border-width) solid transparent;
     padding: 12px 24px;
@@ -1230,7 +1237,7 @@ body {
 }
 
 .loading-cancel-btn:hover {
-    background: linear-gradient(135deg, var(--color-accent), var(--color-error));
+    background: var(--color-accent);
     transform: translateY(-1px);
     box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
 }
