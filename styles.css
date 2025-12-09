@@ -82,7 +82,7 @@ body {
 .config-section h2 {
     font-family: var(--font-heading);
     color: var(--color-text);
-    margin-bottom: 12px;
+    margin-bottom: 0;
     font-size: 1.3em;
 }
 
@@ -193,7 +193,7 @@ body {
 
 .form-group label {
     font-weight: 500;
-    margin-bottom: 5px;
+    margin-bottom: 0;
     color: var(--color-text);
     font-family: var(--font-body);
 }
@@ -291,7 +291,7 @@ body {
 }
 
 .btn {
-    padding: 10px 20px;
+    padding: 8px 20px;
     border: var(--border-width) solid transparent;
     border-radius: var(--radius);
     font-size: 14px;
