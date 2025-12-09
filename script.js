@@ -60,6 +60,66 @@ class ConfigModal {
     }
 }
 
+// 历史记录模态框管理类
+class HistoryModal {
+    constructor() {
+        this.isOpen = false;
+        this.modal = null;
+        this.init();
+    }
+
+    init() {
+        this.modal = document.getElementById('historyModal');
+        this.bindEvents();
+    }
+
+    bindEvents() {
+        // 打开历史按钮
+        const openBtn = document.getElementById('openHistoryModal');
+        if (openBtn) {
+            openBtn.addEventListener('click', () => this.open());
+        }
+
+        // 关闭按钮
+        const closeBtn = document.getElementById('closeHistoryModal');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.close());
+        }
+
+        // 点击模态框外部关闭
+        if (this.modal) {
+            window.addEventListener('click', (event) => {
+                if (event.target === this.modal) {
+                    this.close();
+                }
+            });
+        }
+
+        // ESC键关闭
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.isOpen) {
+                this.close();
+            }
+        });
+    }
+
+    open() {
+        if (this.modal) {
+            this.modal.style.display = 'block';
+            this.isOpen = true;
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    close() {
+        if (this.modal) {
+            this.modal.style.display = 'none';
+            this.isOpen = false;
+            document.body.style.overflow = '';
+        }
+    }
+}
+
 // 加载覆盖层管理类
 class LoadingOverlay {
     constructor() {
@@ -184,6 +244,7 @@ class WeeklyReporter {
         this.dingTalkClient = null;
         this.configManager = new ConfigurationManager();
         this.configModal = new ConfigModal();
+        this.historyModal = new HistoryModal();
         this.loadingManager = new LoadingManager();
         this.init();
     }

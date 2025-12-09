@@ -20,7 +20,10 @@
                 </div>
             </div>
             <div class="header-right">
-                <button type="button" class="header-config-btn" id="openConfigModal" title="打开配置">
+                <button type="button" class="header-btn" id="openHistoryModal" title="历史记录">
+                    <span>📜</span> 历史
+                </button>
+                <button type="button" class="header-btn header-config-btn" id="openConfigModal" title="打开配置">
                     <span>⚙️</span> 配置
                 </button>
             </div>
@@ -92,33 +95,6 @@
 
                 <div class="result-content" id="resultContent">
                     <!-- AI 生成的周报内容将显示在这里 -->
-                </div>
-            </section>
-
-            <!-- 历史记录区域 -->
-            <section class="history-section" id="historySection">
-                <h2>📜 历史记录</h2>
-                
-                <div class="history-actions">
-                    <button type="button" id="clearHistory" class="btn btn-secondary">🗑️ 清空历史</button>
-                    <button type="button" id="exportHistory" class="btn btn-secondary">📊 导出历史</button>
-                </div>
-                
-                <div class="history-table-container">
-                    <table class="history-table" id="historyTable">
-                        <thead>
-                            <tr>
-                                <th width="20%">时间</th>
-                                <th width="25%">上周计划摘要</th>
-                                <th width="25%">上周内容摘要</th>
-                                <th width="20%">下周计划摘要</th>
-                                <th width="10%">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="historyTableBody">
-                            <!-- 历史记录将动态插入这里 -->
-                        </tbody>
-                    </table>
                 </div>
             </section>
             
@@ -231,6 +207,39 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 历史记录模态框 -->
+            <div class="modal" id="historyModal">
+                <div class="modal-content history-modal-content">
+                    <div class="modal-header">
+                        <h3>📜 历史记录</h3>
+                        <span class="close-modal" id="closeHistoryModal">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="history-actions">
+                            <button type="button" id="clearHistory" class="btn btn-secondary">🗑️ 清空历史</button>
+                            <button type="button" id="exportHistory" class="btn btn-secondary">📊 导出历史</button>
+                        </div>
+                        
+                        <div class="history-table-container">
+                            <table class="history-table" id="historyTable">
+                                <thead>
+                                    <tr>
+                                        <th width="20%">时间</th>
+                                        <th width="25%">上周计划摘要</th>
+                                        <th width="25%">上周内容摘要</th>
+                                        <th width="20%">下周计划摘要</th>
+                                        <th width="10%">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <!-- 历史记录将动态插入这里 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <footer class="footer">
@@ -256,10 +265,13 @@
                     // 检查新功能是否正确加载
                     const checks = [
                         { name: 'ConfigModal', exists: typeof ConfigModal !== 'undefined' },
+                        { name: 'HistoryModal', exists: typeof HistoryModal !== 'undefined' },
                         { name: 'LoadingOverlay', exists: typeof LoadingOverlay !== 'undefined' },
                         { name: 'LoadingManager', exists: typeof LoadingManager !== 'undefined' },
                         { name: '配置模态框', exists: !!document.getElementById('configModal') },
                         { name: '配置按钮', exists: !!document.getElementById('openConfigModal') },
+                        { name: '历史记录模态框', exists: !!document.getElementById('historyModal') },
+                        { name: '历史记录按钮', exists: !!document.getElementById('openHistoryModal') },
                         { name: '加载覆盖层', exists: !!document.getElementById('loadingOverlay') }
                     ];
                     
