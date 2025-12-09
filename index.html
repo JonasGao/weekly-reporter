@@ -11,81 +11,25 @@
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <h1>📊 智能周报生成工具</h1>
-            <p class="subtitle">基于 AI 的智能工作周报生成助手</p>
+        <header class="header-bar">
+            <div class="header-left">
+                <span class="header-icon">📊</span>
+                <div class="header-title-wrapper">
+                    <h1>智能周报生成工具</h1>
+                    <p class="subtitle">基于 AI 的智能工作周报生成助手</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <button type="button" class="header-btn" id="openHistoryModal" title="历史记录">
+                    <span>📜</span> 历史
+                </button>
+                <button type="button" class="header-btn header-config-btn" id="openConfigModal" title="打开配置">
+                    <span>⚙️</span> 配置
+                </button>
+            </div>
         </header>
 
         <main class="main-content">
-            <!-- 配置区域 -->
-            <section class="config-section">
-                <div class="config-header">
-                    <h2 class="config-title">🔧 Dify 配置</h2>
-                    <button type="button" class="config-toggle-btn" id="configToggle" title="展开/收起配置">
-                        <span class="toggle-icon">▼</span>
-                    </button>
-                </div>
-                <div class="config-content">
-                <div class="config-actions">
-                    <div class="config-selection">
-                        <label for="configSelector">选择配置:</label>
-                        <select id="configSelector" class="config-select"></select>
-                        <button type="button" id="newConfig" class="btn btn-small">+ 新建</button>
-                        <button type="button" id="deleteConfig" class="btn btn-small btn-danger">- 删除</button>
-                    </div>
-                    <div class="config-import-export">
-                        <button type="button" id="exportConfig" class="btn btn-small btn-secondary">📤 导出配置</button>
-                        <button type="button" id="importConfig" class="btn btn-small btn-secondary">📥 导入配置</button>
-                    </div>
-                </div>
-                <div class="config-form">
-                    <div class="form-group">
-                        <label for="configName">配置名称:</label>
-                        <input type="text" id="configName" placeholder="例如：工作周报模型" class="config-input">
-                    </div>
-                    
-                    <!-- Dify API 配置 -->
-                    <div class="config-section-title">Dify API 配置</div>
-                    <div class="form-group">
-                        <label for="difyApiUrl">API 地址:</label>
-                        <input type="url" id="difyApiUrl" placeholder="https://api.dify.ai/v1/workflows/run" class="config-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="difyApiKey">API 密钥:</label>
-                        <input type="password" id="difyApiKey" placeholder="app-xxxxxxxxxxxxxxxx" class="config-input">
-                    </div>
-                    
-                    <!-- 钉钉 API 配置 -->
-                    <div class="config-section-title">钉钉周报API配置</div>
-                    <div class="form-group">
-                        <label for="dingTalkEnabled">启用钉钉周报:</label>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="dingTalkEnabled" class="toggle-input">
-                            <label for="dingTalkEnabled" class="toggle-label"></label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="dingTalkCorpId">企业ID(CorpId):</label>
-                        <input type="text" id="dingTalkCorpId" placeholder="企业ID，例如：ding12345..." class="config-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="dingTalkAppKey">应用AppKey:</label>
-                        <input type="text" id="dingTalkAppKey" placeholder="应用的AppKey" class="config-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="dingTalkAppSecret">应用AppSecret:</label>
-                        <input type="password" id="dingTalkAppSecret" placeholder="应用的AppSecret" class="config-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="dingTalkUserId">用户ID:</label>
-                        <input type="text" id="dingTalkUserId" placeholder="钉钉用户ID" class="config-input">
-                    </div>
-                    
-                    <button type="button" id="saveConfig" class="btn btn-secondary">保存配置</button>
-                </div>
-                </div>
-            </section>
-
             <!-- 数据输入区域 -->
             <section class="input-section">
                 <h2>📝 输入工作数据</h2>
@@ -153,33 +97,6 @@
                     <!-- AI 生成的周报内容将显示在这里 -->
                 </div>
             </section>
-
-            <!-- 历史记录区域 -->
-            <section class="history-section" id="historySection">
-                <h2>📜 历史记录</h2>
-                
-                <div class="history-actions">
-                    <button type="button" id="clearHistory" class="btn btn-secondary">🗑️ 清空历史</button>
-                    <button type="button" id="exportHistory" class="btn btn-secondary">📊 导出历史</button>
-                </div>
-                
-                <div class="history-table-container">
-                    <table class="history-table" id="historyTable">
-                        <thead>
-                            <tr>
-                                <th width="20%">时间</th>
-                                <th width="25%">上周计划摘要</th>
-                                <th width="25%">上周内容摘要</th>
-                                <th width="20%">下周计划摘要</th>
-                                <th width="10%">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="historyTableBody">
-                            <!-- 历史记录将动态插入这里 -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
             
             <!-- 历史记录详情模态框 -->
             <div class="modal" id="historyDetailModal">
@@ -221,6 +138,108 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 配置模态框 -->
+            <div class="modal" id="configModal">
+                <div class="modal-content config-modal-content">
+                    <div class="modal-header">
+                        <h3>🔧 Dify 配置</h3>
+                        <span class="close-modal" id="closeConfigModal">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="config-actions">
+                            <div class="config-selection">
+                                <label for="configSelector">选择配置:</label>
+                                <select id="configSelector" class="config-select"></select>
+                                <button type="button" id="newConfig" class="btn btn-small">+ 新建</button>
+                                <button type="button" id="deleteConfig" class="btn btn-small btn-danger">- 删除</button>
+                            </div>
+                            <div class="config-import-export">
+                                <button type="button" id="exportConfig" class="btn btn-small btn-secondary">📤 导出配置</button>
+                                <button type="button" id="importConfig" class="btn btn-small btn-secondary">📥 导入配置</button>
+                            </div>
+                        </div>
+                        <div class="config-form">
+                            <div class="form-group">
+                                <label for="configName">配置名称:</label>
+                                <input type="text" id="configName" placeholder="例如：工作周报模型" class="config-input">
+                            </div>
+                            
+                            <!-- Dify API 配置 -->
+                            <div class="config-section-title">Dify API 配置</div>
+                            <div class="form-group">
+                                <label for="difyApiUrl">API 地址:</label>
+                                <input type="url" id="difyApiUrl" placeholder="https://api.dify.ai/v1/workflows/run" class="config-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="difyApiKey">API 密钥:</label>
+                                <input type="password" id="difyApiKey" placeholder="app-xxxxxxxxxxxxxxxx" class="config-input">
+                            </div>
+                            
+                            <!-- 钉钉 API 配置 -->
+                            <div class="config-section-title">钉钉周报API配置</div>
+                            <div class="form-group">
+                                <label for="dingTalkEnabled">启用钉钉周报:</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="dingTalkEnabled" class="toggle-input">
+                                    <label for="dingTalkEnabled" class="toggle-label"></label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="dingTalkCorpId">企业ID(CorpId):</label>
+                                <input type="text" id="dingTalkCorpId" placeholder="企业ID，例如：ding12345..." class="config-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="dingTalkAppKey">应用AppKey:</label>
+                                <input type="text" id="dingTalkAppKey" placeholder="应用的AppKey" class="config-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="dingTalkAppSecret">应用AppSecret:</label>
+                                <input type="password" id="dingTalkAppSecret" placeholder="应用的AppSecret" class="config-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="dingTalkUserId">用户ID:</label>
+                                <input type="text" id="dingTalkUserId" placeholder="钉钉用户ID" class="config-input">
+                            </div>
+                            
+                            <button type="button" id="saveConfig" class="btn btn-secondary">保存配置</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 历史记录模态框 -->
+            <div class="modal" id="historyModal">
+                <div class="modal-content history-modal-content">
+                    <div class="modal-header">
+                        <h3>📜 历史记录</h3>
+                        <span class="close-modal" id="closeHistoryModal">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="history-actions">
+                            <button type="button" id="clearHistory" class="btn btn-secondary">🗑️ 清空历史</button>
+                            <button type="button" id="exportHistory" class="btn btn-secondary">📊 导出历史</button>
+                        </div>
+                        
+                        <div class="history-table-container">
+                            <table class="history-table" id="historyTable">
+                                <thead>
+                                    <tr>
+                                        <th width="20%">时间</th>
+                                        <th width="25%">上周计划摘要</th>
+                                        <th width="25%">上周内容摘要</th>
+                                        <th width="20%">下周计划摘要</th>
+                                        <th width="10%">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <!-- 历史记录将动态插入这里 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <footer class="footer">
@@ -245,10 +264,14 @@
                     
                     // 检查新功能是否正确加载
                     const checks = [
-                        { name: 'ConfigurationSection', exists: typeof ConfigurationSection !== 'undefined' },
+                        { name: 'ConfigModal', exists: typeof ConfigModal !== 'undefined' },
+                        { name: 'HistoryModal', exists: typeof HistoryModal !== 'undefined' },
                         { name: 'LoadingOverlay', exists: typeof LoadingOverlay !== 'undefined' },
                         { name: 'LoadingManager', exists: typeof LoadingManager !== 'undefined' },
-                        { name: '配置折叠按钮', exists: !!document.getElementById('configToggle') },
+                        { name: '配置模态框', exists: !!document.getElementById('configModal') },
+                        { name: '配置按钮', exists: !!document.getElementById('openConfigModal') },
+                        { name: '历史记录模态框', exists: !!document.getElementById('historyModal') },
+                        { name: '历史记录按钮', exists: !!document.getElementById('openHistoryModal') },
                         { name: '加载覆盖层', exists: !!document.getElementById('loadingOverlay') }
                     ];
                     
