@@ -1,94 +1,61 @@
 // 智能周报生成工具主要功能脚本
 
-// 配置区域折叠管理类
-class ConfigurationSection {
+// 配置模态框管理类
+class ConfigModal {
     constructor() {
-        this.isCollapsed = false;
-        this.storageKey = 'weeklyReporter_configCollapsed';
+        this.isOpen = false;
+        this.modal = null;
         this.init();
     }
 
     init() {
-        this.loadState();
+        this.modal = document.getElementById('configModal');
         this.bindEvents();
-        this.applyInitialState();
     }
 
     bindEvents() {
-        const toggleBtn = document.getElementById('configToggle');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => this.toggle());
+        // 打开配置按钮
+        const openBtn = document.getElementById('openConfigModal');
+        if (openBtn) {
+            openBtn.addEventListener('click', () => this.open());
         }
 
-        // 也可以点击整个header来切换
-        const configHeader = document.querySelector('.config-header');
-        if (configHeader) {
-            configHeader.addEventListener('click', (e) => {
-                // 避免点击按钮时触发两次
-                if (e.target.id !== 'configToggle' && !e.target.closest('#configToggle')) {
-                    this.toggle();
+        // 关闭按钮
+        const closeBtn = document.getElementById('closeConfigModal');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.close());
+        }
+
+        // 点击模态框外部关闭
+        if (this.modal) {
+            window.addEventListener('click', (event) => {
+                if (event.target === this.modal) {
+                    this.close();
                 }
             });
         }
-    }
 
-    toggle() {
-        this.isCollapsed = !this.isCollapsed;
-        this.applyState();
-        this.saveState();
-    }
-
-    collapse() {
-        if (!this.isCollapsed) {
-            this.isCollapsed = true;
-            this.applyState();
-            this.saveState();
-        }
-    }
-
-    expand() {
-        if (this.isCollapsed) {
-            this.isCollapsed = false;
-            this.applyState();
-            this.saveState();
-        }
-    }
-
-    applyState() {
-        const configSection = document.querySelector('.config-section');
-        if (configSection) {
-            if (this.isCollapsed) {
-                configSection.classList.add('collapsed');
-            } else {
-                configSection.classList.remove('collapsed');
+        // ESC键关闭
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.isOpen) {
+                this.close();
             }
-        }
-    }
-
-    applyInitialState() {
-        // 等待DOM完全加载后应用状态
-        requestAnimationFrame(() => {
-            this.applyState();
         });
     }
 
-    saveState() {
-        try {
-            localStorage.setItem(this.storageKey, JSON.stringify(this.isCollapsed));
-        } catch (error) {
-            console.error('保存配置折叠状态失败:', error);
+    open() {
+        if (this.modal) {
+            this.modal.style.display = 'block';
+            this.isOpen = true;
+            document.body.style.overflow = 'hidden';
         }
     }
 
-    loadState() {
-        try {
-            const saved = localStorage.getItem(this.storageKey);
-            if (saved !== null) {
-                this.isCollapsed = JSON.parse(saved);
-            }
-        } catch (error) {
-            console.error('加载配置折叠状态失败:', error);
-            this.isCollapsed = false;
+    close() {
+        if (this.modal) {
+            this.modal.style.display = 'none';
+            this.isOpen = false;
+            document.body.style.overflow = '';
         }
     }
 }
@@ -216,7 +183,7 @@ class WeeklyReporter {
         this.contentProcessor = new AiContentProcessor();
         this.dingTalkClient = null;
         this.configManager = new ConfigurationManager();
-        this.configSection = new ConfigurationSection();
+        this.configModal = new ConfigModal();
         this.loadingManager = new LoadingManager();
         this.init();
     }
