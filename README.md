@@ -1,9 +1,10 @@
 # 📊 智能周报生成工具
 
-一个基于 AI 的工作周报生成助手，通过简单的输入快速生成专业的工作周报。
+一个基于 AI 的工作周报生成助手，使用 **Svelte** 和 **Tailwind CSS** 构建，通过简单的输入快速生成专业的工作周报。
 
 ## 🌟 功能特点
 
+- **现代化技术栈**：使用 Svelte 和 Tailwind CSS 构建的响应式 Web 应用
 - **直观的用户界面**：简洁明了的输入区域和结果展示
 - **智能内容生成**：基于 Dify API 的智能内容生成
 - **自动移除 Think 内容**：清理 AI 思考过程，只保留有用内容
@@ -13,10 +14,40 @@
 - **配置持久化**：API 配置和输入内容自动保存
 - **数据导入/导出**：支持将输入数据保存为 JSON 文件或从文件加载
 
-## 🚀 使用方法
+## 🚀 快速开始
 
-1. 打开 `index.html` 文件在浏览器中运行
-2. 配置 Dify API（需要设置 API URL 和 API Key）
+### 安装依赖
+
+```bash
+npm install
+```
+
+### 开发模式
+
+```bash
+npm run dev
+```
+
+然后在浏览器中打开 http://localhost:5173
+
+### 生产构建
+
+```bash
+npm run build
+```
+
+构建产物将生成在 `dist` 目录中。
+
+### 预览生产构建
+
+```bash
+npm run preview
+```
+
+## 💻 使用方法
+
+1. 启动应用（开发模式或生产模式）
+2. 配置 Dify API（点击右上角"配置"按钮，设置 API URL 和 API Key）
 3. (可选) 配置钉钉周报API，用于自动发送周报到钉钉
 4. 填写四个输入框：
    - 上周工作计划
@@ -70,21 +101,53 @@
 - [查询模板详情](https://open.dingtalk.com/document/isvapp/query-template-details) - 获取周报模板信息
 - [获取用户发出的日志列表](https://open.dingtalk.com/document/isvapp/obtains-a-list-of-the-logs-that-are-sent-by) - 查询历史周报
 
-## 🔧 技术实现
+## 🔧 技术栈
 
-- 纯前端实现，无需服务器
-- 使用 HTML5, CSS3 和 JavaScript (ES6+)
-- 响应式设计，适配不同设备
-- localStorage 用于配置和草稿存储
-- 模块化代码结构，易于维护
-- 钉钉开放平台API集成，支持工作汇报功能
+- **前端框架**: Svelte 5
+- **构建工具**: Vite 7
+- **样式框架**: Tailwind CSS 3
+- **语言**: JavaScript (ES6+)
+- **状态管理**: Svelte Stores
+- **持久化**: localStorage
+- **响应式设计**: 适配桌面和移动设备
+- **钉钉开放平台API集成**: 支持工作汇报功能
   - 使用OAuth 2.0授权获取access_token
   - 支持周报内容的Markdown格式化
   - 支持钉钉工作汇报自定义模板
 
+## 📁 项目结构
+
+```
+weekly-reporter/
+├── src/
+│   ├── lib/
+│   │   ├── components/        # Svelte 组件
+│   │   │   ├── Header.svelte
+│   │   │   ├── InputForm.svelte
+│   │   │   └── ActionButtons.svelte
+│   │   ├── services/          # 服务模块
+│   │   │   ├── AiContentProcessor.js
+│   │   │   ├── ConfigurationManager.js
+│   │   │   └── DingTalkClient.js
+│   │   └── stores/            # 状态管理
+│   │       └── appStore.js
+│   ├── App.svelte            # 主应用组件
+│   ├── app.css               # 全局样式（Tailwind）
+│   └── main.js               # 应用入口
+├── public/                    # 静态资源
+├── index.html                # HTML 入口
+├── vite.config.js            # Vite 配置
+├── tailwind.config.js        # Tailwind CSS 配置
+├── postcss.config.js         # PostCSS 配置
+└── package.json              # 项目依赖
+```
+
 ## 💡 未来计划
 
+- [x] 使用 Svelte 和 Tailwind CSS 重写项目
 - [x] 集成钉钉工作汇报API
+- [ ] 完善配置模态框功能
+- [ ] 完善历史记录功能
 - [ ] 更丰富的报告模板选择
 - [ ] 支持在线协作和共享
 - [ ] 支持更多的 AI 服务提供商
@@ -94,3 +157,4 @@
 ## 📄 许可证
 
 MIT License
+
