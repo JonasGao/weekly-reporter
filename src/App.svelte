@@ -3,6 +3,8 @@
   import Header from './lib/components/Header.svelte';
   import InputForm from './lib/components/InputForm.svelte';
   import ActionButtons from './lib/components/ActionButtons.svelte';
+  import ConfigModal from './lib/components/ConfigModal.svelte';
+  import HistoryModal from './lib/components/HistoryModal.svelte';
   import { inputData, configs, currentConfigId, reportResult, showResult, errorMessage, successMessage, showLoading, loadingMessage, showConfigModal, showHistoryModal } from './lib/stores/appStore.js';
   
   let showError = false;
@@ -76,6 +78,50 @@
     }
   });
 
+  function addToHistory(result) {
+    try {
+      const data = $inputData;
+      const timestamp = new Date().toISOString();
+      const formattedDate = new Date().toLocaleString('zh-CN');
+      
+      const historyItem = {
+        id: `history_${Date.now()}`,
+        timestamp: timestamp,
+        formattedDate: formattedDate,
+        lastWeekPlan: data.lastWeekPlan,
+        lastWeekWork: data.lastWeekWork,
+        nextWeekPlan: data.nextWeekPlan,
+        additionalNotes: data.additionalNotes,
+        result: result,
+        isJsonResult: false
+      };
+      
+      // Load existing history
+      let history = [];
+      try {
+        const savedHistory = localStorage.getItem('weeklyReporter_history');
+        if (savedHistory) {
+          history = JSON.parse(savedHistory);
+        }
+      } catch (e) {
+        console.error('Failed to load history:', e);
+      }
+      
+      // Add new item to beginning
+      history.unshift(historyItem);
+      
+      // Keep only latest 100 items
+      if (history.length > 100) {
+        history = history.slice(0, 100);
+      }
+      
+      // Save to localStorage
+      localStorage.setItem('weeklyReporter_history', JSON.stringify(history));
+    } catch (error) {
+      console.error('添加历史记录失败：', error);
+    }
+  }
+
   async function handleGenerate() {
     const data = $inputData;
     
@@ -137,6 +183,9 @@
         reportResult.set(result);
         showResult.set(true);
         successMessage.set('周报生成成功！');
+        
+        // Save to history
+        addToHistory(result);
         
         // Scroll to result
         setTimeout(() => {
@@ -368,28 +417,12 @@
   </div>
 {/if}
 
-<!-- Config Modal Placeholder -->
+<!-- Config Modal -->
 {#if $showConfigModal}
-  <div class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1000] flex items-center justify-center" on:click={() => showConfigModal.set(false)}>
-    <div class="bg-white rounded-3xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto" on:click|stopPropagation>
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-heading">🔧 Dify 配置</h3>
-        <button class="text-3xl text-gray-400 hover:text-black cursor-pointer" on:click={() => showConfigModal.set(false)}>×</button>
-      </div>
-      <p class="text-gray-500">配置功能正在开发中...</p>
-    </div>
-  </div>
+  <ConfigModal />
 {/if}
 
-<!-- History Modal Placeholder -->
+<!-- History Modal -->
 {#if $showHistoryModal}
-  <div class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1000] flex items-center justify-center" on:click={() => showHistoryModal.set(false)}>
-    <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto" on:click|stopPropagation>
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-heading">📜 历史记录</h3>
-        <button class="text-3xl text-gray-400 hover:text-black cursor-pointer" on:click={() => showHistoryModal.set(false)}>×</button>
-      </div>
-      <p class="text-gray-500">历史记录功能正在开发中...</p>
-    </div>
-  </div>
+  <HistoryModal />
 {/if}
