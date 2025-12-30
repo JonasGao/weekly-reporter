@@ -1,30 +1,33 @@
 <script>
   import { onMount } from 'svelte';
   import { showHistoryModal, inputData, successMessage, errorMessage } from '../stores/appStore.js';
+  import { indexedDBService } from '../services/IndexedDBService.js';
   
   let history = [];
   let showDetailModal = false;
   let currentDetail = null;
 
-  onMount(() => {
-    loadHistory();
+  onMount(async () => {
+    await loadHistory();
   });
 
-  function loadHistory() {
+  async function loadHistory() {
     try {
-      const savedHistory = localStorage.getItem('weeklyReporter_history');
-      if (savedHistory) {
-        history = JSON.parse(savedHistory);
-      }
+      // Initialize IndexedDB and load history
+      await indexedDBService.init();
+      history = await indexedDBService.getAllHistory();
     } catch (error) {
       console.error('加载历史记录失败：', error);
+      errorMessage.set('加载历史记录失败');
       history = [];
     }
   }
 
-  function saveHistory() {
+  async function saveHistory() {
     try {
-      localStorage.setItem('weeklyReporter_history', JSON.stringify(history));
+      // History is automatically saved when adding records via IndexedDB
+      // This function is kept for compatibility
+      await loadHistory();
     } catch (error) {
       console.error('保存历史记录失败：', error);
       errorMessage.set('保存历史记录失败');
@@ -63,24 +66,30 @@
     successMessage.set('已加载历史数据');
   }
 
-  function removeHistoryItem(id) {
+  async function removeHistoryItem(id) {
     if (confirm('确定要删除此历史记录吗？')) {
-      const index = history.findIndex(h => h.id === id);
-      if (index !== -1) {
-        history.splice(index, 1);
-        history = history; // Trigger reactivity
-        saveHistory();
+      try {
+        await indexedDBService.deleteHistory(id);
+        await loadHistory();
         closeHistoryDetail();
         successMessage.set('历史记录已删除');
+      } catch (error) {
+        console.error('删除历史记录失败：', error);
+        errorMessage.set('删除历史记录失败');
       }
     }
   }
 
-  function clearHistory() {
+  async function clearHistory() {
     if (confirm('确定要清空所有历史记录吗？此操作无法撤销！')) {
-      history = [];
-      saveHistory();
-      successMessage.set('所有历史记录已清空');
+      try {
+        await indexedDBService.clearAllHistory();
+        history = [];
+        successMessage.set('所有历史记录已清空');
+      } catch (error) {
+        console.error('清空历史记录失败：', error);
+        errorMessage.set('清空历史记录失败');
+      }
     }
   }
 
@@ -185,30 +194,31 @@
       </div>
 
       <!-- History Table -->
-      <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
-        <table class="w-full border-collapse border border-gray-300">
-          <thead>
-            <tr class="bg-secondary text-white sticky top-0">
-              <th class="p-2.5 border border-gray-300 text-left font-heading" style="width: 20%">时间</th>
-              <th class="p-2.5 border border-gray-300 text-left font-heading" style="width: 25%">上周计划摘要</th>
-              <th class="p-2.5 border border-gray-300 text-left font-heading" style="width: 25%">上周内容摘要</th>
-              <th class="p-2.5 border border-gray-300 text-left font-heading" style="width: 20%">下周计划摘要</th>
-              <th class="p-2.5 border border-gray-300 text-left font-heading" style="width: 10%">操作</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div class="overflow-hidden rounded-xl border border-gray-300 max-h-[400px]">
+        <div class="overflow-x-auto overflow-y-auto max-h-[400px]">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="bg-secondary text-white sticky top-0">
+                <th class="p-2.5 border-b border-r border-gray-300 text-left font-heading" style="width: 20%">时间</th>
+                <th class="p-2.5 border-b border-r border-gray-300 text-left font-heading" style="width: 25%">上周计划摘要</th>
+                <th class="p-2.5 border-b border-r border-gray-300 text-left font-heading" style="width: 25%">上周内容摘要</th>
+                <th class="p-2.5 border-b border-r border-gray-300 text-left font-heading" style="width: 20%">下周计划摘要</th>
+                <th class="p-2.5 border-b border-gray-300 text-left font-heading" style="width: 10%">操作</th>
+              </tr>
+            </thead>
+            <tbody>
             {#if history.length === 0}
               <tr>
-                <td colspan="5" class="p-2.5 border border-gray-300 text-center">暂无历史记录</td>
+                <td colspan="5" class="p-2.5 text-center">暂无历史记录</td>
               </tr>
             {:else}
               {#each history as item}
                 <tr class="even:bg-orange-50/50 hover:bg-orange-100/50">
-                  <td class="p-2.5 border border-gray-300">{item.formattedDate}</td>
-                  <td class="p-2.5 border border-gray-300">{getSummary(item.lastWeekPlan)}</td>
-                  <td class="p-2.5 border border-gray-300">{getSummary(item.lastWeekWork)}</td>
-                  <td class="p-2.5 border border-gray-300">{getSummary(item.nextWeekPlan)}</td>
-                  <td class="p-2.5 border border-gray-300">
+                  <td class="p-2.5 border-r border-b border-gray-300">{item.formattedDate}</td>
+                  <td class="p-2.5 border-r border-b border-gray-300">{getSummary(item.lastWeekPlan)}</td>
+                  <td class="p-2.5 border-r border-b border-gray-300">{getSummary(item.lastWeekWork)}</td>
+                  <td class="p-2.5 border-r border-b border-gray-300">{getSummary(item.nextWeekPlan)}</td>
+                  <td class="p-2.5 border-b border-gray-300">
                     <button 
                       class="px-2.5 py-1 border-0 rounded-3xl bg-secondary text-white cursor-pointer text-xs hover:bg-accent hover:shadow-md"
                       on:click={() => showHistoryDetail(item)}
@@ -221,6 +231,7 @@
             {/if}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   </div>

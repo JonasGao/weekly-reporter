@@ -6,6 +6,7 @@
   import ConfigModal from './lib/components/ConfigModal.svelte';
   import HistoryModal from './lib/components/HistoryModal.svelte';
   import { inputData, configs, currentConfigId, reportResult, showResult, errorMessage, successMessage, showLoading, loadingMessage, showConfigModal, showHistoryModal } from './lib/stores/appStore.js';
+  import { indexedDBService } from './lib/services/IndexedDBService.js';
   
   let showError = false;
   let showSuccess = false;
@@ -78,7 +79,7 @@
     }
   });
 
-  function addToHistory(result) {
+  async function addToHistory(result) {
     try {
       const data = $inputData;
       const timestamp = new Date().toISOString();
@@ -96,27 +97,12 @@
         isJsonResult: false
       };
       
-      // Load existing history
-      let history = [];
-      try {
-        const savedHistory = localStorage.getItem('weeklyReporter_history');
-        if (savedHistory) {
-          history = JSON.parse(savedHistory);
-        }
-      } catch (e) {
-        console.error('Failed to load history:', e);
-      }
-      
-      // Add new item to beginning
-      history.unshift(historyItem);
+      // Initialize IndexedDB and save history
+      await indexedDBService.init();
+      await indexedDBService.addHistory(historyItem);
       
       // Keep only latest 100 items
-      if (history.length > 100) {
-        history = history.slice(0, 100);
-      }
-      
-      // Save to localStorage
-      localStorage.setItem('weeklyReporter_history', JSON.stringify(history));
+      await indexedDBService.keepLatestRecords(100);
     } catch (error) {
       console.error('添加历史记录失败：', error);
     }
