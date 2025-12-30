@@ -1,5 +1,17 @@
 <script>
-  import { showConfigModal, showHistoryModal } from '../stores/appStore.js';
+  import { showConfigModal, showHistoryModal, configs, currentConfigId } from '../stores/appStore.js';
+  
+  let currentConfigName = '默认配置';
+  
+  // Subscribe to config changes to update button text
+  configs.subscribe(allConfigs => {
+    currentConfigId.subscribe(id => {
+      const config = allConfigs.find(c => c.id === id);
+      if (config) {
+        currentConfigName = config.name || '默认配置';
+      }
+    });
+  });
 </script>
 
 <header class="flex justify-between items-center p-5 mb-5 bg-white rounded-3xl shadow-lg">
@@ -25,7 +37,7 @@
       on:click={() => showConfigModal.set(true)}
       title="打开配置"
     >
-      <span>⚙️</span> 配置
+      <span>⚙️</span> 配置：{currentConfigName}
     </button>
   </div>
 </header>

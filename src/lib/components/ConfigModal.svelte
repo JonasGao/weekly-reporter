@@ -204,7 +204,7 @@
 
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <div 
-  class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1000] flex items-center justify-center" 
+  class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1000] flex items-center justify-center animate-fade-in" 
   on:click={closeModal}
   on:keydown={handleBackdropKeydown}
   role="dialog" 
@@ -212,7 +212,7 @@
   tabindex="-1"
 >
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="bg-white rounded-3xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto" on:click|stopPropagation on:keydown|stopPropagation role="document">
+  <div class="bg-white rounded-3xl p-6 max-w-2xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" on:click|stopPropagation on:keydown|stopPropagation role="document">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-xl font-heading m-0">🔧 Dify 配置</h3>
       <button class="text-3xl text-gray-400 hover:text-black cursor-pointer border-none bg-transparent" on:click={closeModal}>×</button>
