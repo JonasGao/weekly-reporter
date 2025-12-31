@@ -12,7 +12,7 @@
   let showError = false;
   let showSuccess = false;
   let resultContent = '';
-  let resultTableData = [];
+  let resultTableData = {};
   let hasTableData = false;
   
   // Subscribe to messages
@@ -83,16 +83,22 @@
   function processResult(result) {
     resultContent = result;
     hasTableData = false;
-    resultTableData = [];
+    resultTableData = {};
     
     // Try to extract JSON
     const jsonData = extractJsonFromText(result);
     
     if (jsonData) {
-      // Check if it's an array of objects (table data)
-      if (Array.isArray(jsonData) && jsonData.length > 0 && typeof jsonData[0] === 'object') {
-        resultTableData = jsonData;
-        hasTableData = true;
+      // Check if it's an object with the expected structure
+      if (typeof jsonData === 'object' && !Array.isArray(jsonData)) {
+        // Check if it has any of the expected keys
+        const expectedKeys = ['上周实际工作表', '上周工作计划表', '下周工作计划表', '工作总结'];
+        const hasExpectedKeys = expectedKeys.some(key => jsonData[key]);
+        
+        if (hasExpectedKeys) {
+          resultTableData = jsonData;
+          hasTableData = true;
+        }
       }
     }
   }
@@ -408,8 +414,7 @@
         </div>
 
         {#if hasTableData}
-          <div class="mb-5">
-            <h3 class="font-heading text-gray-900 mb-3 text-lg">📊 数据表格</h3>
+          <div class="mb-6">
             <ResultTable data={resultTableData} />
           </div>
         {/if}
