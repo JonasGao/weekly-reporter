@@ -5,12 +5,15 @@
   import ActionButtons from './lib/components/ActionButtons.svelte';
   import ConfigModal from './lib/components/ConfigModal.svelte';
   import HistoryModal from './lib/components/HistoryModal.svelte';
+  import ResultTable from './lib/components/ResultTable.svelte';
   import { inputData, configs, currentConfigId, reportResult, showResult, errorMessage, successMessage, showLoading, loadingMessage, showConfigModal, showHistoryModal } from './lib/stores/appStore.js';
   import { indexedDBService } from './lib/services/IndexedDBService.js';
   
   let showError = false;
   let showSuccess = false;
   let resultContent = '';
+  let resultTableData = [];
+  let hasTableData = false;
   
   // Subscribe to messages
   errorMessage.subscribe(msg => {
@@ -33,8 +36,69 @@
     }
   });
 
-  reportResult.subscribe(result => {
+  /**
+   * Extract JSON from text content
+   * Handles both pure JSON and JSON within markdown code blocks
+   */
+  function extractJsonFromText(text) {
+    if (!text) return null;
+    
+    try {
+      // Try to parse as direct JSON first
+      return JSON.parse(text);
+    } catch (e) {
+      // If not direct JSON, try to extract from markdown code block
+      const jsonBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?```/g;
+      const matches = [...text.matchAll(jsonBlockRegex)];
+      
+      if (matches.length > 0) {
+        // Try each code block
+        for (const match of matches) {
+          try {
+            return JSON.parse(match[1].trim());
+          } catch (err) {
+            continue;
+          }
+        }
+      }
+      
+      // Try to find JSON-like content without code blocks
+      const jsonPattern = /(\[[\s\S]*\]|\{[\s\S]*\})/;
+      const jsonMatch = text.match(jsonPattern);
+      if (jsonMatch) {
+        try {
+          return JSON.parse(jsonMatch[1]);
+        } catch (err) {
+          // Not valid JSON
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Process the result and extract table data if available
+   */
+  function processResult(result) {
     resultContent = result;
+    hasTableData = false;
+    resultTableData = [];
+    
+    // Try to extract JSON
+    const jsonData = extractJsonFromText(result);
+    
+    if (jsonData) {
+      // Check if it's an array of objects (table data)
+      if (Array.isArray(jsonData) && jsonData.length > 0 && typeof jsonData[0] === 'object') {
+        resultTableData = jsonData;
+        hasTableData = true;
+      }
+    }
+  }
+
+  reportResult.subscribe(result => {
+    processResult(result);
   });
 
   onMount(() => {
@@ -342,6 +406,13 @@
             🖨️ 打印周报
           </button>
         </div>
+
+        {#if hasTableData}
+          <div class="mb-5">
+            <h3 class="font-heading text-gray-900 mb-3 text-lg">📊 数据表格</h3>
+            <ResultTable data={resultTableData} />
+          </div>
+        {/if}
 
         <div class="bg-white p-5 rounded-3xl border-0 text-sm leading-relaxed max-h-[600px] overflow-y-auto shadow-md">
           {@html resultContent}
