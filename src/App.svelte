@@ -357,15 +357,16 @@
 
 <!-- Loading Overlay -->
 {#if $showLoading}
-  <div class="fixed top-0 left-0 w-screen h-screen bg-black/80 flex justify-center items-center z-[9999]">
-    <div class="bg-white rounded-3xl p-9 text-center shadow-2xl max-w-md relative z-[10000]">
+  <div class="fixed top-0 left-0 w-screen h-screen bg-black/80 flex justify-center items-center z-[9999] animate-fade-in">
+    <div class="bg-white rounded-3xl p-9 text-center shadow-2xl max-w-md relative z-[10000] animate-scale-in">
       <div class="mb-5">
-        <div class="w-15 h-15 border-4 border-blue-200 border-t-primary rounded-full animate-spin mx-auto mb-5"></div>
+        <div class="w-16 h-16 border-4 border-blue-200 border-t-primary rounded-full animate-spin mx-auto mb-5"></div>
         <div class="text-base font-medium text-gray-900 mb-2">{$loadingMessage}</div>
+        <div class="text-sm text-gray-500">请稍候...</div>
       </div>
       <div class="mt-5">
         <button 
-          class="bg-red-500 text-white border-0 px-6 py-3 rounded-3xl cursor-pointer text-sm font-medium transition-all duration-200 min-w-[100px] hover:bg-accent hover:-translate-y-px hover:shadow-lg"
+          class="bg-red-500 text-white border-0 px-6 py-3 rounded-3xl cursor-pointer text-sm font-medium transition-all duration-200 min-w-[100px] hover:bg-red-600 hover:-translate-y-px hover:shadow-lg"
           on:click={() => showLoading.set(false)}
         >
           取消
