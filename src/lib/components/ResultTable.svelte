@@ -1,5 +1,6 @@
 <script>
   import { processResult } from '../services/ResultProcessService.js';
+  import { onMount } from 'svelte';
 
   export let rawData = '';
 
@@ -47,32 +48,77 @@
   // 获取列标题
   $: headers = () => columns().map(col => columnHeaders[col] || col);
   
+  // 获取存储的复制格式，如果不存在则默认为 'tsv'
+  let copyFormat = $state('tsv'); // 默认格式为制表符分隔
+  
+  // 在组件挂载时从 localStorage 获取保存的格式
+  onMount(() => {
+    const savedFormat = localStorage.getItem('copyFormat') || 'tsv';
+    copyFormat = savedFormat;
+  });
+  
   // 复制表格内容到剪贴板
   function copyTableToClipboard(category) {
     const categoryData = groupedData()[category];
     if (!categoryData || categoryData.length === 0) return;
     
-    // 创建制表符分隔的表格数据
     let tableText = '';
     
-    // 添加表头
-    const headersArray = headers();
-    tableText += headersArray.join('\t') + '\n';
-    
-    // 添加数据行
-    for (const row of categoryData) {
-      const rowText = columns().map(col => row[col] || '').join('\t');
-      tableText += rowText + '\n';
+    if (copyFormat === 'csv') {
+      // CSV 格式
+      // 添加表头
+      const headersArray = headers();
+      tableText += headersArray.map(h => `"${h.replace(/"/g, '""')}"`).join(',') + '\n';
+      
+      // 添加数据行
+      for (const row of categoryData) {
+        const rowText = columns().map(col => {
+          const value = row[col] || '';
+          // CSV 中对包含逗号、换行符或引号的值进行转义
+          if (typeof value === 'string' && (value.includes(',') || value.includes('\n') || value.includes('"'))) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        }).join(',');
+        tableText += rowText + '\n';
+      }
+    } else if (copyFormat === 'markdown') {
+      // Markdown 表格格式
+      const headersArray = headers();
+      tableText += '| ' + headersArray.join(' | ') + ' |\n';
+      tableText += '| ' + headersArray.map(() => '---').join(' | ') + ' |\n';
+      
+      for (const row of categoryData) {
+        const rowText = columns().map(col => row[col] || '').join(' | ');
+        tableText += '| ' + rowText + ' |\n';
+      }
+    } else {
+      // 默认为制表符分隔格式
+      // 添加表头
+      const headersArray = headers();
+      tableText += headersArray.join('\t') + '\n';
+      
+      // 添加数据行
+      for (const row of categoryData) {
+        const rowText = columns().map(col => row[col] || '').join('\t');
+        tableText += rowText + '\n';
+      }
     }
     
     // 复制到剪贴板
     navigator.clipboard.writeText(tableText).then(() => {
       // 可以添加一个提示，表明已复制
-      console.log(`表格 "${category}" 已复制到剪贴板`);
+      console.log(`表格 "${category}" 已以 ${copyFormat} 格式复制到剪贴板`);
       // 这里可以添加一个用户提示，例如 toast 消息
     }).catch(err => {
       console.error('复制失败:', err);
     });
+  }
+  
+  // 更新复制格式并保存到 localStorage
+  function updateCopyFormat(format) {
+    copyFormat = format;
+    localStorage.setItem('copyFormat', format);
   }
 </script>
 
@@ -91,12 +137,23 @@
     <div class="mt-6">
       <div class="flex justify-between items-center mb-3">
         <h3 class="text-lg font-bold text-gray-800">{category}</h3>
-        <button 
-          class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-          on:click={() => copyTableToClipboard(category)}
-        >
-          复制表格
-        </button>
+        <div class="flex items-center space-x-2">
+          <select 
+            class="px-2 py-1 bg-white border border-gray-300 rounded text-sm"
+            bind:value={copyFormat}
+            on:change={() => updateCopyFormat(copyFormat)}
+          >
+            <option value="tsv">TSV (制表符)</option>
+            <option value="csv">CSV</option>
+            <option value="markdown">Markdown</option>
+          </select>
+          <button 
+            class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+            on:click={() => copyTableToClipboard(category)}
+          >
+            复制表格
+          </button>
+        </div>
       </div>
       <div class="overflow-x-auto overflow-y-auto max-h-[500px]">
           <table class="w-full border-collapse">
