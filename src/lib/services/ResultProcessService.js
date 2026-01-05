@@ -72,6 +72,7 @@ export function processResult(result) {
   let resultContent = result;
   let hasTableData = false;
   let resultTableData = [];
+  let weeklySummary = null; // 新增工作总结字段
   
   // 尝试提取 JSON
   const jsonData = extractJsonFromText(result);
@@ -102,6 +103,11 @@ export function processResult(result) {
         resultTableData.push(...formatWorkItemsToTable(jsonData['下周工作计划'], '下周工作计划'));
       }
       
+      // 处理本周工作总结
+      if (jsonData.hasOwnProperty('本周工作总结') && typeof jsonData['本周工作总结'] === 'string') {
+        weeklySummary = jsonData['本周工作总结'];
+      }
+      
       // 如果有表格数据，将原始 JSON 作为内容
       if (resultTableData.length > 0) {
         hasTableData = true;
@@ -127,6 +133,7 @@ export function processResult(result) {
   return {
     resultContent,
     hasTableData,
-    resultTableData
+    resultTableData,
+    weeklySummary  // 返回工作总结
   };
 }

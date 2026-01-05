@@ -7,6 +7,7 @@
   // 处理传入的数据，使用 ResultProcessService 进行数据处理
   $: processedResult = processResult(rawData);
   $: tableData = processedResult.hasTableData ? processedResult.resultTableData : data;
+  $: weeklySummary = processedResult.weeklySummary; // 获取工作总结
 
   // 按类别分组数据
   $: groupedData = () => {
@@ -46,6 +47,16 @@
   // 获取列标题
   $: headers = () => columns().map(col => columnHeaders[col] || col);
 </script>
+
+{#if weeklySummary}
+  <!-- 显示工作总结 -->
+  <div class="mt-6">
+    <h3 class="text-lg font-bold text-gray-800 mb-3">本周工作总结</h3>
+    <div class="p-4 bg-gray-50 rounded-lg border border-gray-300">
+      <p class="text-gray-700 whitespace-pre-line">{weeklySummary}</p>
+    </div>
+  </div>
+{/if}
 
 {#if categories.length > 0}
   {#each categories as category}
