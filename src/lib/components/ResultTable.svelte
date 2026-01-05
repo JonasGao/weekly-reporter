@@ -62,13 +62,12 @@
   {#each categories as category}
     <div class="mt-6">
       <h3 class="text-lg font-bold text-gray-800 mb-3">{category}</h3>
-      <div class="overflow-hidden rounded-xl border border-gray-300">
-        <div class="overflow-x-auto overflow-y-auto max-h-[500px]">
+      <div class="overflow-x-auto overflow-y-auto max-h-[500px]">
           <table class="w-full border-collapse">
             <thead>
               <tr class="bg-primary text-white">
                 {#each headers() as header, i}
-                  <th class="p-2.5 border-b border-r border-gray-300 text-left font-heading last:border-r-0">
+                  <th class="p-2.5 text-left font-heading">
                     {header}
                   </th>
                 {/each}
@@ -78,7 +77,7 @@
               {#each groupedData()[category] as row, i}
                 <tr class="even:bg-blue-50/50 hover:bg-blue-100/50">
                   {#each columns() as column}
-                    <td class="p-2.5 border-r border-b border-gray-300 last:border-r-0 text-sm">
+                    <td class="p-2.5 text-sm">
                       {row[column] ?? ''}
                     </td>
                   {/each}
@@ -87,7 +86,6 @@
             </tbody>
           </table>
         </div>
-      </div>
     </div>
   {/each}
 {:else}

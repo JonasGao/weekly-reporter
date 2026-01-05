@@ -194,44 +194,42 @@
       </div>
 
       <!-- History Table -->
-      <div class="overflow-hidden rounded-xl border border-gray-300 max-h-[400px]">
-        <div class="overflow-x-auto overflow-y-auto max-h-[400px]">
-          <table class="w-full border-collapse">
-            <thead>
-              <tr class="bg-secondary text-white sticky top-0">
-                <th class="p-2.5 border-b border-r border-gray-300 text-left font-heading" style="width: 20%">时间</th>
-                <th class="p-2.5 border-b border-r border-gray-300 text-left font-heading" style="width: 25%">上周计划摘要</th>
-                <th class="p-2.5 border-b border-r border-gray-300 text-left font-heading" style="width: 25%">上周内容摘要</th>
-                <th class="p-2.5 border-b border-r border-gray-300 text-left font-heading" style="width: 20%">下周计划摘要</th>
-                <th class="p-2.5 border-b border-gray-300 text-left font-heading" style="width: 10%">操作</th>
+      <div class="overflow-x-auto overflow-y-auto max-h-[400px]">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="bg-secondary text-white sticky top-0">
+              <th class="p-2.5 text-left font-heading" style="width: 20%">时间</th>
+              <th class="p-2.5 text-left font-heading" style="width: 25%">上周计划摘要</th>
+              <th class="p-2.5 text-left font-heading" style="width: 25%">上周内容摘要</th>
+              <th class="p-2.5 text-left font-heading" style="width: 20%">下周计划摘要</th>
+              <th class="p-2.5 text-left font-heading" style="width: 10%">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+          {#if history.length === 0}
+            <tr>
+              <td colspan="5" class="p-2.5 text-center">暂无历史记录</td>
+            </tr>
+          {:else}
+            {#each history as item}
+              <tr class="even:bg-orange-50/50 hover:bg-orange-100/50">
+                <td class="p-2.5">{item.formattedDate}</td>
+                <td class="p-2.5">{getSummary(item.lastWeekPlan)}</td>
+                <td class="p-2.5">{getSummary(item.lastWeekWork)}</td>
+                <td class="p-2.5">{getSummary(item.nextWeekPlan)}</td>
+                <td class="p-2.5">
+                  <button 
+                    class="px-2.5 py-1 border-0 bg-secondary text-white cursor-pointer text-xs hover:bg-accent hover:shadow-md"
+                    on:click={() => showHistoryDetail(item)}
+                  >
+                    查看
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-            {#if history.length === 0}
-              <tr>
-                <td colspan="5" class="p-2.5 text-center">暂无历史记录</td>
-              </tr>
-            {:else}
-              {#each history as item}
-                <tr class="even:bg-orange-50/50 hover:bg-orange-100/50">
-                  <td class="p-2.5 border-r border-b border-gray-300">{item.formattedDate}</td>
-                  <td class="p-2.5 border-r border-b border-gray-300">{getSummary(item.lastWeekPlan)}</td>
-                  <td class="p-2.5 border-r border-b border-gray-300">{getSummary(item.lastWeekWork)}</td>
-                  <td class="p-2.5 border-r border-b border-gray-300">{getSummary(item.nextWeekPlan)}</td>
-                  <td class="p-2.5 border-b border-gray-300">
-                    <button 
-                      class="px-2.5 py-1 border-0 rounded-3xl bg-secondary text-white cursor-pointer text-xs hover:bg-accent hover:shadow-md"
-                      on:click={() => showHistoryDetail(item)}
-                    >
-                      查看
-                    </button>
-                  </td>
-                </tr>
-              {/each}
-            {/if}
-          </tbody>
-        </table>
-        </div>
+            {/each}
+          {/if}
+        </tbody>
+      </table>
       </div>
     </div>
   </div>
