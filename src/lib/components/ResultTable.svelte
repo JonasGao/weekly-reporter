@@ -1,13 +1,13 @@
 <script>
-  import { extractJsonFromText, processResult } from '../services/ResultProcessService.js';
+  import { processResult } from '../services/ResultProcessService.js';
 
-  export let data = [];
   export let rawData = '';
 
   // 处理传入的数据，使用 ResultProcessService 进行数据处理
   $: processedResult = processResult(rawData);
-  $: tableData = processedResult.hasTableData ? processedResult.resultTableData : data;
+  $: tableData = processedResult.resultTableData;
   $: weeklySummary = processedResult.weeklySummary; // 获取工作总结
+  $: hasTableData = processedResult.hasTableData;
 
   // 按类别分组数据
   $: groupedData = () => {
@@ -58,7 +58,7 @@
   </div>
 {/if}
 
-{#if categories.length > 0}
+{#if hasTableData && categories.length > 0}
   {#each categories as category}
     <div class="mt-6">
       <h3 class="text-lg font-bold text-gray-800 mb-3">{category}</h3>
@@ -91,7 +91,7 @@
     </div>
   {/each}
 {:else}
-  {#if rawData && processedResult.hasTableData && processedResult.resultTableData.length === 0}
+  {#if rawData && hasTableData && tableData.length === 0}
     <div class="mt-4 p-4 bg-gray-100 rounded-lg text-center text-gray-600">
       未找到可表格化的工作数据
     </div>

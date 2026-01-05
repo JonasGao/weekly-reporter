@@ -9,13 +9,9 @@
   import { inputData, configs, currentConfigId, reportResult, showResult, errorMessage, successMessage, showLoading, loadingMessage, showConfigModal, showHistoryModal } from './lib/stores/appStore.js';
   import { indexedDBService } from './lib/services/IndexedDBService.js';
   import { generateReportWithDify } from './lib/services/DifyService.js';
-  import { processResult } from './lib/services/ResultProcessService.js';
-
   let showError = false;
   let showSuccess = false;
   let resultContent = '';
-  let resultTableData = [];
-  let hasTableData = false;
 
   // Subscribe to messages
   errorMessage.subscribe(msg => {
@@ -39,10 +35,7 @@
   });
 
   reportResult.subscribe(result => {
-    const processedResult = processResult(result);
-    resultContent = processedResult.resultContent;
-    hasTableData = processedResult.hasTableData;
-    resultTableData = processedResult.resultTableData;
+    resultContent = result;
   });
 
   onMount(() => {
@@ -216,58 +209,6 @@
 
     input.click();
   }
-
-  async function handleCopyReport() {
-    try {
-      await navigator.clipboard.writeText(resultContent.replace(/<[^>]*>/g, ''));
-      successMessage.set('周报内容已复制到剪贴板');
-    } catch (error) {
-      console.error('复制失败：', error);
-      errorMessage.set('复制失败，请手动选择复制');
-    }
-  }
-
-  function handleDownloadReport() {
-    const content = resultContent.replace(/<[^>]*>/g, '');
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `周报_${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    successMessage.set('周报已下载');
-  }
-
-  function handlePrintReport() {
-    const content = resultContent;
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>工作周报</title>
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; margin: 40px; }
-          h1, h2, h3 { color: #2c3e50; }
-          @media print { body { margin: 20px; } }
-        </style>
-      </head>
-      <body>
-        <h1>工作周报</h1>
-        <p>生成时间：${new Date().toLocaleString('zh-CN')}</p>
-        <hr>
-        ${content}
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-  }
 </script>
 
 <div class="max-w-6xl mx-auto p-4 bg-white shadow-2xl rounded-3xl my-4">
@@ -286,36 +227,9 @@
       <section class="bg-white rounded-3xl p-5 mt-5 shadow-md" id="resultSection">
         <h2 class="font-heading text-gray-900 mb-4 text-2xl text-center">📄 生成的周报</h2>
 
-        <div class="flex justify-center gap-2 mb-4 flex-wrap">
-          <button
-                  type="button"
-                  class="px-5 py-2 border-0 rounded-3xl text-sm font-medium cursor-pointer transition-all duration-300 inline-flex items-center gap-2 min-w-[110px] justify-center shadow-md bg-green-500 text-white hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-lg"
-                  on:click={handleCopyReport}
-          >
-            📋 复制周报
-          </button>
-          <button
-                  type="button"
-                  class="px-5 py-2 border-0 rounded-3xl text-sm font-medium cursor-pointer transition-all duration-300 inline-flex items-center gap-2 min-w-[110px] justify-center shadow-md bg-green-500 text-white hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-lg"
-                  on:click={handleDownloadReport}
-          >
-            💾 下载周报
-          </button>
-          <button
-                  type="button"
-                  class="px-5 py-2 border-0 rounded-3xl text-sm font-medium cursor-pointer transition-all duration-300 inline-flex items-center gap-2 min-w-[110px] justify-center shadow-md bg-green-500 text-white hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-lg"
-                  on:click={handlePrintReport}
-          >
-            🖨️ 打印周报
-          </button>
+        <div class="mb-5">
+          <ResultTable rawData={resultContent} />
         </div>
-
-        {#if hasTableData}
-          <div class="mb-5">
-            <h3 class="font-heading text-gray-900 mb-3 text-lg">📊 数据表格</h3>
-            <ResultTable data={resultTableData} />
-          </div>
-        {/if}
 
         <div class="bg-white p-5 rounded-3xl border-0 text-sm leading-relaxed max-h-[600px] overflow-y-auto shadow-md">
           {@html resultContent}
