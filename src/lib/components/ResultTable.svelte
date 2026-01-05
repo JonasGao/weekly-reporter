@@ -46,6 +46,34 @@
 
   // 获取列标题
   $: headers = () => columns().map(col => columnHeaders[col] || col);
+  
+  // 复制表格内容到剪贴板
+  function copyTableToClipboard(category) {
+    const categoryData = groupedData()[category];
+    if (!categoryData || categoryData.length === 0) return;
+    
+    // 创建制表符分隔的表格数据
+    let tableText = '';
+    
+    // 添加表头
+    const headersArray = headers();
+    tableText += headersArray.join('\t') + '\n';
+    
+    // 添加数据行
+    for (const row of categoryData) {
+      const rowText = columns().map(col => row[col] || '').join('\t');
+      tableText += rowText + '\n';
+    }
+    
+    // 复制到剪贴板
+    navigator.clipboard.writeText(tableText).then(() => {
+      // 可以添加一个提示，表明已复制
+      console.log(`表格 "${category}" 已复制到剪贴板`);
+      // 这里可以添加一个用户提示，例如 toast 消息
+    }).catch(err => {
+      console.error('复制失败:', err);
+    });
+  }
 </script>
 
 {#if weeklySummary}
@@ -61,7 +89,15 @@
 {#if hasTableData && categories.length > 0}
   {#each categories as category}
     <div class="mt-6">
-      <h3 class="text-lg font-bold text-gray-800 mb-3">{category}</h3>
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-lg font-bold text-gray-800">{category}</h3>
+        <button 
+          class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+          on:click={() => copyTableToClipboard(category)}
+        >
+          复制表格
+        </button>
+      </div>
       <div class="overflow-x-auto overflow-y-auto max-h-[500px]">
           <table class="w-full border-collapse">
             <thead>
