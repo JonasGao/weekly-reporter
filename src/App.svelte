@@ -8,13 +8,15 @@
   import ResultTable from './lib/components/ResultTable.svelte';
   import { inputData, configs, currentConfigId, reportResult, showResult, errorMessage, successMessage, showLoading, loadingMessage, showConfigModal, showHistoryModal } from './lib/stores/appStore.js';
   import { indexedDBService } from './lib/services/IndexedDBService.js';
-  
+  import { generateReportWithDify } from './lib/services/DifyService.js';
+  import { processResult } from './lib/services/ResultProcessService.js';
+
   let showError = false;
   let showSuccess = false;
   let resultContent = '';
-  let resultTableData = {};
+  let resultTableData = [];
   let hasTableData = false;
-  
+
   // Subscribe to messages
   errorMessage.subscribe(msg => {
     if (msg) {
@@ -36,75 +38,11 @@
     }
   });
 
-  /**
-   * Extract JSON from text content
-   * Handles both pure JSON and JSON within markdown code blocks
-   */
-  function extractJsonFromText(text) {
-    if (!text) return null;
-    
-    try {
-      // Try to parse as direct JSON first
-      return JSON.parse(text);
-    } catch (e) {
-      // If not direct JSON, try to extract from markdown code block
-      const jsonBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?```/g;
-      const matches = [...text.matchAll(jsonBlockRegex)];
-      
-      if (matches.length > 0) {
-        // Try each code block
-        for (const match of matches) {
-          try {
-            return JSON.parse(match[1].trim());
-          } catch (err) {
-            continue;
-          }
-        }
-      }
-      
-      // Try to find JSON-like content without code blocks
-      const jsonPattern = /(\[[\s\S]*\]|\{[\s\S]*\})/;
-      const jsonMatch = text.match(jsonPattern);
-      if (jsonMatch) {
-        try {
-          return JSON.parse(jsonMatch[1]);
-        } catch (err) {
-          // Not valid JSON
-        }
-      }
-    }
-    
-    return null;
-  }
-
-  /**
-   * Process the result and extract table data if available
-   */
-  function processResult(result) {
-    resultContent = result;
-    hasTableData = false;
-    resultTableData = {};
-    
-    // Try to extract JSON
-    const jsonData = extractJsonFromText(result);
-    
-    if (jsonData) {
-      // Check if it's an object with the expected structure
-      if (typeof jsonData === 'object' && !Array.isArray(jsonData)) {
-        // Check if it has any of the expected keys
-        const expectedKeys = ['上周实际工作表', '上周工作计划表', '下周工作计划表', '工作总结'];
-        const hasExpectedKeys = expectedKeys.some(key => jsonData[key]);
-        
-        if (hasExpectedKeys) {
-          resultTableData = jsonData;
-          hasTableData = true;
-        }
-      }
-    }
-  }
-
   reportResult.subscribe(result => {
-    processResult(result);
+    const processedResult = processResult(result);
+    resultContent = processedResult.resultContent;
+    hasTableData = processedResult.hasTableData;
+    resultTableData = processedResult.resultTableData;
   });
 
   onMount(() => {
@@ -125,7 +63,7 @@
       try {
         const parsedConfigs = JSON.parse(savedConfigs);
         configs.set(parsedConfigs);
-        
+
         const lastUsedConfigId = localStorage.getItem('weeklyReporter_currentConfigId');
         if (lastUsedConfigId && parsedConfigs.some(c => c.id === lastUsedConfigId)) {
           currentConfigId.set(lastUsedConfigId);
@@ -154,7 +92,7 @@
       const data = $inputData;
       const timestamp = new Date().toISOString();
       const formattedDate = new Date().toLocaleString('zh-CN');
-      
+
       const historyItem = {
         id: `history_${Date.now()}`,
         timestamp: timestamp,
@@ -166,11 +104,11 @@
         result: result,
         isJsonResult: false
       };
-      
+
       // Initialize IndexedDB and save history
       await indexedDBService.init();
       await indexedDBService.addHistory(historyItem);
-      
+
       // Keep only latest 100 items
       await indexedDBService.keepLatestRecords(100);
     } catch (error) {
@@ -180,23 +118,12 @@
 
   async function handleGenerate() {
     const data = $inputData;
-    
-    // Validate input
-    const errors = [];
-    if (!data.lastWeekPlan) errors.push('上周工作计划');
-    if (!data.lastWeekWork) errors.push('上周工作内容');
-    if (!data.nextWeekPlan) errors.push('下周工作计划');
-    
-    if (errors.length > 0) {
-      errorMessage.set(`请填写以下必需信息：${errors.join('、')}`);
-      return;
-    }
 
     // Get current config
     const currentId = $currentConfigId;
     const allConfigs = $configs;
     const config = allConfigs.find(c => c.id === currentId);
-    
+
     if (!config || !config.apiUrl || !config.apiKey) {
       errorMessage.set('请先配置 Dify API 信息');
       showConfigModal.set(true);
@@ -207,49 +134,19 @@
     loadingMessage.set('正在生成周报...');
 
     try {
-      const requestBody = {
-        inputs: {
-          prev_week_plan: data.lastWeekPlan,
-          prev_week_work: data.lastWeekWork,
-          curr_week_plan: data.nextWeekPlan,
-          prev_week_additional_notes: data.additionalNotes || ''
-        },
-        response_mode: "blocking",
-        user: "weekly-reporter-user"
-      };
+      const result = await generateReportWithDify(data, config);
 
-      const response = await fetch(config.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${config.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
+      reportResult.set(result);
+      showResult.set(true);
+      successMessage.set('周报生成成功！');
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API 调用失败 (${response.status}): ${errorText}`);
-      }
+      // Save to history
+      addToHistory(result);
 
-      const responseData = await response.json();
-      
-      if (responseData.data && responseData.data.outputs && responseData.data.outputs.text) {
-        const result = responseData.data.outputs.text;
-        reportResult.set(result);
-        showResult.set(true);
-        successMessage.set('周报生成成功！');
-        
-        // Save to history
-        addToHistory(result);
-        
-        // Scroll to result
-        setTimeout(() => {
-          document.getElementById('resultSection')?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-      } else {
-        throw new Error('API 返回数据格式异常');
-      }
+      // Scroll to result
+      setTimeout(() => {
+        document.getElementById('resultSection')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       console.error('生成周报失败：', error);
       errorMessage.set(`生成周报失败：${error.message}`);
@@ -277,7 +174,7 @@
     const jsonData = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonData], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.href = url;
     a.download = `周报数据_${new Date().toISOString().split('T')[0]}.json`;
@@ -285,7 +182,7 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     successMessage.set('数据已保存到文件');
   }
 
@@ -293,11 +190,11 @@
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    
+
     input.onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
@@ -316,7 +213,7 @@
       };
       reader.readAsText(file);
     };
-    
+
     input.click();
   }
 
@@ -334,7 +231,7 @@
     const content = resultContent.replace(/<[^>]*>/g, '');
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.href = url;
     a.download = `周报_${new Date().toISOString().split('T')[0]}.txt`;
@@ -342,7 +239,7 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     successMessage.set('周报已下载');
   }
 
@@ -375,46 +272,47 @@
 
 <div class="max-w-6xl mx-auto p-4 bg-white shadow-2xl rounded-3xl my-4">
   <Header />
-  
+
   <main class="mb-5">
     <InputForm />
-    <ActionButtons 
-      onGenerate={handleGenerate}
-      onClearAll={handleClearAll}
-      onSaveData={handleSaveData}
-      onLoadData={handleLoadData}
+    <ActionButtons
+            onGenerate={handleGenerate}
+            onClearAll={handleClearAll}
+            onSaveData={handleSaveData}
+            onLoadData={handleLoadData}
     />
 
     {#if $showResult}
       <section class="bg-white rounded-3xl p-5 mt-5 shadow-md" id="resultSection">
         <h2 class="font-heading text-gray-900 mb-4 text-2xl text-center">📄 生成的周报</h2>
-        
+
         <div class="flex justify-center gap-2 mb-4 flex-wrap">
-          <button 
-            type="button" 
-            class="px-5 py-2 border-0 rounded-3xl text-sm font-medium cursor-pointer transition-all duration-300 inline-flex items-center gap-2 min-w-[110px] justify-center shadow-md bg-green-500 text-white hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-lg"
-            on:click={handleCopyReport}
+          <button
+                  type="button"
+                  class="px-5 py-2 border-0 rounded-3xl text-sm font-medium cursor-pointer transition-all duration-300 inline-flex items-center gap-2 min-w-[110px] justify-center shadow-md bg-green-500 text-white hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-lg"
+                  on:click={handleCopyReport}
           >
             📋 复制周报
           </button>
-          <button 
-            type="button" 
-            class="px-5 py-2 border-0 rounded-3xl text-sm font-medium cursor-pointer transition-all duration-300 inline-flex items-center gap-2 min-w-[110px] justify-center shadow-md bg-green-500 text-white hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-lg"
-            on:click={handleDownloadReport}
+          <button
+                  type="button"
+                  class="px-5 py-2 border-0 rounded-3xl text-sm font-medium cursor-pointer transition-all duration-300 inline-flex items-center gap-2 min-w-[110px] justify-center shadow-md bg-green-500 text-white hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-lg"
+                  on:click={handleDownloadReport}
           >
             💾 下载周报
           </button>
-          <button 
-            type="button" 
-            class="px-5 py-2 border-0 rounded-3xl text-sm font-medium cursor-pointer transition-all duration-300 inline-flex items-center gap-2 min-w-[110px] justify-center shadow-md bg-green-500 text-white hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-lg"
-            on:click={handlePrintReport}
+          <button
+                  type="button"
+                  class="px-5 py-2 border-0 rounded-3xl text-sm font-medium cursor-pointer transition-all duration-300 inline-flex items-center gap-2 min-w-[110px] justify-center shadow-md bg-green-500 text-white hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-lg"
+                  on:click={handlePrintReport}
           >
             🖨️ 打印周报
           </button>
         </div>
 
         {#if hasTableData}
-          <div class="mb-6">
+          <div class="mb-5">
+            <h3 class="font-heading text-gray-900 mb-3 text-lg">📊 数据表格</h3>
             <ResultTable data={resultTableData} />
           </div>
         {/if}
@@ -441,9 +339,9 @@
         <div class="text-sm text-gray-500">请稍候...</div>
       </div>
       <div class="mt-5">
-        <button 
-          class="bg-red-500 text-white border-0 px-6 py-3 rounded-3xl cursor-pointer text-sm font-medium transition-all duration-200 min-w-[100px] hover:bg-red-600 hover:-translate-y-px hover:shadow-lg"
-          on:click={() => showLoading.set(false)}
+        <button
+                class="bg-red-500 text-white border-0 px-6 py-3 rounded-3xl cursor-pointer text-sm font-medium transition-all duration-200 min-w-[100px] hover:bg-red-600 hover:-translate-y-px hover:shadow-lg"
+                on:click={() => showLoading.set(false)}
         >
           取消
         </button>
@@ -457,9 +355,9 @@
   <div class="fixed top-5 right-5 px-5 py-4 rounded-3xl text-white font-medium flex items-center gap-2 z-[1000] max-w-md shadow-lg bg-red-500">
     <span class="text-xl">❌</span>
     <span>{$errorMessage}</span>
-    <button 
-      class="bg-transparent border-none text-white text-lg cursor-pointer ml-auto p-0 w-5 h-5 flex items-center justify-center"
-      on:click={() => { showError = false; errorMessage.set(''); }}
+    <button
+            class="bg-transparent border-none text-white text-lg cursor-pointer ml-auto p-0 w-5 h-5 flex items-center justify-center"
+            on:click={() => { showError = false; errorMessage.set(''); }}
     >
       ×
     </button>
@@ -471,9 +369,9 @@
   <div class="fixed top-5 right-5 px-5 py-4 rounded-3xl text-white font-medium flex items-center gap-2 z-[1000] max-w-md shadow-lg bg-green-500">
     <span class="text-xl">✅</span>
     <span>{$successMessage}</span>
-    <button 
-      class="bg-transparent border-none text-white text-lg cursor-pointer ml-auto p-0 w-5 h-5 flex items-center justify-center"
-      on:click={() => { showSuccess = false; successMessage.set(''); }}
+    <button
+            class="bg-transparent border-none text-white text-lg cursor-pointer ml-auto p-0 w-5 h-5 flex items-center justify-center"
+            on:click={() => { showSuccess = false; successMessage.set(''); }}
     >
       ×
     </button>
