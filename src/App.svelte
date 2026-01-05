@@ -12,6 +12,7 @@
   let showError = false;
   let showSuccess = false;
   let resultContent = '';
+  let version = import.meta.env.VITE_APP_VERSION || import.meta.env.npm_package_version;
 
   // Subscribe to messages
   errorMessage.subscribe(msg => {
@@ -240,6 +241,9 @@
 
   <footer class="text-center py-4 border-t-0 mt-5 text-gray-500 text-sm">
     <p>&copy; 2025 智能周报生成工具 | 基于 Dify AI 平台</p>
+    {#if version}
+      <p class="mt-1 text-xs text-gray-400">版本: {version}</p>
+    {/if}
   </footer>
 </div>
 

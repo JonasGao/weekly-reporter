@@ -7,4 +7,7 @@ export default defineConfig({
   build: {
     sourcemap: true,
   },
+  define: {
+    'import.meta.env.npm_package_version': JSON.stringify(process.env.npm_package_version || process.env.VITE_APP_VERSION || '1.0.0'),
+  },
 })
