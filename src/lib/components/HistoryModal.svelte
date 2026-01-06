@@ -2,7 +2,10 @@
   import { onMount } from 'svelte';
   import { showHistoryModal, inputData, successMessage, errorMessage } from '../stores/appStore.js';
   import { indexedDBService } from '../services/IndexedDBService.js';
-  
+
+  // 使用 $props() 替代 export let，在 Svelte 5 runes 模式下
+  const { onUseHistory } = $props();
+
   let history = [];
   let showDetailModal = false;
   let currentDetail = null;
@@ -36,11 +39,11 @@
 
   function getSummary(text, maxLength = 30) {
     if (!text) return '';
-    
+
     let processed = text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-    
+
     if (processed.length <= maxLength) return processed;
-    
+
     return processed.substring(0, maxLength) + '...';
   }
 
@@ -64,6 +67,11 @@
     closeHistoryDetail();
     showHistoryModal.set(false);
     successMessage.set('已加载历史数据');
+
+    // 调用传入的事件处理函数
+    if (onUseHistory) {
+      onUseHistory({ item });
+    }
   }
 
   async function removeHistoryItem(id) {
@@ -99,11 +107,11 @@
         exportDate: new Date().toISOString(),
         history: history
       };
-      
+
       const jsonString = JSON.stringify(exportData, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      
+
       const a = document.createElement('a');
       a.href = url;
       a.download = `周报生成历史记录_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
@@ -111,7 +119,7 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
       successMessage.set('历史记录已导出');
     } catch (error) {
       console.error('导出历史记录失败：', error);
@@ -145,9 +153,9 @@
     }
   }
 
-  async function copyToClipboard(text) {
+  function copyToClipboard(text) {
     try {
-      await navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(text);
       successMessage.set('原始输出已复制到剪贴板');
     } catch (error) {
       console.error('复制失败：', error);
@@ -159,11 +167,11 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-<div 
-  class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1000] flex items-center justify-center animate-fade-in" 
+<div
+  class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1000] flex items-center justify-center animate-fade-in"
   on:click={closeModal}
   on:keydown={handleBackdropKeydown}
-  role="dialog" 
+  role="dialog"
   aria-modal="true"
   tabindex="-1"
 >
@@ -173,19 +181,19 @@
       <h3 class="text-xl font-heading m-0">📜 历史记录</h3>
       <button class="text-3xl text-gray-400 hover:text-black cursor-pointer border-none bg-transparent" on:click={closeModal}>×</button>
     </div>
-    
+
     <div class="mb-5">
       <!-- History Actions -->
       <div class="flex justify-start gap-2 mb-5">
-        <button 
-          type="button" 
+        <button
+          type="button"
           class="px-4 py-2 bg-gray-500 text-white border-0 rounded-3xl cursor-pointer text-sm font-medium shadow-md hover:bg-gray-900 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
           on:click={clearHistory}
         >
           🗑️ 清空历史
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           class="px-4 py-2 bg-gray-500 text-white border-0 rounded-3xl cursor-pointer text-sm font-medium shadow-md hover:bg-gray-900 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
           on:click={exportHistory}
         >
@@ -218,7 +226,7 @@
                 <td class="p-2.5">{getSummary(item.lastWeekWork)}</td>
                 <td class="p-2.5">{getSummary(item.nextWeekPlan)}</td>
                 <td class="p-2.5">
-                  <button 
+                  <button
                     class="px-2.5 py-1 border-0 bg-secondary text-white cursor-pointer text-xs hover:bg-accent hover:shadow-md"
                     on:click={() => showHistoryDetail(item)}
                   >
@@ -238,11 +246,11 @@
 <!-- History Detail Modal -->
 {#if showDetailModal && currentDetail}
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-  <div 
-    class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1001] flex items-center justify-center animate-fade-in" 
+  <div
+    class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1001] flex items-center justify-center animate-fade-in"
     on:click={closeHistoryDetail}
     on:keydown={handleDetailBackdropKeydown}
-    role="dialog" 
+    role="dialog"
     aria-modal="true"
     tabindex="-1"
   >
@@ -298,7 +306,7 @@
         <div class="bg-gray-50 p-4 rounded-lg">
           <div class="flex justify-between items-center mb-2">
             <h5 class="font-heading text-sm m-0">原始输出:</h5>
-            <button 
+            <button
               class="px-3 py-1 bg-gray-600 text-white border-0 rounded text-xs cursor-pointer hover:bg-gray-700"
               on:click={() => copyToClipboard(currentDetail.result)}
             >
@@ -310,15 +318,15 @@
 
         <!-- Actions -->
         <div class="flex justify-end gap-2 pt-4">
-          <button 
-            type="button" 
+          <button
+            type="button"
             class="px-5 py-2 bg-primary text-white border-0 rounded-3xl cursor-pointer text-sm font-medium shadow-md hover:bg-sky-600 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
             on:click={() => useHistoryData(currentDetail)}
           >
             使用此数据
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             class="px-5 py-2 bg-red-500 text-white border-0 rounded-3xl cursor-pointer text-sm font-medium shadow-md hover:bg-red-600 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
             on:click={() => removeHistoryItem(currentDetail.id)}
           >
