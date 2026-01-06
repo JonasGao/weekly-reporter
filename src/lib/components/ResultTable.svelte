@@ -150,7 +150,7 @@
   <!-- 显示工作总结 -->
   <div class="mt-6">
     <h3 class="text-lg font-bold text-gray-800 mb-3">本周工作总结</h3>
-    <div class="p-4 bg-gray-50 rounded-lg border border-gray-300">
+    <div class="p-4 border border-gray-300">
       <p class="text-gray-700 whitespace-pre-line">{weeklySummary}</p>
     </div>
   </div>
@@ -208,7 +208,7 @@
   {/each}
 {:else}
   {#if rawData && hasTableData && tableData.length === 0}
-    <div class="mt-4 p-4 bg-gray-100 rounded-lg text-center text-gray-600">
+    <div class="mt-4 p-4 text-center text-gray-600">
       未找到可表格化的工作数据
     </div>
   {/if}
