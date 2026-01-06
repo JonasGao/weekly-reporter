@@ -93,6 +93,29 @@
         const rowText = columns().map(col => row[col] || '').join(' | ');
         tableText += '| ' + rowText + ' |\n';
       }
+    } else if (copyFormat === 'html') {
+      // HTML 表格格式
+      tableText += '<table>\n';
+      
+      // 添加表头
+      tableText += '  <thead>\n    <tr>\n';
+      const headersArray = headers();
+      for (const header of headersArray) {
+        tableText += `      <th>${header}</th>\n`;
+      }
+      tableText += '    </tr>\n  </thead>\n';
+      
+      // 添加数据行
+      tableText += '  <tbody>\n';
+      for (const row of categoryData) {
+        tableText += '    <tr>\n';
+        for (const col of columns()) {
+          const value = (row[col] || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          tableText += `      <td>${value}</td>\n`;
+        }
+        tableText += '    </tr>\n';
+      }
+      tableText += '  </tbody>\n</table>';
     } else {
       // 默认为制表符分隔格式
       // 添加表头
@@ -135,7 +158,7 @@
 
 {#if hasTableData && categories.length > 0}
   {#each categories as category}
-    <div class="mt-6">
+    <div class="mt-6 result-table-container">
       <div class="flex justify-between items-center mb-3">
         <h3 class="text-lg font-bold text-gray-800">{category}</h3>
         <div class="flex items-center space-x-2">
@@ -147,6 +170,7 @@
             <option value="tsv">TSV (制表符)</option>
             <option value="csv">CSV</option>
             <option value="markdown">Markdown</option>
+            <option value="html">HTML</option>
           </select>
           <button
             class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
@@ -157,11 +181,11 @@
         </div>
       </div>
       <div class="overflow-x-auto overflow-y-auto max-h-[500px]">
-          <table class="w-full border-collapse">
+          <table>
             <thead>
-              <tr class="bg-primary text-white">
+              <tr>
                 {#each headers() as header, i}
-                  <th class="p-2.5 text-left font-heading">
+                  <th>
                     {header}
                   </th>
                 {/each}
@@ -169,9 +193,9 @@
             </thead>
             <tbody>
               {#each groupedData()[category] as row, i}
-                <tr class="even:bg-blue-50/50 hover:bg-blue-100/50">
+                <tr>
                   {#each columns() as column}
-                    <td class="p-2.5 text-sm">
+                    <td>
                       {row[column] ?? ''}
                     </td>
                   {/each}

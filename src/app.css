@@ -11,6 +11,39 @@
   }
 }
 
+@layer components {
+  .result-table-container table {
+    @apply w-full border-collapse;
+  }
+  
+  .result-table-container thead tr {
+    @apply bg-primary text-white;
+  }
+  
+  .result-table-container th {
+    @apply p-2.5 text-left font-heading;
+  }
+  
+  .result-table-container tbody tr {
+    @apply even:bg-blue-50/50 hover:bg-blue-100/50;
+  }
+  
+  .result-table-container td {
+    @apply p-2.5 text-sm;
+  }
+  
+  /* 确保表格采用简洁设计，移除圆角和边框 */
+  .result-table-container table,
+  .result-table-container th,
+  .result-table-container td {
+    @apply border-0;
+  }
+  
+  .result-table-container tr {
+    @apply border-0;
+  }
+}
+
 @layer utilities {
   @keyframes fade-in {
     from {
@@ -40,4 +73,3 @@
     animation: scale-in 0.3s ease-out;
   }
 }
-
