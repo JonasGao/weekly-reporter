@@ -149,10 +149,15 @@
       errorMessage.set('复制失败，请手动选择复制');
     }
   }
+
+  function stopPropagation(event) {
+    event.stopPropagation();
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
   class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1000] flex items-center justify-center animate-fade-in"
   onclick={closeModal}
@@ -161,7 +166,7 @@
   aria-modal="true"
   tabindex="-1"
 >
-  <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" role="document">
+  <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" role="document" onclick={stopPropagation} onkeydown={stopPropagation}>
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-xl font-heading m-0">📜 历史记录</h3>
       <button class="text-3xl text-gray-400 hover:text-black cursor-pointer border-none bg-transparent" onclick={closeModal}>×</button>
@@ -238,7 +243,8 @@
     aria-modal="true"
     tabindex="-1"
   >
-    <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" role="document">
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" onclick={stopPropagation} onkeydown={stopPropagation} role="document">
       <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
         <div class="flex items-center gap-2">
           <h3 class="text-lg font-heading m-0">历史记录详情</h3>

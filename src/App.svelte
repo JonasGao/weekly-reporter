@@ -210,14 +210,6 @@
 
     input.click();
   }
-
-  function handleUseHistory({ item }) {
-    // 设置输入数据后，如果历史记录包含结果，也展示结果
-    if (item.result) {
-      reportResult.set(item.result);
-      showResult.set(true);
-    }
-  }
 </script>
 
 <div class="max-w-6xl mx-auto p-4 bg-white shadow-2xl rounded-3xl my-4">
