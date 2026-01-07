@@ -311,5 +311,5 @@
 
 <!-- History Modal -->
 {#if $showHistoryModal}
-  <HistoryModal onUseHistory={handleUseHistory} />
+  <HistoryModal />
 {/if}

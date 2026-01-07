@@ -2,13 +2,14 @@
   import { onMount } from 'svelte';
   import { showHistoryModal, inputData, successMessage, errorMessage } from '../stores/appStore.js';
   import { indexedDBService } from '../services/IndexedDBService.js';
+  import ResultTable from './ResultTable.svelte';
 
   // 使用 $props() 替代 export let，在 Svelte 5 runes 模式下
-  const { onUseHistory } = $props();
+  // const { onUseHistory } = $props();
 
-  let history = [];
-  let showDetailModal = false;
-  let currentDetail = null;
+  let history = $state([]);
+  let showDetailModal = $state(false);
+  let currentDetail = $state(null);
 
   onMount(async () => {
     await loadHistory();
@@ -18,22 +19,13 @@
     try {
       // Initialize IndexedDB and load history
       await indexedDBService.init();
-      history = await indexedDBService.getAllHistory();
+      const loadedHistory = await indexedDBService.getAllHistory();
+      console.log('从IndexedDB加载的历史记录数量:', loadedHistory.length);
+      history = loadedHistory;
     } catch (error) {
       console.error('加载历史记录失败：', error);
       errorMessage.set('加载历史记录失败');
       history = [];
-    }
-  }
-
-  async function saveHistory() {
-    try {
-      // History is automatically saved when adding records via IndexedDB
-      // This function is kept for compatibility
-      await loadHistory();
-    } catch (error) {
-      console.error('保存历史记录失败：', error);
-      errorMessage.set('保存历史记录失败');
     }
   }
 
@@ -67,11 +59,6 @@
     closeHistoryDetail();
     showHistoryModal.set(false);
     successMessage.set('已加载历史数据');
-
-    // 调用传入的事件处理函数
-    if (onUseHistory) {
-      onUseHistory({ item });
-    }
   }
 
   async function removeHistoryItem(id) {
@@ -92,7 +79,7 @@
     if (confirm('确定要清空所有历史记录吗？此操作无法撤销！')) {
       try {
         await indexedDBService.clearAllHistory();
-        history = [];
+        await loadHistory();
         successMessage.set('所有历史记录已清空');
       } catch (error) {
         console.error('清空历史记录失败：', error);
@@ -174,7 +161,7 @@
   aria-modal="true"
   tabindex="-1"
 >
-  <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" onclick|stopPropagation onkeydown|stopPropagation role="document">
+  <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" role="document">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-xl font-heading m-0">📜 历史记录</h3>
       <button class="text-3xl text-gray-400 hover:text-black cursor-pointer border-none bg-transparent" onclick={closeModal}>×</button>
@@ -296,6 +283,12 @@
           <div class="bg-white p-4 border border-gray-200 rounded max-h-72 overflow-y-auto">
             {@html currentDetail.result.replace(/\n/g, '<br>')}
           </div>
+        </div>
+
+        <!-- Result Table -->
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h5 class="font-heading text-sm m-0 mb-2">表格化结果:</h5>
+          <ResultTable rawData={currentDetail.result} />
         </div>
 
         <!-- Raw Output -->
