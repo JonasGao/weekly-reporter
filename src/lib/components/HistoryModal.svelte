@@ -164,22 +164,20 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
-<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <div
   class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1000] flex items-center justify-center animate-fade-in"
-  on:click={closeModal}
-  on:keydown={handleBackdropKeydown}
+  onclick={closeModal}
+  onkeydown={handleBackdropKeydown}
   role="dialog"
   aria-modal="true"
   tabindex="-1"
 >
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" on:click|stopPropagation on:keydown|stopPropagation role="document">
+  <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" onclick|stopPropagation onkeydown|stopPropagation role="document">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-xl font-heading m-0">📜 历史记录</h3>
-      <button class="text-3xl text-gray-400 hover:text-black cursor-pointer border-none bg-transparent" on:click={closeModal}>×</button>
+      <button class="text-3xl text-gray-400 hover:text-black cursor-pointer border-none bg-transparent" onclick={closeModal}>×</button>
     </div>
 
     <div class="mb-5">
@@ -188,14 +186,14 @@
         <button
           type="button"
           class="px-4 py-2 bg-gray-500 text-white border-0 rounded-3xl cursor-pointer text-sm font-medium shadow-md hover:bg-gray-900 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
-          on:click={clearHistory}
+          onclick={clearHistory}
         >
           🗑️ 清空历史
         </button>
         <button
           type="button"
           class="px-4 py-2 bg-gray-500 text-white border-0 rounded-3xl cursor-pointer text-sm font-medium shadow-md hover:bg-gray-900 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
-          on:click={exportHistory}
+          onclick={exportHistory}
         >
           📊 导出历史
         </button>
@@ -228,7 +226,7 @@
                 <td class="p-2.5">
                   <button
                     class="px-2.5 py-1 border-0 bg-secondary text-white cursor-pointer text-xs hover:bg-accent hover:shadow-md"
-                    on:click={() => showHistoryDetail(item)}
+                    onclick={() => showHistoryDetail(item)}
                   >
                     查看
                   </button>
@@ -245,17 +243,15 @@
 
 <!-- History Detail Modal -->
 {#if showDetailModal && currentDetail}
-  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
   <div
     class="fixed top-0 left-0 w-full h-full bg-black/50 z-[1001] flex items-center justify-center animate-fade-in"
-    on:click={closeHistoryDetail}
-    on:keydown={handleDetailBackdropKeydown}
+    onclick={closeHistoryDetail}
+    onkeydown={handleDetailBackdropKeydown}
     role="dialog"
     aria-modal="true"
     tabindex="-1"
   >
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" on:click|stopPropagation on:keydown|stopPropagation role="document">
+    <div class="bg-white rounded-3xl p-6 max-w-4xl w-11/12 max-h-[80vh] overflow-y-auto animate-scale-in" role="document">
       <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
         <div class="flex items-center gap-2">
           <h3 class="text-lg font-heading m-0">历史记录详情</h3>
@@ -263,7 +259,7 @@
             <span class="inline-block bg-purple-600 text-white px-2 py-1 text-xs rounded font-bold">JSON</span>
           {/if}
         </div>
-        <button class="text-3xl text-gray-400 hover:text-black cursor-pointer border-none bg-transparent" on:click={closeHistoryDetail}>×</button>
+        <button class="text-3xl text-gray-400 hover:text-black cursor-pointer border-none bg-transparent" onclick={closeHistoryDetail}>×</button>
       </div>
 
       <div class="space-y-5">
@@ -308,7 +304,7 @@
             <h5 class="font-heading text-sm m-0">原始输出:</h5>
             <button
               class="px-3 py-1 bg-gray-600 text-white border-0 rounded text-xs cursor-pointer hover:bg-gray-700"
-              on:click={() => copyToClipboard(currentDetail.result)}
+              onclick={() => copyToClipboard(currentDetail.result)}
             >
               复制
             </button>
@@ -321,14 +317,14 @@
           <button
             type="button"
             class="px-5 py-2 bg-primary text-white border-0 rounded-3xl cursor-pointer text-sm font-medium shadow-md hover:bg-sky-600 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
-            on:click={() => useHistoryData(currentDetail)}
+            onclick={() => useHistoryData(currentDetail)}
           >
             使用此数据
           </button>
           <button
             type="button"
             class="px-5 py-2 bg-red-500 text-white border-0 rounded-3xl cursor-pointer text-sm font-medium shadow-md hover:bg-red-600 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
-            on:click={() => removeHistoryItem(currentDetail.id)}
+            onclick={() => removeHistoryItem(currentDetail.id)}
           >
             删除记录
           </button>
