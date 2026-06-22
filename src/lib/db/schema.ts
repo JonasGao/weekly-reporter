@@ -12,3 +12,16 @@ export const reports = sqliteTable('reports', {
 
 export type Report = typeof reports.$inferSelect
 export type NewReport = typeof reports.$inferInsert
+
+export const templates = sqliteTable('templates', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  content: text('content').notNull(),
+  workTypes: text('work_types'),
+  isDefault: integer('is_default', { mode: 'boolean' }).default(false).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
+export type Template = typeof templates.$inferSelect
+export type NewTemplate = typeof templates.$inferInsert
