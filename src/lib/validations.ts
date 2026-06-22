@@ -16,3 +16,11 @@ export const reportSchema = z.object({
 )
 
 export type ReportInput = z.infer<typeof reportSchema>
+
+export const templateSchema = z.object({
+  name: z.string().min(1, '模板名称不能为空').max(100),
+  content: z.string().min(1, '模板内容不能为空'),
+  workTypes: z.string().optional(),
+})
+
+export type TemplateInput = z.infer<typeof templateSchema>
