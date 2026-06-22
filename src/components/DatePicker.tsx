@@ -28,7 +28,7 @@ export function DatePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+      <PopoverTrigger>
         <Button
           variant="outline"
           className={cn(
@@ -49,7 +49,6 @@ export function DatePicker({
             setOpen(false)
           }}
           locale={zhCN}
-          initialFocus
         />
       </PopoverContent>
     </Popover>

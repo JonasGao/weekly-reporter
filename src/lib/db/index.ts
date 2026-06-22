@@ -4,7 +4,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { DB_PATH, ensureDataDir } from '../paths'
 import * as schema from './schema'
 
-let db: ReturnType<typeof drizzle> | null = null
+let db: ReturnType<typeof drizzle<typeof schema>> | null = null
 
 export function getDb() {
   if (!db) {
