@@ -4,6 +4,7 @@ SERVICE_NAME=weekly-reporter
 SERVICE_FILE=$(SERVICE_NAME).service
 SYSTEMD_USER_DIR=$(HOME)/.config/systemd/user
 DEFAULT_PORT=6868
+DEFAULT_HOSTNAME=0.0.0.0
 
 help:
 	@echo "Weekly Reporter - Makefile Commands"
@@ -14,7 +15,7 @@ help:
 	@echo "Commands:"
 	@echo "  dev        Start development server"
 	@echo "  build      Build for production"
-	@echo "  install    Install systemd user service (default port: $(DEFAULT_PORT))"
+	@echo "  install    Install systemd user service (default: port=$(DEFAULT_PORT), host=$(DEFAULT_HOSTNAME))"
 	@echo "  uninstall  Uninstall systemd user service"
 	@echo "  start      Start systemd user service"
 	@echo "  stop       Stop systemd user service"
@@ -27,8 +28,9 @@ help:
 	@echo "  clean      Clean build artifacts"
 	@echo "  help       Show this help message"
 	@echo ""
-	@echo "Configuration:"
-	@echo "  PORT=$(DEFAULT_PORT)  - Set port (via .env.production or service install)"
+	@echo "Configuration (.env.production):"
+	@echo "  PORT=6868          - Server port"
+	@echo "  HOSTNAME=0.0.0.0   - Bind host (0.0.0.0 for LAN, localhost for local only)"
 
 dev:
 	source ~/.nvm/nvm.sh && npm run dev
@@ -43,7 +45,9 @@ install: build
 	sed -i "s|%h|$(HOME)|g" $(SYSTEMD_USER_DIR)/$(SERVICE_FILE)
 	if [ -f .env.production ]; then \
 		PORT=$$(grep -E '^PORT=' .env.production | cut -d'=' -f2 || echo "$(DEFAULT_PORT)"); \
+		HOSTNAME=$$(grep -E '^HOSTNAME=' .env.production | cut -d'=' -f2 || echo "$(DEFAULT_HOSTNAME)"); \
 		sed -i "s|Environment=PORT=$(DEFAULT_PORT)|Environment=PORT=$$PORT|g" $(SYSTEMD_USER_DIR)/$(SERVICE_FILE); \
+		sed -i "s|Environment=HOSTNAME=$(DEFAULT_HOSTNAME)|Environment=HOSTNAME=$$HOSTNAME|g" $(SYSTEMD_USER_DIR)/$(SERVICE_FILE); \
 	fi
 	systemctl --user daemon-reload
 	systemctl --user enable $(SERVICE_NAME).service
