@@ -1,0 +1,25 @@
+[Unit]
+Description=Weekly Reporter - Personal weekly report editor
+Documentation=https://github.com/weekly-reporter
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/github/weekly-reporter
+ExecStart=%h/.nvm/versions/node/v24.11.1/bin/npm run start
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment
+Environment=NODE_ENV=production
+Environment=XDG_DATA_HOME=%h/.local/share
+Environment=XDG_CONFIG_HOME=%h/.config
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
