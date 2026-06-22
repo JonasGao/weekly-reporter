@@ -6,31 +6,48 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { DatePicker } from '@/components/DatePicker'
 import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
 import { getWeekRange, formatDate } from '@/lib/utils'
-import { ArrowLeft } from 'lucide-react'
+import { getWeek, getYear, addWeeks, subWeeks } from 'date-fns'
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function NewReportPage() {
   const router = useRouter()
-  const [title, setTitle] = useState('')
+  const [baseDate, setBaseDate] = useState(new Date())
   const [content, setContent] = useState('')
-  const [startDate, setStartDate] = useState<Date | undefined>(() => {
-    const { start } = getWeekRange(new Date())
-    return start
-  })
-  const [endDate, setEndDate] = useState<Date | undefined>(() => {
-    const { end } = getWeekRange(new Date())
-    return end
-  })
   const [saving, setSaving] = useState(false)
+
+  const { start, end } = getWeekRange(baseDate)
+  const weekStart = formatDate(start)
+  const weekEnd = formatDate(end)
+  const year = getYear(baseDate)
+  const weekNumber = getWeek(baseDate, { weekStartsOn: 1 })
+
+  const defaultTitle = `${year}年第${weekNumber}周工作周报`
+  const [title, setTitle] = useState(defaultTitle)
+
+  function goToPrevWeek() {
+    const newDate = subWeeks(baseDate, 1)
+    setBaseDate(newDate)
+    const newYear = getYear(newDate)
+    const newWeekNumber = getWeek(newDate, { weekStartsOn: 1 })
+    setTitle(`${newYear}年第${newWeekNumber}周工作周报`)
+  }
+
+  function goToNextWeek() {
+    const newDate = addWeeks(baseDate, 1)
+    setBaseDate(newDate)
+    const newYear = getYear(newDate)
+    const newWeekNumber = getWeek(newDate, { weekStartsOn: 1 })
+    setTitle(`${newYear}年第${newWeekNumber}周工作周报`)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!title.trim() || !content.trim() || !startDate || !endDate) {
-      toast.error('请填写所有必填项')
+    if (!content.trim()) {
+      toast.error('请填写周报内容')
       return
     }
 
@@ -43,8 +60,8 @@ export default function NewReportPage() {
         body: JSON.stringify({
           title,
           content,
-          weekStart: formatDate(startDate),
-          weekEnd: formatDate(endDate),
+          weekStart,
+          weekEnd,
         }),
       })
 
@@ -74,34 +91,25 @@ export default function NewReportPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <Button type="button" variant="outline" size="icon" onClick={goToPrevWeek}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-lg font-medium">
+            {year}年第{weekNumber}周 ({weekStart} ~ {weekEnd})
+          </div>
+          <Button type="button" variant="outline" size="icon" onClick={goToNextWeek}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="title">标题</Label>
           <Input
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="例如：2024年第1周工作周报"
-            required
           />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>开始日期</Label>
-            <DatePicker
-              value={startDate}
-              onChange={setStartDate}
-              placeholder="选择开始日期"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>结束日期</Label>
-            <DatePicker
-              value={endDate}
-              onChange={setEndDate}
-              placeholder="选择结束日期"
-            />
-          </div>
         </div>
 
         <div className="space-y-2">

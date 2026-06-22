@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { DatePicker } from '@/components/DatePicker'
 import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
 import { formatDate } from '@/lib/utils'
 import { ArrowLeft } from 'lucide-react'
@@ -21,8 +20,8 @@ export default function EditReportPage() {
   const [loading, setLoading] = useState(true)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [startDate, setStartDate] = useState<Date | undefined>()
-  const [endDate, setEndDate] = useState<Date | undefined>()
+  const [weekStart, setWeekStart] = useState('')
+  const [weekEnd, setWeekEnd] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -33,8 +32,8 @@ export default function EditReportPage() {
           const report: Report = await response.json()
           setTitle(report.title)
           setContent(report.content)
-          setStartDate(new Date(report.weekStart))
-          setEndDate(new Date(report.weekEnd))
+          setWeekStart(report.weekStart)
+          setWeekEnd(report.weekEnd)
         } else {
           toast.error('周报不存在')
           router.push('/')
@@ -53,7 +52,7 @@ export default function EditReportPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!title.trim() || !content.trim() || !startDate || !endDate) {
+    if (!title.trim() || !content.trim()) {
       toast.error('请填写所有必填项')
       return
     }
@@ -67,8 +66,8 @@ export default function EditReportPage() {
         body: JSON.stringify({
           title,
           content,
-          weekStart: formatDate(startDate),
-          weekEnd: formatDate(endDate),
+          weekStart,
+          weekEnd,
         }),
       })
 
@@ -119,20 +118,12 @@ export default function EditReportPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>开始日期</Label>
-            <DatePicker
-              value={startDate}
-              onChange={setStartDate}
-              placeholder="选择开始日期"
-            />
+            <Label>开始日期（周一）</Label>
+            <div className="text-sm text-muted-foreground py-1.5">{weekStart}</div>
           </div>
           <div className="space-y-2">
-            <Label>结束日期</Label>
-            <DatePicker
-              value={endDate}
-              onChange={setEndDate}
-              placeholder="选择结束日期"
-            />
+            <Label>结束日期（周日）</Label>
+            <div className="text-sm text-muted-foreground py-1.5">{weekEnd}</div>
           </div>
         </div>
 

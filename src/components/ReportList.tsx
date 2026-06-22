@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ReportCard } from './ReportCard'
 import { SearchBar } from './SearchBar'
+import { ThemeSwitcher } from './ThemeSwitcher'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -69,12 +70,15 @@ export function ReportList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">周报编辑器</h1>
-        <Link href="/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            新建周报
-          </Button>
-        </Link>
+        <div className="flex items-center gap-4">
+          <ThemeSwitcher />
+          <Link href="/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              新建周报
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <SearchBar onSearch={handleSearch} />
