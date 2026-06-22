@@ -1,0 +1,37 @@
+{
+  "name": "weekly-reporter",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@milkdown/core": "^7.21.2",
+    "@milkdown/ctx": "^7.21.2",
+    "@milkdown/plugin-listener": "^7.21.2",
+    "@milkdown/preset-commonmark": "^7.21.2",
+    "@milkdown/preset-gfm": "^7.21.2",
+    "@milkdown/react": "^7.21.2",
+    "@milkdown/theme-nord": "^7.21.2",
+    "better-sqlite3": "^12.11.1",
+    "drizzle-orm": "^0.45.2",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
