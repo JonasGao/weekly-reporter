@@ -1,11 +1,12 @@
 'use client'
 
-import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core'
-import { commonmark } from '@milkdown/preset-commonmark'
-import { gfm } from '@milkdown/preset-gfm'
-import { listener, listenerCtx } from '@milkdown/plugin-listener'
+import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core'
+import { commonmark } from '@milkdown/kit/preset/commonmark'
+import { gfm } from '@milkdown/kit/preset/gfm'
+import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
-import { useEffect, useState } from 'react'
+import { nord } from '@milkdown/theme-nord'
+import '@milkdown/theme-nord/style.css'
 
 interface MilkdownEditorProps {
   value: string
@@ -14,14 +15,9 @@ interface MilkdownEditorProps {
 }
 
 function MilkdownEditorInner({ value, onChange, placeholder = '开始编写周报...' }: MilkdownEditorProps) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEditor((root) => {
-    return Editor.make()
+  useEditor((root) =>
+    Editor.make()
+      .config(nord)
       .config((ctx) => {
         ctx.set(rootCtx, root)
         ctx.set(defaultValueCtx, value || placeholder)
@@ -32,11 +28,7 @@ function MilkdownEditorInner({ value, onChange, placeholder = '开始编写周�
       .use(commonmark)
       .use(gfm)
       .use(listener)
-  })
-
-  if (!mounted) {
-    return <div className="text-muted-foreground">{placeholder}</div>
-  }
+  )
 
   return <Milkdown />
 }
