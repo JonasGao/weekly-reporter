@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
-import { formatDate } from '@/lib/utils'
+import { CheckPanel } from '@/components/CheckPanel'
+import { ScorePanel } from '@/components/ScorePanel'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Report } from '@/lib/db/schema'
@@ -23,6 +24,7 @@ export default function EditReportPage() {
   const [weekStart, setWeekStart] = useState('')
   const [weekEnd, setWeekEnd] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showScorePanel, setShowScorePanel] = useState(false)
 
   useEffect(() => {
     async function fetchReport() {
@@ -49,9 +51,7 @@ export default function EditReportPage() {
     fetchReport()
   }, [id, router])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-
+  async function handleSubmit() {
     if (!title.trim() || !content.trim()) {
       toast.error('请填写所有必填项')
       return
@@ -94,7 +94,7 @@ export default function EditReportPage() {
   }
 
   return (
-    <main className="container mx-auto py-8 px-4 max-w-3xl">
+    <main className="container mx-auto py-8 px-4 max-w-5xl">
       <div className="flex items-center gap-4 mb-6">
         <Link href="/">
           <Button variant="ghost" size="icon">
@@ -104,15 +104,13 @@ export default function EditReportPage() {
         <h1 className="text-2xl font-bold">编辑周报</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="title">标题</Label>
           <Input
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="例如：2024年第1周工作周报"
-            required
           />
         </div>
 
@@ -127,21 +125,34 @@ export default function EditReportPage() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>内容</Label>
-          <MilkdownEditor value={content} onChange={setContent} />
+        <div className="grid grid-cols-3 gap-4">
+          <div className="col-span-2 space-y-2">
+            <Label>内容</Label>
+            <MilkdownEditor value={content} onChange={setContent} />
+          </div>
+          <div>
+            <CheckPanel content={content} />
+          </div>
         </div>
 
-        <div className="flex justify-end gap-4">
-          <Link href="/">
-            <Button type="button" variant="outline">
-              取消
+        {showScorePanel ? (
+          <ScorePanel
+            content={content}
+            onConfirm={handleSubmit}
+            onCancel={() => setShowScorePanel(false)}
+          />
+        ) : (
+          <div className="flex justify-end gap-4">
+            <Link href="/">
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </Link>
+            <Button type="button" onClick={() => setShowScorePanel(true)} disabled={saving}>
+              {saving ? '保存中...' : '保存'}
             </Button>
-          </Link>
-          <Button type="submit" disabled={saving}>
-            {saving ? '保存中...' : '保存'}
-          </Button>
-        </div>
+          </div>
+        )}
       </form>
     </main>
   )
