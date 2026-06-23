@@ -151,12 +151,12 @@ export default function NewReportPage() {
             <Label htmlFor="template">模板</Label>
             <select
               id="template"
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-background dark:text-foreground"
               value={selectedTemplate?.id || ''}
               onChange={(e) => handleTemplateChange(parseInt(e.target.value))}
             >
               {templates.map((template) => (
-                <option key={template.id} value={template.id}>
+                <option key={template.id} value={template.id} className="bg-background text-foreground dark:bg-popover dark:text-popover-foreground">
                   {template.name}
                   {template.isDefault && ' (默认)'}
                 </option>
