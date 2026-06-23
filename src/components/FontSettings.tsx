@@ -84,6 +84,7 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
     if (!value) return
     const rendering = value as FontRendering
     setUiRendering(rendering)
+    setUiSelectOpen(false)
     localStorage.setItem('ui-rendering', rendering)
     applyFonts(uiFont, editorFont, rendering, editorRendering)
   }
@@ -92,6 +93,7 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
     if (!value) return
     const rendering = value as FontRendering
     setEditorRendering(rendering)
+    setEditorSelectOpen(false)
     localStorage.setItem('editor-rendering', rendering)
     applyFonts(uiFont, editorFont, uiRendering, rendering)
   }
