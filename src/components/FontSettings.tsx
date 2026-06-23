@@ -78,7 +78,7 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
     applyFonts(uiFont, font, uiRendering, editorRendering)
   }
 
-  function handleUiRenderingChange(value: string | null) {
+  function handleUiRenderingChange(value: unknown) {
     if (!value) return
     const rendering = value as FontRendering
     setUiRendering(rendering)
@@ -86,7 +86,7 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
     applyFonts(uiFont, editorFont, rendering, editorRendering)
   }
 
-  function handleEditorRenderingChange(value: string | null) {
+  function handleEditorRenderingChange(value: unknown) {
     if (!value) return
     const rendering = value as FontRendering
     setEditorRendering(rendering)

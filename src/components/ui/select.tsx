@@ -6,7 +6,16 @@ import { Select as SelectPrimitive } from '@base-ui/react/select'
 import { cn } from '@/lib/utils'
 import { Check, ChevronDown } from 'lucide-react'
 
-const Select = SelectPrimitive.Root
+function Select({ children, ...props }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>) {
+  return (
+    <div className="relative">
+      <SelectPrimitive.Root {...props}>
+        {children}
+      </SelectPrimitive.Root>
+    </div>
+  )
+}
+Select.displayName = 'Select'
 
 const SelectGroup = SelectPrimitive.Group
 
@@ -37,14 +46,14 @@ const SelectContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Positioner>
 >(({ className, children, ...props }, ref) => (
   <SelectPrimitive.Positioner ref={ref} sideOffset={4} {...props}>
-    <ul
+    <SelectPrimitive.Popup
       className={cn(
         'z-[100] min-w-[var(--anchor-width)] overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-md',
         className
       )}
     >
       {children}
-    </ul>
+    </SelectPrimitive.Popup>
   </SelectPrimitive.Positioner>
 ))
 SelectContent.displayName = SelectPrimitive.Portal.displayName
