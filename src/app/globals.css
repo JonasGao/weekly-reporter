@@ -120,6 +120,12 @@
 :root {
   --font-ui: system-ui;
   --font-editor: Geist;
+  --font-ui-rendering: ;
+  --font-ui-moz-rendering: ;
+  --font-ui-text-rendering: ;
+  --font-editor-rendering: ;
+  --font-editor-moz-rendering: ;
+  --font-editor-text-rendering: ;
 }
 
 @layer base {
@@ -129,6 +135,9 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-ui);
+    -webkit-font-smoothing: var(--font-ui-rendering);
+    -moz-osx-font-smoothing: var(--font-ui-moz-rendering);
+    text-rendering: var(--font-ui-text-rendering);
   }
   html {
     @apply font-sans;

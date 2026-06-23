@@ -36,7 +36,15 @@ function MilkdownEditorInner({ value, onChange, placeholder = '开始编写周�
 export function MilkdownEditor({ value, onChange, placeholder }: MilkdownEditorProps) {
   return (
     <MilkdownProvider>
-      <div className="min-h-[400px] border rounded-md p-4 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2" style={{ fontFamily: 'var(--font-editor)' }}>
+      <div 
+        className="min-h-[400px] border rounded-md p-4 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2" 
+        style={{ 
+          fontFamily: 'var(--font-editor)',
+          WebkitFontSmoothing: 'var(--font-editor-rendering)' as any,
+          MozOsxFontSmoothing: 'var(--font-editor-moz-rendering)' as any,
+          textRendering: 'var(--font-editor-text-rendering)' as any,
+        }}
+      >
         <MilkdownEditorInner value={value} onChange={onChange} placeholder={placeholder} />
       </div>
     </MilkdownProvider>
