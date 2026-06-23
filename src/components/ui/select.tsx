@@ -37,18 +37,16 @@ const SelectContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Portal>
 >(({ className, children, ...props }, ref) => (
   <SelectPrimitive.Portal ref={ref} {...props}>
-    <div
-      className={cn(
-        'relative z-50 min-w-[8rem] overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-md',
-        className
-      )}
-    >
-      <SelectPrimitive.Positioner sideOffset={4}>
-        <ul className="p-1">
-          {children}
-        </ul>
-      </SelectPrimitive.Positioner>
-    </div>
+    <SelectPrimitive.Positioner sideOffset={4}>
+      <ul
+        className={cn(
+          'z-50 min-w-[8rem] overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-md',
+          className
+        )}
+      >
+        {children}
+      </ul>
+    </SelectPrimitive.Positioner>
   </SelectPrimitive.Portal>
 ))
 SelectContent.displayName = SelectPrimitive.Portal.displayName
