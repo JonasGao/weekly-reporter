@@ -22,6 +22,7 @@ export default function NewReportPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
   const [showScorePanel, setShowScorePanel] = useState(false)
   const [content, setContent] = useState('')
+  const [editorKey, setEditorKey] = useState(0)
   const [saving, setSaving] = useState(false)
 
   const { start, end } = getWeekRange(baseDate)
@@ -46,6 +47,7 @@ export default function NewReportPage() {
         const defaultTemplate = data.templates.find((t: Template) => t.isDefault)
         setSelectedTemplate(defaultTemplate || data.templates[0])
         setContent(defaultTemplate?.content || data.templates[0]?.content || '')
+        setEditorKey(k => k + 1)
       }
     } catch (error) {
       toast.error('加载模板失败')
@@ -73,6 +75,7 @@ export default function NewReportPage() {
     if (template) {
       setSelectedTemplate(template)
       setContent(template.content)
+      setEditorKey(k => k + 1)
     }
   }
 
@@ -168,7 +171,7 @@ export default function NewReportPage() {
         <div className="grid grid-cols-3 gap-4">
           <div className="col-span-2 space-y-2">
             <Label>内容</Label>
-            <MilkdownEditor value={content} onChange={setContent} />
+            <MilkdownEditor key={editorKey} value={content} onChange={setContent} />
           </div>
           <div>
             <CheckPanel content={content} />
