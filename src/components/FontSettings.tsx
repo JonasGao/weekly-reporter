@@ -134,7 +134,7 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
 
           <div className="space-y-2">
             <Label htmlFor="ui-rendering">界面字体渲染</Label>
-            <Select value={uiRendering} onValueChange={handleUiRenderingChange}>
+            <Select key={uiRendering} defaultValue={uiRendering} onValueChange={handleUiRenderingChange}>
               <SelectTrigger id="ui-rendering">
                 <SelectValue placeholder="选择渲染模式" />
               </SelectTrigger>
@@ -165,7 +165,7 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
 
           <div className="space-y-2">
             <Label htmlFor="editor-rendering">编辑器字体渲染</Label>
-            <Select value={editorRendering} onValueChange={handleEditorRenderingChange}>
+            <Select key={editorRendering} defaultValue={editorRendering} onValueChange={handleEditorRenderingChange}>
               <SelectTrigger id="editor-rendering">
                 <SelectValue placeholder="选择渲染模式" />
               </SelectTrigger>
