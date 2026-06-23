@@ -51,18 +51,35 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
     document.documentElement.style.setProperty('--font-editor-rendering', editorStyles.webkit)
     document.documentElement.style.setProperty('--font-editor-moz-rendering', editorStyles.moz)
     document.documentElement.style.setProperty('--font-editor-text-rendering', editorStyles.textRendering)
+    document.documentElement.style.setProperty('--font-ui-font-kerning', uiStyles.fontKerning)
+    document.documentElement.style.setProperty('--font-editor-font-kerning', editorStyles.fontKerning)
   }
 
   function getRenderingStyles(rendering: FontRendering) {
     switch (rendering) {
       case 'antialiased':
-        return { webkit: 'antialiased', moz: 'grayscale', textRendering: 'optimizeLegibility' }
+        return {
+          webkit: 'antialiased',
+          moz: 'grayscale',
+          textRendering: 'optimizeLegibility',
+          fontKerning: 'normal',
+        }
       case 'subpixel':
-        return { webkit: 'subpixel-antialiased', moz: 'auto', textRendering: 'auto' }
+        return {
+          webkit: 'subpixel-antialiased',
+          moz: 'auto',
+          textRendering: 'optimizeSpeed',
+          fontKerning: 'auto',
+        }
       case 'geometric':
-        return { webkit: 'antialiased', moz: 'grayscale', textRendering: 'geometricPrecision' }
+        return {
+          webkit: 'antialiased',
+          moz: 'grayscale',
+          textRendering: 'geometricPrecision',
+          fontKerning: 'none',
+        }
       default:
-        return { webkit: '', moz: '', textRendering: '' }
+        return { webkit: '', moz: '', textRendering: '', fontKerning: '' }
     }
   }
 

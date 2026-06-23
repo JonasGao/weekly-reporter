@@ -43,6 +43,7 @@ export function MilkdownEditor({ value, onChange, placeholder }: MilkdownEditorP
           WebkitFontSmoothing: 'var(--font-editor-rendering)' as any,
           MozOsxFontSmoothing: 'var(--font-editor-moz-rendering)' as any,
           textRendering: 'var(--font-editor-text-rendering)' as any,
+          fontKerning: 'var(--font-editor-font-kerning)' as any,
         }}
       >
         <MilkdownEditorInner value={value} onChange={onChange} placeholder={placeholder} />

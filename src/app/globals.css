@@ -126,6 +126,8 @@
   --font-editor-rendering: ;
   --font-editor-moz-rendering: ;
   --font-editor-text-rendering: ;
+  --font-ui-font-kerning: ;
+  --font-editor-font-kerning: ;
 }
 
 @layer base {
@@ -138,6 +140,7 @@
     -webkit-font-smoothing: var(--font-ui-rendering);
     -moz-osx-font-smoothing: var(--font-ui-moz-rendering);
     text-rendering: var(--font-ui-text-rendering);
+    font-kerning: var(--font-ui-font-kerning);
   }
   html {
     @apply font-sans;
