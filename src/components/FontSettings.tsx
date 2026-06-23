@@ -2,24 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Settings, X } from 'lucide-react'
 
-const FONT_OPTIONS = [
-  { value: 'system-ui', label: '系统默认' },
-  { value: 'Geist', label: 'Geist' },
-  { value: 'Inter', label: 'Inter' },
-  { value: 'Roboto', label: 'Roboto' },
-  { value: 'Noto Sans SC', label: '思源黑体' },
-  { value: 'Microsoft YaHei', label: '微软雅黑' },
-  { value: 'PingFang SC', label: '苹方' },
-  { value: 'SimSun', label: '宋体' },
-  { value: 'Fira Code', label: 'Fira Code' },
-  { value: 'JetBrains Mono', label: 'JetBrains Mono' },
-  { value: 'Monaco', label: 'Monaco' },
-]
-
-const DEFAULT_UI_FONT = 'system-ui'
-const DEFAULT_EDITOR_FONT = 'Geist'
+const DEFAULT_UI_FONT = 'system-ui, sans-serif'
+const DEFAULT_EDITOR_FONT = 'Geist, sans-serif'
 
 interface FontSettingsProps {
   isOpen: boolean
@@ -55,6 +43,14 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
     applyFonts(uiFont, font)
   }
 
+  function handleReset() {
+    setUiFont(DEFAULT_UI_FONT)
+    setEditorFont(DEFAULT_EDITOR_FONT)
+    localStorage.setItem('ui-font', DEFAULT_UI_FONT)
+    localStorage.setItem('editor-font', DEFAULT_EDITOR_FONT)
+    applyFonts(DEFAULT_UI_FONT, DEFAULT_EDITOR_FONT)
+  }
+
   if (!isOpen) return null
 
   return (
@@ -69,43 +65,36 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">界面字体</label>
-            <select
-              className="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            <Label htmlFor="ui-font">界面字体</Label>
+            <Input
+              id="ui-font"
               value={uiFont}
               onChange={(e) => handleUiFontChange(e.target.value)}
-            >
-              {FONT_OPTIONS.map((font) => (
-                <option key={font.value} value={font.value}>
-                  {font.label}
-                </option>
-              ))}
-            </select>
+              placeholder="例如：system-ui, sans-serif"
+            />
             <p className="text-xs text-muted-foreground">
-              用于界面标题、按钮、列表等元素
+              用于界面标题、按钮、列表等元素。支持 CSS font-family 格式。
             </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">编辑器字体</label>
-            <select
-              className="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            <Label htmlFor="editor-font">编辑器字体</Label>
+            <Input
+              id="editor-font"
               value={editorFont}
               onChange={(e) => handleEditorFontChange(e.target.value)}
-            >
-              {FONT_OPTIONS.map((font) => (
-                <option key={font.value} value={font.value}>
-                  {font.label}
-                </option>
-              ))}
-            </select>
+              placeholder="例如：Geist, sans-serif"
+            />
             <p className="text-xs text-muted-foreground">
-              用于 Markdown 编辑器内容
+              用于 Markdown 编辑器内容。支持 CSS font-family 格式。
             </p>
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-between">
+          <Button variant="outline" onClick={handleReset}>
+            重置默认
+          </Button>
           <Button onClick={onClose}>完成</Button>
         </div>
       </div>
