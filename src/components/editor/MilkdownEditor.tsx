@@ -38,13 +38,7 @@ export function MilkdownEditor({ value, onChange, placeholder }: MilkdownEditorP
     <MilkdownProvider>
       <div 
         className="min-h-[400px] border rounded-md p-4 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2" 
-        style={{ 
-          fontFamily: 'var(--font-editor)',
-          WebkitFontSmoothing: 'var(--font-editor-rendering)' as any,
-          MozOsxFontSmoothing: 'var(--font-editor-moz-rendering)' as any,
-          textRendering: 'var(--font-editor-text-rendering)' as any,
-          fontKerning: 'var(--font-editor-font-kerning)' as any,
-        }}
+        style={{ fontFamily: 'var(--font-editor)' }}
       >
         <MilkdownEditorInner value={value} onChange={onChange} placeholder={placeholder} />
       </div>

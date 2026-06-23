@@ -4,14 +4,10 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Settings, X } from 'lucide-react'
 
 const DEFAULT_UI_FONT = 'system-ui, sans-serif'
 const DEFAULT_EDITOR_FONT = 'Geist, sans-serif'
-const DEFAULT_RENDERING = 'default'
-
-type FontRendering = 'default' | 'antialiased' | 'subpixel' | 'geometric'
 
 interface FontSettingsProps {
   isOpen: boolean
@@ -21,106 +17,38 @@ interface FontSettingsProps {
 export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
   const [uiFont, setUiFont] = useState(DEFAULT_UI_FONT)
   const [editorFont, setEditorFont] = useState(DEFAULT_EDITOR_FONT)
-  const [uiRendering, setUiRendering] = useState<FontRendering>(DEFAULT_RENDERING)
-  const [editorRendering, setEditorRendering] = useState<FontRendering>(DEFAULT_RENDERING)
 
   useEffect(() => {
     const savedUiFont = localStorage.getItem('ui-font') || DEFAULT_UI_FONT
     const savedEditorFont = localStorage.getItem('editor-font') || DEFAULT_EDITOR_FONT
-    const savedUiRendering = (localStorage.getItem('ui-rendering') as FontRendering) || DEFAULT_RENDERING
-    const savedEditorRendering = (localStorage.getItem('editor-rendering') as FontRendering) || DEFAULT_RENDERING
-    
     setUiFont(savedUiFont)
     setEditorFont(savedEditorFont)
-    setUiRendering(savedUiRendering)
-    setEditorRendering(savedEditorRendering)
-    applyFonts(savedUiFont, savedEditorFont, savedUiRendering, savedEditorRendering)
+    applyFonts(savedUiFont, savedEditorFont)
   }, [])
 
-  function applyFonts(uiFont: string, editorFont: string, uiRendering: FontRendering, editorRendering: FontRendering) {
+  function applyFonts(uiFont: string, editorFont: string) {
     document.documentElement.style.setProperty('--font-ui', uiFont)
     document.documentElement.style.setProperty('--font-editor', editorFont)
-    
-    const uiStyles = getRenderingStyles(uiRendering)
-    const editorStyles = getRenderingStyles(editorRendering)
-    
-    document.documentElement.style.setProperty('--font-ui-rendering', uiStyles.webkit)
-    document.documentElement.style.setProperty('--font-ui-moz-rendering', uiStyles.moz)
-    document.documentElement.style.setProperty('--font-ui-text-rendering', uiStyles.textRendering)
-    
-    document.documentElement.style.setProperty('--font-editor-rendering', editorStyles.webkit)
-    document.documentElement.style.setProperty('--font-editor-moz-rendering', editorStyles.moz)
-    document.documentElement.style.setProperty('--font-editor-text-rendering', editorStyles.textRendering)
-    document.documentElement.style.setProperty('--font-ui-font-kerning', uiStyles.fontKerning)
-    document.documentElement.style.setProperty('--font-editor-font-kerning', editorStyles.fontKerning)
-  }
-
-  function getRenderingStyles(rendering: FontRendering) {
-    switch (rendering) {
-      case 'antialiased':
-        return {
-          webkit: 'antialiased',
-          moz: 'grayscale',
-          textRendering: 'optimizeLegibility',
-          fontKerning: 'normal',
-        }
-      case 'subpixel':
-        return {
-          webkit: 'subpixel-antialiased',
-          moz: 'auto',
-          textRendering: 'optimizeSpeed',
-          fontKerning: 'auto',
-        }
-      case 'geometric':
-        return {
-          webkit: 'antialiased',
-          moz: 'grayscale',
-          textRendering: 'geometricPrecision',
-          fontKerning: 'none',
-        }
-      default:
-        return { webkit: '', moz: '', textRendering: '', fontKerning: '' }
-    }
   }
 
   function handleUiFontChange(font: string) {
     setUiFont(font)
     localStorage.setItem('ui-font', font)
-    applyFonts(font, editorFont, uiRendering, editorRendering)
+    applyFonts(font, editorFont)
   }
 
   function handleEditorFontChange(font: string) {
     setEditorFont(font)
     localStorage.setItem('editor-font', font)
-    applyFonts(uiFont, font, uiRendering, editorRendering)
-  }
-
-  function handleUiRenderingChange(value: unknown) {
-    if (!value) return
-    const rendering = value as FontRendering
-    setUiRendering(rendering)
-    localStorage.setItem('ui-rendering', rendering)
-    applyFonts(uiFont, editorFont, rendering, editorRendering)
-  }
-
-  function handleEditorRenderingChange(value: unknown) {
-    if (!value) return
-    const rendering = value as FontRendering
-    setEditorRendering(rendering)
-    localStorage.setItem('editor-rendering', rendering)
-    applyFonts(uiFont, editorFont, uiRendering, rendering)
+    applyFonts(uiFont, font)
   }
 
   function handleReset() {
     setUiFont(DEFAULT_UI_FONT)
     setEditorFont(DEFAULT_EDITOR_FONT)
-    setUiRendering(DEFAULT_RENDERING)
-    setEditorRendering(DEFAULT_RENDERING)
     localStorage.setItem('ui-font', DEFAULT_UI_FONT)
     localStorage.setItem('editor-font', DEFAULT_EDITOR_FONT)
-    localStorage.setItem('ui-rendering', DEFAULT_RENDERING)
-    localStorage.setItem('editor-rendering', DEFAULT_RENDERING)
-    applyFonts(DEFAULT_UI_FONT, DEFAULT_EDITOR_FONT, DEFAULT_RENDERING, DEFAULT_RENDERING)
+    applyFonts(DEFAULT_UI_FONT, DEFAULT_EDITOR_FONT)
   }
 
   if (!isOpen) return null
@@ -150,24 +78,6 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ui-rendering">界面字体渲染</Label>
-            <Select value={uiRendering} onValueChange={handleUiRenderingChange}>
-              <SelectTrigger id="ui-rendering">
-                <SelectValue placeholder="选择渲染模式" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">默认</SelectItem>
-                <SelectItem value="antialiased">抗锯齿（平滑）</SelectItem>
-                <SelectItem value="subpixel">次像素（清晰）</SelectItem>
-                <SelectItem value="geometric">几何精度（精细）</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              控制字体的抗锯齿和渲染方式。
-            </p>
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="editor-font">编辑器字体</Label>
             <Input
               id="editor-font"
@@ -177,24 +87,6 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
             />
             <p className="text-xs text-muted-foreground">
               用于 Markdown 编辑器内容。支持 CSS font-family 格式。
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="editor-rendering">编辑器字体渲染</Label>
-            <Select value={editorRendering} onValueChange={handleEditorRenderingChange}>
-              <SelectTrigger id="editor-rendering">
-                <SelectValue placeholder="选择渲染模式" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">默认</SelectItem>
-                <SelectItem value="antialiased">抗锯齿（平滑）</SelectItem>
-                <SelectItem value="subpixel">次像素（清晰）</SelectItem>
-                <SelectItem value="geometric">几何精度（精细）</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              控制编辑器字体的抗锯齿和渲染方式。
             </p>
           </div>
         </div>
