@@ -46,3 +46,8 @@ data/
 
 # XDG data directories (for development)
 .local/
+
+# playwright
+.playwright-cli/
+*.yml
+*.yaml

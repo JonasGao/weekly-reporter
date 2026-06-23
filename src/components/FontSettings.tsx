@@ -78,15 +78,17 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
     applyFonts(uiFont, font, uiRendering, editorRendering)
   }
 
-  function handleUiRenderingChange(rendering: FontRendering | null) {
-    if (!rendering) return
+  function handleUiRenderingChange(value: string | null) {
+    if (!value) return
+    const rendering = value as FontRendering
     setUiRendering(rendering)
     localStorage.setItem('ui-rendering', rendering)
     applyFonts(uiFont, editorFont, rendering, editorRendering)
   }
 
-  function handleEditorRenderingChange(rendering: FontRendering | null) {
-    if (!rendering) return
+  function handleEditorRenderingChange(value: string | null) {
+    if (!value) return
+    const rendering = value as FontRendering
     setEditorRendering(rendering)
     localStorage.setItem('editor-rendering', rendering)
     applyFonts(uiFont, editorFont, uiRendering, rendering)
