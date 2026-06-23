@@ -23,6 +23,8 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
   const [editorFont, setEditorFont] = useState(DEFAULT_EDITOR_FONT)
   const [uiRendering, setUiRendering] = useState<FontRendering>(DEFAULT_RENDERING)
   const [editorRendering, setEditorRendering] = useState<FontRendering>(DEFAULT_RENDERING)
+  const [uiSelectOpen, setUiSelectOpen] = useState(false)
+  const [editorSelectOpen, setEditorSelectOpen] = useState(false)
 
   useEffect(() => {
     const savedUiFont = localStorage.getItem('ui-font') || DEFAULT_UI_FONT
@@ -134,7 +136,12 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
 
           <div className="space-y-2">
             <Label htmlFor="ui-rendering">界面字体渲染</Label>
-            <Select key={uiRendering} defaultValue={uiRendering} onValueChange={handleUiRenderingChange}>
+            <Select
+              open={uiSelectOpen}
+              onOpenChange={setUiSelectOpen}
+              value={uiRendering}
+              onValueChange={handleUiRenderingChange}
+            >
               <SelectTrigger id="ui-rendering">
                 <SelectValue placeholder="选择渲染模式" />
               </SelectTrigger>
@@ -165,7 +172,12 @@ export function FontSettings({ isOpen, onClose }: FontSettingsProps) {
 
           <div className="space-y-2">
             <Label htmlFor="editor-rendering">编辑器字体渲染</Label>
-            <Select key={editorRendering} defaultValue={editorRendering} onValueChange={handleEditorRenderingChange}>
+            <Select
+              open={editorSelectOpen}
+              onOpenChange={setEditorSelectOpen}
+              value={editorRendering}
+              onValueChange={handleEditorRenderingChange}
+            >
               <SelectTrigger id="editor-rendering">
                 <SelectValue placeholder="选择渲染模式" />
               </SelectTrigger>
