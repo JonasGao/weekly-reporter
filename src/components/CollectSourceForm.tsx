@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 
 export interface FormData {
-  type: 'git-remote-github' | 'git-remote-gitlab' | 'git-remote-gitee'
+  type: 'git-remote-github' | 'git-remote-gitlab' | 'git-remote-gitee' | 'git-local'
   name: string
   config: {
     baseUrl: string
@@ -20,6 +20,9 @@ export interface FormData {
   }
   enabled: boolean
 }
+
+const isLocal = (type: FormData['type']) => type === 'git-local'
+const isRemote = (type: FormData['type']) => !isLocal(type)
 
 export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number; initialData?: FormData }) {
   const router = useRouter()
@@ -64,14 +67,20 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
     const submitData = {
       type: formData.type,
       name: formData.name,
-      config: {
-        baseUrl: formData.config.baseUrl || undefined,
-        owner: formData.config.owner,
-        repo: formData.config.repo,
-        token: formData.config.token,
-        authorEmails: formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean),
-        branch: formData.config.branch || undefined,
-      },
+      config: isLocal(formData.type)
+        ? {
+          owner: formData.config.owner,
+          authorEmails: formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean),
+          branch: formData.config.branch || undefined,
+        }
+        : {
+          baseUrl: formData.config.baseUrl || undefined,
+          owner: formData.config.owner,
+          repo: formData.config.repo,
+          token: formData.config.token,
+          authorEmails: formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean),
+          branch: formData.config.branch || undefined,
+        },
       enabled: formData.enabled,
     }
 
@@ -95,7 +104,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
       } else {
         toast.error(data.error || '操作失败')
       }
-    } catch (error) {
+    } catch {
       toast.error('操作失败')
     } finally {
       setLoading(false)
@@ -123,20 +132,21 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="type">平台类型</Label>
+            <Label htmlFor="type">采集类型</Label>
             <select
               id="type"
               value={formData.type}
-              onChange={e => handleChange('type', e.target.value)}
+              onChange={e => handleChange('type', e.target.value as FormData['type'])}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              <option value="git-remote-github">GitHub</option>
-              <option value="git-remote-gitlab">GitLab</option>
+              <option value="git-remote-github">GitHub（远程）</option>
+              <option value="git-remote-gitlab">GitLab（远程）</option>
+              <option value="git-local">本地 Git 仓库</option>
               <option value="git-remote-gitee">Gitee（暂不支持）</option>
             </select>
           </div>
 
-          {formData.type === 'git-remote-gitlab' && (
+          {isRemote(formData.type) && formData.type === 'git-remote-gitlab' && (
             <div className="space-y-2">
               <Label htmlFor="baseUrl">GitLab 地址（自建实例填写，公有云留空）</Label>
               <input
@@ -151,30 +161,34 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="owner">仓库所属组织/用户名</Label>
+            <Label htmlFor="owner">
+              {isLocal(formData.type) ? '本地仓库路径' : '仓库所属组织/用户名'}
+            </Label>
             <input
               id="owner"
               type="text"
               value={formData.config.owner}
               onChange={e => handleConfigChange('owner', e.target.value)}
-              placeholder="例如：my-org"
+              placeholder={isLocal(formData.type) ? '例如：/home/user/projects/backend' : '例如：my-org'}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="repo">仓库名</Label>
-            <input
-              id="repo"
-              type="text"
-              value={formData.config.repo}
-              onChange={e => handleConfigChange('repo', e.target.value)}
-              placeholder="例如：backend-api"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              required
-            />
-          </div>
+          {isRemote(formData.type) && (
+            <div className="space-y-2">
+              <Label htmlFor="repo">仓库名</Label>
+              <input
+                id="repo"
+                type="text"
+                value={formData.config.repo}
+                onChange={e => handleConfigChange('repo', e.target.value)}
+                placeholder="例如：backend-api"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                required
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="branch">分支（可选，默认主分支）</Label>
@@ -188,23 +202,25 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="token">个人访问令牌</Label>
-            <input
-              id="token"
-              type="password"
-              value={formData.config.token}
-              onChange={e => handleConfigChange('token', e.target.value)}
-              placeholder="请输入访问令牌"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              {formData.type === 'git-remote-github' 
-                ? 'GitHub: Settings → Developer settings → Personal access tokens'
-                : 'GitLab: Settings → Access tokens'}
-            </p>
-          </div>
+          {isRemote(formData.type) && (
+            <div className="space-y-2">
+              <Label htmlFor="token">个人访问令牌</Label>
+              <input
+                id="token"
+                type="password"
+                value={formData.config.token}
+                onChange={e => handleConfigChange('token', e.target.value)}
+                placeholder="请输入访问令牌"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                {formData.type === 'git-remote-github' 
+                  ? 'GitHub: Settings → Developer settings → Personal access tokens'
+                  : 'GitLab: Settings → Access tokens'}
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="authorEmails">作者邮箱（多个用逗号分隔）</Label>

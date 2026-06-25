@@ -6,6 +6,14 @@ export const gitlabAdapter: GitAdapter = {
   async fetchCommits(options: FetchCommitsOptions): Promise<GitCommit[]> {
     const { config, since, until } = options
     const { baseUrl, owner, repo, token } = config
+    
+    if (!repo) {
+      throw new Error('GitLab 仓库需要指定 repo')
+    }
+    if (!token) {
+      throw new Error('GitLab 仓库需要提供 token')
+    }
+    
     const apiBase = baseUrl || 'https://gitlab.com/api/v4'
     
     const projectId = encodeURIComponent(`${owner}/${repo}`)

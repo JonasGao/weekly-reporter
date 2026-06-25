@@ -29,8 +29,8 @@ export type NewTemplate = typeof templates.$inferInsert
 export interface CollectSourceConfig {
   baseUrl?: string
   owner: string
-  repo: string
-  token: string
+  repo?: string
+  token?: string
   authorEmails: string[]
   branch?: string
 }

@@ -6,6 +6,14 @@ export const githubAdapter: GitAdapter = {
   async fetchCommits(options: FetchCommitsOptions): Promise<GitCommit[]> {
     const { config, since, until } = options
     const { baseUrl, owner, repo, token } = config
+    
+    if (!repo) {
+      throw new Error('GitHub 仓库需要指定 repo')
+    }
+    if (!token) {
+      throw new Error('GitHub 仓库需要提供 token')
+    }
+    
     const apiBase = baseUrl || 'https://api.github.com'
     
     const params = new URLSearchParams({

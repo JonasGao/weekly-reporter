@@ -26,17 +26,39 @@ export const templateSchema = z.object({
 export type TemplateInput = z.infer<typeof templateSchema>
 
 export const collectSourceSchema = z.object({
-  type: z.enum(['git-remote-github', 'git-remote-gitlab', 'git-remote-gitee']),
+  type: z.enum(['git-remote-github', 'git-remote-gitlab', 'git-remote-gitee', 'git-local']),
   name: z.string().min(1, '采集源名称不能为空').max(100),
   config: z.object({
     baseUrl: z.string().optional(),
-    owner: z.string().min(1, 'owner 不能为空'),
-    repo: z.string().min(1, 'repo 不能为空'),
-    token: z.string().min(1, 'token 不能为空'),
+    owner: z.string().min(1, '路径或 owner 不能为空'),
+    repo: z.string().optional(),
+    token: z.string().optional(),
     authorEmails: z.array(z.string()).min(1, '至少需要一个作者邮箱'),
     branch: z.string().optional(),
   }),
   enabled: z.boolean().optional(),
-})
+}).refine(
+  (data) => {
+    if (data.type === 'git-local') {
+      return true
+    }
+    return data.config.repo && data.config.repo.length > 0
+  },
+  {
+    message: '远程仓库需要指定 repo',
+    path: ['config', 'repo'],
+  }
+).refine(
+  (data) => {
+    if (data.type === 'git-local') {
+      return true
+    }
+    return data.config.token && data.config.token.length > 0
+  },
+  {
+    message: '远程仓库需要提供 token',
+    path: ['config', 'token'],
+  }
+)
 
 export type CollectSourceInput = z.infer<typeof collectSourceSchema>

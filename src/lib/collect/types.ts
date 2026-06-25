@@ -18,8 +18,8 @@ export interface FetchCommitsOptions {
   config: {
     baseUrl?: string
     owner: string
-    repo: string
-    token: string
+    repo?: string
+    token?: string
     authorEmails: string[]
     branch?: string
   }
