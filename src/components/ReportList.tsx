@@ -6,7 +6,7 @@ import { SearchBar } from './SearchBar'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { FontSettingsButton } from './FontSettings'
 import { Button } from '@/components/ui/button'
-import { Plus, FileText } from 'lucide-react'
+import { Plus, FileText, GitBranch } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { Report } from '@/lib/db/schema'
@@ -74,6 +74,12 @@ export function ReportList() {
         <div className="flex items-center gap-2">
           <FontSettingsButton />
           <ThemeSwitcher />
+          <Link href="/collect">
+            <Button variant="outline">
+              <GitBranch className="h-4 w-4 mr-2" />
+              采集源
+            </Button>
+          </Link>
           <Link href="/templates">
             <Button variant="outline">
               <FileText className="h-4 w-4 mr-2" />

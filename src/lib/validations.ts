@@ -24,3 +24,19 @@ export const templateSchema = z.object({
 })
 
 export type TemplateInput = z.infer<typeof templateSchema>
+
+export const collectSourceSchema = z.object({
+  type: z.enum(['git-remote-github', 'git-remote-gitlab', 'git-remote-gitee']),
+  name: z.string().min(1, '采集源名称不能为空').max(100),
+  config: z.object({
+    baseUrl: z.string().optional(),
+    owner: z.string().min(1, 'owner 不能为空'),
+    repo: z.string().min(1, 'repo 不能为空'),
+    token: z.string().min(1, 'token 不能为空'),
+    authorEmails: z.array(z.string()).min(1, '至少需要一个作者邮箱'),
+    branch: z.string().optional(),
+  }),
+  enabled: z.boolean().optional(),
+})
+
+export type CollectSourceInput = z.infer<typeof collectSourceSchema>
