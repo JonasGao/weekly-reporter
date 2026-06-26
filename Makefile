@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 .PHONY: dev build start stop restart status install uninstall clean test lint migrate help
 
 SERVICE_NAME=weekly-reporter
