@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Scan, FolderGit2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -50,18 +51,11 @@ export function ScanReposDialog({
     }
   }, [open])
   
-  useEffect(() => {
-    if (path.length > 0) {
-      fetchSuggestions()
-    } else {
-      setSuggestions([])
-      setShowSuggestions(false)
-    }
-  }, [path])
+  const [activeIndex, setActiveIndex] = useState(-1)
   
-  async function fetchSuggestions() {
+  const fetchSuggestions = useCallback(async (currentPath: string) => {
     try {
-      const res = await fetch(`/api/collect/scan-path?path=${encodeURIComponent(path)}`)
+      const res = await fetch(`/api/collect/scan-path?path=${encodeURIComponent(currentPath)}`)
       const data = await res.json()
       
       if (data.error) {
@@ -72,16 +66,46 @@ export function ScanReposDialog({
       
       setSuggestions(data.directories || [])
       setShowSuggestions(true)
+      setActiveIndex(-1)
     } catch (error) {
       setSuggestions([])
       setShowSuggestions(false)
     }
-  }
+  }, [])
+  
+  useEffect(() => {
+    if (path.length > 0) {
+      const timer = setTimeout(() => fetchSuggestions(path), 200)
+      return () => clearTimeout(timer)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }, [path, fetchSuggestions])
   
   function handleSuggestionClick(suggestion: DirectoryItem) {
     setPath(suggestion.path)
     setShowSuggestions(false)
+    setActiveIndex(-1)
     inputRef.current?.focus()
+  }
+  
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!showSuggestions || suggestions.length === 0) return
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex(prev => (prev + 1) % suggestions.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex(prev => (prev - 1 + suggestions.length) % suggestions.length)
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault()
+      handleSuggestionClick(suggestions[activeIndex])
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false)
+      setActiveIndex(-1)
+    }
   }
   
   async function handleScan() {
@@ -172,24 +196,26 @@ export function ScanReposDialog({
               <div className="space-y-2">
                 <label className="text-sm font-medium">扫描目录</label>
                 <div className="relative">
-                  <input
+                  <Input
                     ref={inputRef}
                     type="text"
                     value={path}
                     onChange={e => setPath(e.target.value)}
                     onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                    onKeyDown={handleKeyDown}
                     placeholder="/home/user/projects"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     disabled={scanning}
                   />
                   {showSuggestions && suggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-input rounded-md shadow-lg max-h-48 overflow-y-auto z-10">
-                      {suggestions.map(suggestion => (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-input rounded-md shadow-lg max-h-48 overflow-y-auto z-10">
+                      {suggestions.map((suggestion, index) => (
                         <div
                           key={suggestion.path}
                           onClick={() => handleSuggestionClick(suggestion)}
-                          className="px-3 py-2 hover:bg-muted cursor-pointer text-sm"
+                          className={`px-3 py-2 cursor-pointer text-sm ${
+                            index === activeIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
+                          }`}
                         >
                           {suggestion.name}
                         </div>
