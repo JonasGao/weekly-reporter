@@ -102,6 +102,10 @@ export function ScanReposDialog({
     } else if (e.key === 'Enter' && activeIndex >= 0) {
       e.preventDefault()
       handleSuggestionClick(suggestions[activeIndex])
+    } else if (e.key === 'Tab') {
+      e.preventDefault()
+      const target = activeIndex >= 0 ? suggestions[activeIndex] : suggestions[0]
+      handleSuggestionClick(target)
     } else if (e.key === 'Escape') {
       setShowSuggestions(false)
       setActiveIndex(-1)
@@ -217,14 +221,15 @@ export function ScanReposDialog({
                             index === activeIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
                           }`}
                         >
-                          {suggestion.name}
+                          <span className="font-medium">{suggestion.name}</span>
+                          <span className="text-xs text-muted-foreground ml-2 truncate">{suggestion.path}</span>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  输入路径会自动显示子目录补全
+                  输入路径会自动显示子目录补全，支持模糊搜索（如 /home/god/git）
                 </p>
               </div>
             </CardContent>
