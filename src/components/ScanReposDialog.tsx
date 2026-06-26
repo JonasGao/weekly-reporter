@@ -183,7 +183,7 @@ export function ScanReposDialog({
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="w-full max-w-lg mx-4">
+      <Card className="w-full max-w-lg mx-4 overflow-visible">
         {step === 'scan' && (
           <>
             <CardHeader>
