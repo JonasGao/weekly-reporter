@@ -26,13 +26,16 @@ interface CollectSource {
   updatedAt: string
 }
 
-export function CollectSourceList() {
+export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => void) => void }) {
   const [sources, setSources] = useState<CollectSource[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchSources()
-  }, [])
+    if (onRefresh) {
+      onRefresh(fetchSources)
+    }
+  }, [onRefresh])
 
   async function fetchSources() {
     try {
