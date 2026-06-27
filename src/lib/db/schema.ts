@@ -13,6 +13,13 @@ export const reports = sqliteTable('reports', {
 export type Report = typeof reports.$inferSelect
 export type NewReport = typeof reports.$inferInsert
 
+export interface TemplateConfig {
+  sectionSkeleton?: {
+    type: 'unordered' | 'ordered' | 'task'
+    placeholderCount: number
+  }
+}
+
 export const templates = sqliteTable('templates', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
@@ -20,6 +27,7 @@ export const templates = sqliteTable('templates', {
   description: text('description'),
   tags: text('tags'),
   sourceTemplateId: text('source_template_id'),
+  config: text('config', { mode: 'json' }).notNull().default({}),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 })

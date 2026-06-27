@@ -1,0 +1,1 @@
+ALTER TABLE `templates` ADD `config` text DEFAULT '{}' NOT NULL;
