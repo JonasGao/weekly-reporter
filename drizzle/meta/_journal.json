@@ -15,6 +15,13 @@
       "when": 1782384900271,
       "tag": "0001_special_mystique",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782756000000,
+      "tag": "0002_update_templates_schema",
+      "breakpoints": true
     }
   ]
 }

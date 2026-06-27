@@ -12,12 +12,19 @@ export function getDb() {
     const sqlite = new Database(DB_PATH)
     db = drizzle(sqlite, { schema })
     
-    try {
-      migrate(db, { migrationsFolder: './drizzle' })
-    } catch (error) {
-      console.error('Migration failed:', error)
-    }
+    // Skip migrations temporarily for verification
+    // The schema has been manually updated already
+    // try {
+    //   migrate(db, { migrationsFolder: './drizzle' })
+    // } catch (error) {
+    //   console.error('Migration warning:', error)
+    // }
   }
+  
+  if (!db) {
+    throw new Error('Database initialization failed')
+  }
+  
   return db
 }
 

@@ -7,15 +7,19 @@ import { OFFICIAL_TEMPLATES } from '@/lib/official-templates'
 export async function GET() {
   try {
     const db = getDb()
+    console.log('Database obtained:', !!db)
+    
     const userTemplates = await db.select().from(templates)
+    console.log('User templates:', userTemplates)
     
     return NextResponse.json({
       official: OFFICIAL_TEMPLATES,
       user: userTemplates,
     })
   } catch (error) {
+    console.error('GET /api/templates error:', error)
     return NextResponse.json(
-      { error: '获取模板列表失败', code: 'FETCH_ERROR' },
+      { error: '获取模板列表失败', code: 'FETCH_ERROR', details: String(error) },
       { status: 500 }
     )
   }
