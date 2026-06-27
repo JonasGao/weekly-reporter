@@ -10,6 +10,7 @@ import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
 import { CheckPanel } from '@/components/CheckPanel'
 import { ScorePanel } from '@/components/ScorePanel'
 import { TemplateSelect } from '@/components/TemplateSelect'
+import { VariableToolbar } from '@/components/VariableToolbar'
 import { getWeekRange, formatDate } from '@/lib/utils'
 import { getWeek, getYear, addWeeks, subWeeks } from 'date-fns'
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -76,23 +77,31 @@ export default function NewReportPage() {
     setTitle(`${newYear}年第${newWeekNumber}周工作周报`)
   }
 
-  function handleTemplateChange(templateId: string) {
+  function handleInsertVariable(variable: string) {
+    setContent(prev => prev + '\n' + variable + '\n')
+    setEditorKey(k => k + 1)
+    toast.success(`已插入变量：${variable}`)
+  }
+
+  async function handleTemplateChange(templateId: string) {
     setSelectedTemplateId(templateId)
     
-    // 根据ID前缀获取模板内容
-    if (templateId.startsWith('official-')) {
-      const template = officialTemplates.find(t => t.id === templateId)
-      if (template) {
-        setContent(template.content)
-        setEditorKey(k => k + 1)
+    try {
+      const response = await fetch(
+        `/api/templates/${templateId}/render?date=${baseDate.toISOString()}`
+      )
+      
+      if (!response.ok) {
+        const error = await response.json()
+        toast.error(error.error || '模板加载失败')
+        return
       }
-    } else if (templateId.startsWith('user-')) {
-      const userId = parseInt(templateId.replace('user-', ''))
-      const template = userTemplates.find(t => t.id === userId)
-      if (template) {
-        setContent(template.content)
-        setEditorKey(k => k + 1)
-      }
+      
+      const data = await response.json()
+      setContent(data.content)
+      setEditorKey(k => k + 1)
+    } catch (error) {
+      toast.error('模板预览失败，请重试')
     }
   }
 
@@ -180,7 +189,10 @@ export default function NewReportPage() {
 
         <div className="grid grid-cols-3 gap-4">
           <div className="col-span-2 space-y-2">
-            <Label>内容</Label>
+            <div className="flex items-center justify-between">
+              <Label>内容</Label>
+              <VariableToolbar onInsertVariable={handleInsertVariable} />
+            </div>
             <MilkdownEditor key={editorKey} value={content} onChange={setContent} />
           </div>
           <div>

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
 import { CheckPanel } from '@/components/CheckPanel'
 import { ScorePanel } from '@/components/ScorePanel'
+import { VariableToolbar } from '@/components/VariableToolbar'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Report } from '@/lib/db/schema'
@@ -25,6 +26,7 @@ export default function EditReportPage() {
   const [weekEnd, setWeekEnd] = useState('')
   const [saving, setSaving] = useState(false)
   const [showScorePanel, setShowScorePanel] = useState(false)
+  const [editorKey, setEditorKey] = useState(0)
 
   useEffect(() => {
     async function fetchReport() {
@@ -50,6 +52,12 @@ export default function EditReportPage() {
 
     fetchReport()
   }, [id, router])
+
+  function handleInsertVariable(variable: string) {
+    setContent(prev => prev + '\n' + variable + '\n')
+    setEditorKey(k => k + 1)
+    toast.success(`已插入变量：${variable}`)
+  }
 
   async function handleSubmit() {
     if (!title.trim() || !content.trim()) {
@@ -127,8 +135,11 @@ export default function EditReportPage() {
 
         <div className="grid grid-cols-3 gap-4">
           <div className="col-span-2 space-y-2">
-            <Label>内容</Label>
-            <MilkdownEditor value={content} onChange={setContent} />
+            <div className="flex items-center justify-between">
+              <Label>内容</Label>
+              <VariableToolbar onInsertVariable={handleInsertVariable} />
+            </div>
+            <MilkdownEditor key={editorKey} value={content} onChange={setContent} />
           </div>
           <div>
             <CheckPanel content={content} />
