@@ -9,17 +9,20 @@ import { Label } from '@/components/ui/label'
 import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
 import { CheckPanel } from '@/components/CheckPanel'
 import { ScorePanel } from '@/components/ScorePanel'
+import { TemplateSelect } from '@/components/TemplateSelect'
 import { getWeekRange, formatDate } from '@/lib/utils'
 import { getWeek, getYear, addWeeks, subWeeks } from 'date-fns'
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
+import type { OfficialTemplate } from '@/lib/official-templates'
 import type { Template } from '@/lib/db/schema'
 
 export default function NewReportPage() {
   const router = useRouter()
   const [baseDate, setBaseDate] = useState(new Date())
-  const [templates, setTemplates] = useState<Template[]>([])
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+  const [officialTemplates, setOfficialTemplates] = useState<OfficialTemplate[]>([])
+  const [userTemplates, setUserTemplates] = useState<Template[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [showScorePanel, setShowScorePanel] = useState(false)
   const [content, setContent] = useState('')
   const [editorKey, setEditorKey] = useState(0)
@@ -42,11 +45,14 @@ export default function NewReportPage() {
     try {
       const response = await fetch('/api/templates')
       const data = await response.json()
-      setTemplates(data.templates || [])
-      if (data.templates?.length > 0) {
-        const defaultTemplate = data.templates.find((t: Template) => t.isDefault)
-        setSelectedTemplate(defaultTemplate || data.templates[0])
-        setContent(defaultTemplate?.content || data.templates[0]?.content || '')
+      setOfficialTemplates(data.official || [])
+      setUserTemplates(data.user || [])
+      
+      // 默认选择第一个官方模板
+      if (data.official?.length > 0) {
+        const firstOfficial = data.official[0]
+        setSelectedTemplateId(firstOfficial.id)
+        setContent(firstOfficial.content)
         setEditorKey(k => k + 1)
       }
     } catch (error) {
@@ -70,12 +76,23 @@ export default function NewReportPage() {
     setTitle(`${newYear}年第${newWeekNumber}周工作周报`)
   }
 
-  function handleTemplateChange(templateId: number) {
-    const template = templates.find((t) => t.id === templateId)
-    if (template) {
-      setSelectedTemplate(template)
-      setContent(template.content)
-      setEditorKey(k => k + 1)
+  function handleTemplateChange(templateId: string) {
+    setSelectedTemplateId(templateId)
+    
+    // 根据ID前缀获取模板内容
+    if (templateId.startsWith('official-')) {
+      const template = officialTemplates.find(t => t.id === templateId)
+      if (template) {
+        setContent(template.content)
+        setEditorKey(k => k + 1)
+      }
+    } else if (templateId.startsWith('user-')) {
+      const userId = parseInt(templateId.replace('user-', ''))
+      const template = userTemplates.find(t => t.id === userId)
+      if (template) {
+        setContent(template.content)
+        setEditorKey(k => k + 1)
+      }
     }
   }
 
@@ -151,20 +168,13 @@ export default function NewReportPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="template">模板</Label>
-            <select
-              id="template"
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-background dark:text-foreground"
-              value={selectedTemplate?.id || ''}
-              onChange={(e) => handleTemplateChange(parseInt(e.target.value))}
-            >
-              {templates.map((template) => (
-                <option key={template.id} value={template.id} className="bg-background text-foreground dark:bg-popover dark:text-popover-foreground">
-                  {template.name}
-                  {template.isDefault && ' (默认)'}
-                </option>
-              ))}
-            </select>
+            <Label>模板</Label>
+            <TemplateSelect
+              officialTemplates={officialTemplates}
+              userTemplates={userTemplates}
+              value={selectedTemplateId}
+              onChange={handleTemplateChange}
+            />
           </div>
         </div>
 
