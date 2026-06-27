@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
 import { toast } from 'sonner'
-import { Edit, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { TemplateTabs } from '@/components/TemplateTabs'
+import { CloneTemplateDialog } from '@/components/CloneTemplateDialog'
+import type { OfficialTemplate } from '@/lib/official-templates'
 import type { Template } from '@/lib/db/schema'
 
 interface TemplateListProps {
@@ -12,8 +13,12 @@ interface TemplateListProps {
 }
 
 export function TemplateList({ onSelect }: TemplateListProps) {
-  const [templates, setTemplates] = useState<Template[]>([])
+  const router = useRouter()
+  const [officialTemplates, setOfficialTemplates] = useState<OfficialTemplate[]>([])
+  const [userTemplates, setUserTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedTemplateForSaveAs, setSelectedTemplateForSaveAs] = useState<OfficialTemplate | Template | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchTemplates()
@@ -23,7 +28,8 @@ export function TemplateList({ onSelect }: TemplateListProps) {
     try {
       const response = await fetch('/api/templates')
       const data = await response.json()
-      setTemplates(data.templates || [])
+      setOfficialTemplates(data.official || [])
+      setUserTemplates(data.user || [])
     } catch (error) {
       toast.error('加载模板失败')
     } finally {
@@ -31,18 +37,66 @@ export function TemplateList({ onSelect }: TemplateListProps) {
     }
   }
 
-  async function handleDelete(id: number, isDefault: boolean) {
-    if (isDefault) {
-      toast.error('默认模板不可删除')
-      return
-    }
+  async function handleClone(templateId: string) {
+    try {
+      const response = await fetch('/api/templates/clone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId: templateId }),
+      })
 
+      if (response.ok) {
+        const data = await response.json()
+        toast.success('模板已克隆')
+        router.push(`/templates/${data.template.id}`)
+      } else {
+        const error = await response.json()
+        toast.error(error.error || '克隆失败')
+      }
+    } catch (error) {
+      toast.error('克隆失败')
+    }
+  }
+
+  function handleSaveAs(templateId: string) {
+    const template = officialTemplates.find(t => t.id === templateId) 
+      || userTemplates.find(t => `user-${t.id}` === templateId)
+    
+    if (template) {
+      setSelectedTemplateForSaveAs(template)
+      setDialogOpen(true)
+    }
+  }
+
+  async function handleCloneWithEdit(data: { sourceId: string; name: string; content: string }) {
+    try {
+      const response = await fetch('/api/templates/clone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        toast.success('模板已保存')
+        router.push(`/templates/${result.template.id}`)
+        fetchTemplates() // 刷新列表
+      } else {
+        const error = await response.json()
+        toast.error(error.error || '保存失败')
+      }
+    } catch (error) {
+      toast.error('保存失败')
+    }
+  }
+
+  async function handleDelete(id: number) {
     if (!confirm('确定要删除这个模板吗？')) return
 
     try {
       const response = await fetch(`/api/templates/${id}`, { method: 'DELETE' })
       if (response.ok) {
-        setTemplates(templates.filter((t) => t.id !== id))
+        setUserTemplates(userTemplates.filter((t) => t.id !== id))
         toast.success('模板已删除')
       } else {
         const error = await response.json()
@@ -58,50 +112,21 @@ export function TemplateList({ onSelect }: TemplateListProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {templates.map((template) => (
-        <div
-          key={template.id}
-          className="border rounded-lg p-4 flex items-center justify-between"
-        >
-          <div>
-            <div className="font-medium">
-              {template.name}
-              {template.isDefault && (
-                <span className="text-xs text-muted-foreground ml-2">(默认)</span>
-              )}
-            </div>
-            {template.workTypes && (
-              <div className="text-sm text-muted-foreground">
-                适用：{template.workTypes}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {onSelect && (
-              <Button variant="outline" size="sm" onClick={() => onSelect(template)}>
-                使用
-              </Button>
-            )}
-            {!template.isDefault && (
-              <>
-                <Link href={`/templates/${template.id}`}>
-                  <Button variant="ghost" size="icon">
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(template.id, template.isDefault)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
+    <>
+      <TemplateTabs
+        officialTemplates={officialTemplates}
+        userTemplates={userTemplates}
+        onCloneOfficial={handleClone}
+        onSaveAsOfficial={handleSaveAs}
+        onDeleteUser={handleDelete}
+      />
+      
+      <CloneTemplateDialog
+        template={selectedTemplateForSaveAs}
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onClone={handleCloneWithEdit}
+      />
+    </>
   )
 }

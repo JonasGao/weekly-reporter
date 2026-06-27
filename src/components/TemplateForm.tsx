@@ -10,14 +10,20 @@ import type { Template } from '@/lib/db/schema'
 
 interface TemplateFormProps {
   template?: Template
-  onSave: (data: { name: string; content: string; workTypes?: string }) => Promise<void>
+  onSave: (data: { 
+    name: string
+    content: string
+    description?: string
+    tags?: string
+  }) => Promise<void>
   onCancel: () => void
 }
 
 export function TemplateForm({ template, onSave, onCancel }: TemplateFormProps) {
   const [name, setName] = useState(template?.name || '')
   const [content, setContent] = useState(template?.content || '')
-  const [workTypes, setWorkTypes] = useState(template?.workTypes || '')
+  const [description, setDescription] = useState(template?.description || '')
+  const [tags, setTags] = useState(template?.tags || '')
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -31,7 +37,12 @@ export function TemplateForm({ template, onSave, onCancel }: TemplateFormProps) 
     setSaving(true)
 
     try {
-      await onSave({ name, content, workTypes: workTypes.trim() || undefined })
+      await onSave({ 
+        name, 
+        content, 
+        description: description.trim() || undefined,
+        tags: tags.trim() || undefined,
+      })
       toast.success('模板已保存')
     } catch (error) {
       toast.error('保存失败')
@@ -53,12 +64,22 @@ export function TemplateForm({ template, onSave, onCancel }: TemplateFormProps) 
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="workTypes">适用工作类型</Label>
+        <Label htmlFor="description">简介</Label>
         <Input
-          id="workTypes"
-          value={workTypes}
-          onChange={(e) => setWorkTypes(e.target.value)}
-          placeholder="例如：开发,技术,产品"
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="例如：适合技术研发岗位"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="tags">标签</Label>
+        <Input
+          id="tags"
+          value={tags}
+          onChange={(e) => setTags(e.target.value)}
+          placeholder="例如：开发,技术,研发"
         />
       </div>
 
