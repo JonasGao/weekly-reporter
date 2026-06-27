@@ -20,10 +20,18 @@ export type ReportInput = z.infer<typeof reportSchema>
 export const templateSchema = z.object({
   name: z.string().min(1, '模板名称不能为空').max(100),
   content: z.string().min(1, '模板内容不能为空'),
-  workTypes: z.string().optional(),
+  description: z.string().max(200).optional(),
+  tags: z.string().optional(),
+})
+
+export const cloneTemplateSchema = z.object({
+  sourceId: z.string().min(1, '源模板ID不能为空'),
+  name: z.string().min(1, '模板名称不能为空').max(100).optional(),
+  content: z.string().optional(),
 })
 
 export type TemplateInput = z.infer<typeof templateSchema>
+export type CloneTemplateInput = z.infer<typeof cloneTemplateSchema>
 
 export const collectSourceSchema = z.object({
   type: z.enum(['git-remote-github', 'git-remote-gitlab', 'git-remote-gitee', 'git-local']),
