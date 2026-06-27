@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { desc } from 'drizzle-orm'
-import { reports } from '@/lib/db/schema'
+import { desc, eq } from 'drizzle-orm'
+import { reports, templates } from '@/lib/db/schema'
 import { reportSchema } from '@/lib/validations'
+import { renderTemplate } from '@/lib/template/render'
+import { OFFICIAL_TEMPLATES } from '@/lib/official-templates'
 
 export async function GET(request: Request) {
   try {
@@ -43,9 +45,57 @@ export async function POST(request: Request) {
     
     const validated = reportSchema.parse(body)
     
+    // Extract templateId and baseDate
+    const { templateId, baseDate } = validated
+    let finalContent = validated.content || ''
+    
+    // If templateId is provided, render the template
+    if (templateId) {
+      let templateContent: string = ''
+      
+      // Handle official templates
+      if (templateId.startsWith('official-')) {
+        const template = OFFICIAL_TEMPLATES.find(t => t.id === templateId)
+        if (template) {
+          templateContent = template.content
+        }
+      }
+      // Handle user templates
+      else if (templateId.startsWith('user-')) {
+        const templateIdNum = parseInt(templateId.replace('user-', ''), 10)
+        if (!isNaN(templateIdNum)) {
+          const result = await db.select()
+            .from(templates)
+            .where(eq(templates.id, templateIdNum))
+            .limit(1)
+          if (result.length > 0) {
+            templateContent = result[0].content
+          }
+        }
+      }
+      
+      // Render template if content was found
+      if (templateContent) {
+        finalContent = renderTemplate(templateContent, {
+          date: baseDate ? new Date(baseDate) : new Date()
+        })
+      }
+    }
+    
+    // Ensure we have content
+    if (!finalContent) {
+      return NextResponse.json(
+        { error: '无法获取模板内容或未提供内容', code: 'TEMPLATE_ERROR' },
+        { status: 400 }
+      )
+    }
+    
     const now = new Date()
     const result = await db.insert(reports).values({
-      ...validated,
+      title: validated.title,
+      content: finalContent,
+      weekStart: validated.weekStart,
+      weekEnd: validated.weekEnd,
       createdAt: now,
       updatedAt: now,
     }).returning()
