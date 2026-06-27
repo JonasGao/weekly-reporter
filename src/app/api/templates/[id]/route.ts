@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
 import { templateSchema } from '@/lib/validations'
+import { eq } from 'drizzle-orm'
 
 export async function GET(
   request: Request,
@@ -14,7 +14,10 @@ export async function GET(
     const template = await db.select().from(templates).where(eq(templates.id, parseInt(id)))
     
     if (template.length === 0) {
-      return NextResponse.json({ error: '模板不存在', code: 'NOT_FOUND' }, { status: 404 })
+      return NextResponse.json(
+        { error: '模板不存在', code: 'TEMPLATE_NOT_FOUND' },
+        { status: 404 }
+      )
     }
     
     return NextResponse.json({ template: template[0] })
@@ -40,16 +43,18 @@ export async function PUT(
     const template = await db.select().from(templates).where(eq(templates.id, parseInt(id)))
     
     if (template.length === 0) {
-      return NextResponse.json({ error: '模板不存在', code: 'NOT_FOUND' }, { status: 404 })
-    }
-    
-    if (template[0].isDefault) {
-      return NextResponse.json({ error: '默认模板不可修改', code: 'FORBIDDEN' }, { status: 400 })
+      return NextResponse.json(
+        { error: '模板不存在', code: 'TEMPLATE_NOT_FOUND' },
+        { status: 404 }
+      )
     }
     
     const updated = await db.update(templates)
       .set({
-        ...validated,
+        name: validated.name,
+        content: validated.content,
+        description: validated.description,
+        tags: validated.tags,
         updatedAt: new Date(),
       })
       .where(eq(templates.id, parseInt(id)))
@@ -80,16 +85,15 @@ export async function DELETE(
     const template = await db.select().from(templates).where(eq(templates.id, parseInt(id)))
     
     if (template.length === 0) {
-      return NextResponse.json({ error: '模板不存在', code: 'NOT_FOUND' }, { status: 404 })
-    }
-    
-    if (template[0].isDefault) {
-      return NextResponse.json({ error: '默认模板不可删除', code: 'FORBIDDEN' }, { status: 400 })
+      return NextResponse.json(
+        { error: '模板不存在', code: 'TEMPLATE_NOT_FOUND' },
+        { status: 404 }
+      )
     }
     
     await db.delete(templates).where(eq(templates.id, parseInt(id)))
     
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, message: '模板已删除' })
   } catch (error) {
     return NextResponse.json(
       { error: '删除模板失败', code: 'DELETE_ERROR' },

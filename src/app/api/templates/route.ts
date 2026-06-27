@@ -2,12 +2,17 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { templates } from '@/lib/db/schema'
 import { templateSchema } from '@/lib/validations'
+import { OFFICIAL_TEMPLATES } from '@/lib/official-templates'
 
 export async function GET() {
   try {
     const db = getDb()
-    const allTemplates = await db.select().from(templates)
-    return NextResponse.json({ templates: allTemplates })
+    const userTemplates = await db.select().from(templates)
+    
+    return NextResponse.json({
+      official: OFFICIAL_TEMPLATES,
+      user: userTemplates,
+    })
   } catch (error) {
     return NextResponse.json(
       { error: '获取模板列表失败', code: 'FETCH_ERROR' },
@@ -25,8 +30,10 @@ export async function POST(request: Request) {
     
     const now = new Date()
     const result = await db.insert(templates).values({
-      ...validated,
-      isDefault: false,
+      name: validated.name,
+      content: validated.content,
+      description: validated.description,
+      tags: validated.tags,
       createdAt: now,
       updatedAt: now,
     }).returning()
