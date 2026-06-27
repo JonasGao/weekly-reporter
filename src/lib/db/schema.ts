@@ -17,8 +17,9 @@ export const templates = sqliteTable('templates', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   content: text('content').notNull(),
-  workTypes: text('work_types'),
-  isDefault: integer('is_default', { mode: 'boolean' }).default(false).notNull(),
+  description: text('description'),
+  tags: text('tags'),
+  sourceTemplateId: text('source_template_id'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 })
