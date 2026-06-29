@@ -13,10 +13,24 @@ export const reports = sqliteTable('reports', {
 export type Report = typeof reports.$inferSelect
 export type NewReport = typeof reports.$inferInsert
 
+export type SectionType = 'achievement' | 'risk' | 'routine' | 'plan'
+
+export interface SectionRenderConfig {
+  maxItems?: number
+  autoSort?: boolean
+  filterTrivial?: boolean
+}
+
 export interface TemplateConfig {
   sectionSkeleton?: {
     type: 'unordered' | 'ordered' | 'task'
     placeholderCount: number
+  }
+  sectionConfig?: {
+    achievement?: SectionRenderConfig
+    risk?: SectionRenderConfig
+    routine?: SectionRenderConfig
+    plan?: SectionRenderConfig
   }
 }
 
@@ -72,6 +86,7 @@ export const rawEvents = sqliteTable('raw_events', {
   content: text('content').notNull(),
   metadata: text('metadata', { mode: 'json' }).$type<RawEventMetadata>(),
   category: text('category'),
+  sectionType: text('section_type').default('routine').notNull(),
   status: text('status').default('pending').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),

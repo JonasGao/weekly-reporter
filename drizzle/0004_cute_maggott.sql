@@ -1,0 +1,1 @@
+ALTER TABLE `raw_events` ADD `section_type` text DEFAULT 'routine' NOT NULL;
