@@ -16,6 +16,8 @@ export interface RenderOptions {
   sectionConfig?: TemplateConfig['sectionConfig'];
 }
 
+const EMPTY_LIST_ITEMS = '- \n- \n- ';
+
 const TRIVIAL_KEYWORDS = [
   'fix typo',
   'update comment',
@@ -53,7 +55,7 @@ function filterAndFormatEvents(
     filtered = filtered.slice(0, config.maxItems);
   }
 
-  if (filtered.length === 0) return '- \n- \n- ';
+  if (filtered.length === 0) return EMPTY_LIST_ITEMS;
   return filtered.map((e) => `- ${e.content}`).join('\n');
 }
 
@@ -88,18 +90,14 @@ export function renderTemplate(content: string, options?: RenderOptions): string
   result = result.replace(/\{\{月份\}\}/g, `${month}月`);
 
   // Replace section variables
-  const sectionMap: Record<string, SectionType> = {
+  const SECTION_CONFIG: Record<string, SectionType> = {
     核心成果: 'achievement',
     问题与风险: 'risk',
     下周计划: 'plan',
     日常事务: 'routine',
   };
 
-  const sectionVariables = ['核心成果', '问题与风险', '下周计划', '日常事务'];
-  const emptyListItems = '- \n- \n- ';
-
-  for (const section of sectionVariables) {
-    const sectionType = sectionMap[section];
+  for (const [section, sectionType] of Object.entries(SECTION_CONFIG)) {
     let replacement: string;
 
     if (options?.events && options.events.length > 0) {
@@ -111,7 +109,7 @@ export function renderTemplate(content: string, options?: RenderOptions): string
       );
     } else {
       // Backward compatibility: use empty list items
-      replacement = emptyListItems;
+      replacement = EMPTY_LIST_ITEMS;
     }
 
     result = result.replace(
