@@ -8,9 +8,53 @@ import {
   getMonth,
 } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { RawEvent, SectionType, TemplateConfig } from '@/lib/db/schema';
 
 export interface RenderOptions {
   date?: Date;
+  events?: RawEvent[];
+  sectionConfig?: TemplateConfig['sectionConfig'];
+}
+
+const TRIVIAL_KEYWORDS = [
+  'fix typo',
+  'update comment',
+  'refactor minor',
+  'chore',
+  'docs',
+  'formatting',
+  'whitespace',
+];
+
+function isTrivialEvent(content: string): boolean {
+  // Threshold adjusted for Chinese content: 5 chars minimum
+  // (Chinese chars carry more meaning per character than English)
+  if (content.length < 5) return true;
+  const lowerContent = content.toLowerCase();
+  return TRIVIAL_KEYWORDS.some((kw) => lowerContent.includes(kw));
+}
+
+function filterAndFormatEvents(
+  events: RawEvent[],
+  type: SectionType,
+  config?: TemplateConfig['sectionConfig'][SectionType]
+): string {
+  let filtered = events.filter((e) => e.sectionType === type);
+
+  if (config?.filterTrivial) {
+    filtered = filtered.filter((e) => !isTrivialEvent(e.content));
+  }
+
+  if (config?.autoSort !== false) {
+    filtered.sort((a, b) => b.eventTime.getTime() - a.eventTime.getTime());
+  }
+
+  if (config?.maxItems) {
+    filtered = filtered.slice(0, config.maxItems);
+  }
+
+  if (filtered.length === 0) return '- \n- \n- ';
+  return filtered.map((e) => `- ${e.content}`).join('\n');
 }
 
 export function renderTemplate(content: string, options?: RenderOptions): string {
@@ -44,11 +88,36 @@ export function renderTemplate(content: string, options?: RenderOptions): string
   result = result.replace(/\{\{月份\}\}/g, `${month}月`);
 
   // Replace section variables
+  const sectionMap: Record<string, SectionType> = {
+    核心成果: 'achievement',
+    问题与风险: 'risk',
+    下周计划: 'plan',
+    日常事务: 'routine',
+  };
+
   const sectionVariables = ['核心成果', '问题与风险', '下周计划', '日常事务'];
   const emptyListItems = '- \n- \n- ';
-  
+
   for (const section of sectionVariables) {
-    result = result.replace(new RegExp(`\\{\\{${section}\\}\\}`, 'g'), emptyListItems);
+    const sectionType = sectionMap[section];
+    let replacement: string;
+
+    if (options?.events && options.events.length > 0) {
+      // If events are provided, filter and format them
+      replacement = filterAndFormatEvents(
+        options.events,
+        sectionType,
+        options.sectionConfig?.[sectionType]
+      );
+    } else {
+      // Backward compatibility: use empty list items
+      replacement = emptyListItems;
+    }
+
+    result = result.replace(
+      new RegExp(`\\{\\{${section}\\}\\}`, 'g'),
+      replacement
+    );
   }
 
   return result;

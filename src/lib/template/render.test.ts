@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { renderTemplate } from './render';
+import { renderTemplate, RenderOptions } from './render';
+import { RawEvent, SectionType, TemplateConfig } from '@/lib/db/schema';
 
 describe('renderTemplate', () => {
   describe('System Variables', () => {
@@ -123,6 +124,231 @@ describe('renderTemplate', () => {
       expect(result).toContain('{{年份123}}');
       expect(result).toContain('{{本周日期范}}');
       expect(result).not.toContain('{{年份}}');
+    });
+  });
+
+  describe('Event Binding', () => {
+    const createEvent = (
+      content: string,
+      sectionType: SectionType,
+      eventTime: Date
+    ): RawEvent => ({
+      id: 1,
+      eventTime,
+      source: 'github',
+      content,
+      metadata: {},
+      category: null,
+      sectionType,
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    it('should replace section variables with event content when events provided', () => {
+      const content = '## 本周核心成果\n{{核心成果}}';
+      const events: RawEvent[] = [
+        createEvent('完成了用户认证功能', 'achievement', new Date('2026-06-27')),
+        createEvent('修复了登录页面bug', 'achievement', new Date('2026-06-26')),
+      ];
+      const options: RenderOptions = { events };
+
+      const result = renderTemplate(content, options);
+
+      expect(result).toContain('完成了用户认证功能');
+      expect(result).toContain('修复了登录页面bug');
+      expect(result).not.toContain('{{核心成果}}');
+    });
+
+    it('should filter events by section type', () => {
+      const content = '## 核心成果\n{{核心成果}}\n## 问题与风险\n{{问题与风险}}';
+      const events: RawEvent[] = [
+        createEvent('成果1', 'achievement', new Date('2026-06-27')),
+        createEvent('成果2', 'achievement', new Date('2026-06-26')),
+        createEvent('风险1', 'risk', new Date('2026-06-27')),
+        createEvent('计划1', 'plan', new Date('2026-06-27')),
+        createEvent('日常1', 'routine', new Date('2026-06-27')),
+      ];
+      const options: RenderOptions = { events };
+
+      const result = renderTemplate(content, options);
+
+      // Check that sections are correctly populated
+      const sections = result.split('\n## ');
+      const achievementSection = sections[0].replace('## ', ''); // First section has ## prefix
+      const riskSection = sections.find(s => s.startsWith('问题与风险'));
+
+      // 核心成果 should only contain achievement events
+      expect(achievementSection).toContain('核心成果');
+      expect(achievementSection).toContain('- 成果1');
+      expect(achievementSection).toContain('- 成果2');
+      expect(achievementSection).not.toContain('- 风险1');
+
+      // 问题与风险 should only contain risk events
+      expect(riskSection).toBeDefined();
+      expect(riskSection).toContain('问题与风险');
+      expect(riskSection).toContain('- 风险1');
+      expect(riskSection).not.toContain('- 成果1');
+    });
+
+    it('should filter trivial events when filterTrivial is true', () => {
+      const content = '## 核心成果\n{{核心成果}}';
+      const events: RawEvent[] = [
+        createEvent('fix typo in README.md', 'achievement', new Date('2026-06-27')),
+        createEvent('完成了重要的API重构', 'achievement', new Date('2026-06-26')),
+        createEvent('update comment in utils.ts', 'achievement', new Date('2026-06-25')),
+      ];
+      const sectionConfig: TemplateConfig['sectionConfig'] = {
+        achievement: { filterTrivial: true },
+      };
+      const options: RenderOptions = { events, sectionConfig };
+
+      const result = renderTemplate(content, options);
+
+      expect(result).toContain('- 完成了重要的API重构');
+      expect(result).not.toContain('fix typo');
+      expect(result).not.toContain('update comment');
+    });
+
+    it('should sort events by time descending when autoSort is true', () => {
+      const content = '## 核心成果\n{{核心成果}}';
+      const events: RawEvent[] = [
+        createEvent('早期事件', 'achievement', new Date('2026-06-20')),
+        createEvent('中期事件', 'achievement', new Date('2026-06-25')),
+        createEvent('最新事件', 'achievement', new Date('2026-06-27')),
+      ];
+      const options: RenderOptions = { events };
+
+      const result = renderTemplate(content, options);
+
+      // Should appear in reverse chronological order
+      const lines = result.split('\n');
+      const eventLines = lines.filter(l => l.startsWith('- '));
+      expect(eventLines[0]).toContain('最新事件');
+      expect(eventLines[1]).toContain('中期事件');
+      expect(eventLines[2]).toContain('早期事件');
+    });
+
+    it('should respect maxItems configuration', () => {
+      const content = '## 核心成果\n{{核心成果}}';
+      const events: RawEvent[] = [
+        createEvent('事件1', 'achievement', new Date('2026-06-27')),
+        createEvent('事件2', 'achievement', new Date('2026-06-26')),
+        createEvent('事件3', 'achievement', new Date('2026-06-25')),
+        createEvent('事件4', 'achievement', new Date('2026-06-24')),
+        createEvent('事件5', 'achievement', new Date('2026-06-23')),
+      ];
+      const sectionConfig: TemplateConfig['sectionConfig'] = {
+        achievement: { maxItems: 3 },
+      };
+      const options: RenderOptions = { events, sectionConfig };
+
+      const result = renderTemplate(content, options);
+
+      // Should only include the first 3 events (sorted by time)
+      expect(result).toContain('- 事件1');
+      expect(result).toContain('- 事件2');
+      expect(result).toContain('- 事件3');
+      expect(result).not.toContain('- 事件4');
+      expect(result).not.toContain('- 事件5');
+    });
+
+    it('should maintain backward compatibility with no events', () => {
+      const content = '## 核心成果\n{{核心成果}}';
+      
+      const result = renderTemplate(content);
+      
+      // Should still return empty list items
+      expect(result).toBe('## 核心成果\n- \n- \n- ');
+      expect(result).not.toContain('{{核心成果}}');
+    });
+
+    it('should return empty list items when no matching events', () => {
+      const content = '## 核心成果\n{{核心成果}}';
+      const events: RawEvent[] = [
+        createEvent('风险事件', 'risk', new Date('2026-06-27')),
+      ];
+      const options: RenderOptions = { events };
+
+      const result = renderTemplate(content, options);
+
+      // No achievement events, should return empty list
+      expect(result).toBe('## 核心成果\n- \n- \n- ');
+    });
+
+    it('should apply all filters together', () => {
+      const content = '## 核心成果\n{{核心成果}}';
+      const events: RawEvent[] = [
+        createEvent('重要成果1', 'achievement', new Date('2026-06-27')),
+        createEvent('fix typo', 'achievement', new Date('2026-06-26')),
+        createEvent('重要成果2', 'achievement', new Date('2026-06-25')),
+        createEvent('重要成果3', 'achievement', new Date('2026-06-24')),
+        createEvent('chore: update deps', 'achievement', new Date('2026-06-23')),
+        createEvent('风险事件', 'risk', new Date('2026-06-27')),
+      ];
+      const sectionConfig: TemplateConfig['sectionConfig'] = {
+        achievement: {
+          filterTrivial: true,
+          maxItems: 2,
+          autoSort: true,
+        },
+      };
+      const options: RenderOptions = { events, sectionConfig };
+
+      const result = renderTemplate(content, options);
+
+      // Should filter trivial, sort by time, limit to 2 items
+      const lines = result.split('\n').filter(l => l.startsWith('- '));
+      expect(lines.length).toBe(2);
+      expect(lines[0]).toContain('重要成果1');
+      expect(lines[1]).toContain('重要成果2');
+    });
+
+    it('should handle short content as trivial', () => {
+      const content = '## 核心成果\n{{核心成果}}';
+      const events: RawEvent[] = [
+        createEvent('短内容', 'achievement', new Date('2026-06-27')),
+        createEvent('这是一个足够长的重要内容描述，超过50个字符', 'achievement', new Date('2026-06-26')),
+      ];
+      const sectionConfig: TemplateConfig['sectionConfig'] = {
+        achievement: { filterTrivial: true },
+      };
+      const options: RenderOptions = { events, sectionConfig };
+
+      const result = renderTemplate(content, options);
+
+      expect(result).toContain('这是一个足够长的重要内容描述');
+      expect(result).not.toContain('短内容');
+    });
+
+    it('should handle events for all section types', () => {
+      const content = `
+## 核心成果
+{{核心成果}}
+
+## 问题与风险
+{{问题与风险}}
+
+## 下周计划
+{{下周计划}}
+
+## 日常事务
+{{日常事务}}
+`.trim();
+      const events: RawEvent[] = [
+        createEvent('成果1', 'achievement', new Date('2026-06-27')),
+        createEvent('风险1', 'risk', new Date('2026-06-27')),
+        createEvent('计划1', 'plan', new Date('2026-06-27')),
+        createEvent('日常1', 'routine', new Date('2026-06-27')),
+      ];
+      const options: RenderOptions = { events };
+
+      const result = renderTemplate(content, options);
+
+      expect(result).toContain('- 成果1');
+      expect(result).toContain('- 风险1');
+      expect(result).toContain('- 计划1');
+      expect(result).toContain('- 日常1');
     });
   });
 });
