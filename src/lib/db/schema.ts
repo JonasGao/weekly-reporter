@@ -94,3 +94,14 @@ export const rawEvents = sqliteTable('raw_events', {
 
 export type RawEvent = typeof rawEvents.$inferSelect
 export type NewRawEvent = typeof rawEvents.$inferInsert
+
+export const sentenceSnippets = sqliteTable('sentence_snippets', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  content: text('content').notNull(),
+  category: text('category').notNull().default('通用'),
+  isBuiltIn: integer('is_built_in', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+})
+
+export type SentenceSnippet = typeof sentenceSnippets.$inferSelect
+export type NewSentenceSnippet = typeof sentenceSnippets.$inferInsert
