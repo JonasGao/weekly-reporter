@@ -41,6 +41,7 @@ export const templates = sqliteTable('templates', {
   description: text('description'),
   tags: text('tags'),
   sourceTemplateId: text('source_template_id'),
+  aiStyle: text('ai_style').default('formal'),
   config: text('config', { mode: 'json' }).notNull().default({}),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),

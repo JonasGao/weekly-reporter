@@ -1,0 +1,1 @@
+ALTER TABLE `templates` ADD `ai_style` text DEFAULT 'formal';
