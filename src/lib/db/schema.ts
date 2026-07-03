@@ -101,6 +101,7 @@ export const sentenceSnippets = sqliteTable('sentence_snippets', {
   category: text('category').notNull().default('通用'),
   isBuiltIn: integer('is_built_in', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 })
 
 export type SentenceSnippet = typeof sentenceSnippets.$inferSelect

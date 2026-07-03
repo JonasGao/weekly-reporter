@@ -1,0 +1,1 @@
+ALTER TABLE `sentence_snippets` ADD `updated_at` integer NOT NULL;
