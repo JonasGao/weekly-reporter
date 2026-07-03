@@ -12,8 +12,8 @@ export function getDb() {
     const sqlite = new Database(DB_PATH)
     db = drizzle(sqlite, { schema })
     
-    // Skip migrations temporarily for verification
-    // The schema has been manually updated already
+    // Skip migrations - schema has been manually updated already
+    // Uncomment if you need to run migrations for a fresh database
     // try {
     //   migrate(db, { migrationsFolder: './drizzle' })
     // } catch (error) {

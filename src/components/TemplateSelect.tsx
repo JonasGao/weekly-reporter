@@ -26,7 +26,7 @@ export function TemplateSelect({
   onChange 
 }: TemplateSelectProps) {
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={(val) => onChange(val as string)}>
       <SelectTrigger>
         <SelectValue placeholder="选择模板" />
       </SelectTrigger>

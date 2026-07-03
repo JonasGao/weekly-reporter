@@ -8,7 +8,7 @@ import {
   getMonth,
 } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { RawEvent, SectionType, TemplateConfig } from '@/lib/db/schema';
+import { RawEvent, SectionType, TemplateConfig, SectionRenderConfig } from '@/lib/db/schema';
 
 export interface RenderOptions {
   date?: Date;
@@ -39,7 +39,7 @@ function isTrivialEvent(content: string): boolean {
 function filterAndFormatEvents(
   events: RawEvent[],
   type: SectionType,
-  config?: TemplateConfig['sectionConfig'][SectionType]
+  config?: SectionRenderConfig
 ): string {
   let filtered = events.filter((e) => e.sectionType === type);
 

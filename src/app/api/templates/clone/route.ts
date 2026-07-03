@@ -15,7 +15,8 @@ export async function POST(request: Request) {
     
     // 根据sourceId前缀判断来源
     if (validated.sourceId.startsWith('official-')) {
-      sourceTemplate = OFFICIAL_TEMPLATES.find(t => t.id === validated.sourceId)
+      const officialTemplate = OFFICIAL_TEMPLATES.find(t => t.id === validated.sourceId)
+      sourceTemplate = officialTemplate || null
     } else if (validated.sourceId.startsWith('user-')) {
       const userId = parseInt(validated.sourceId.replace('user-', ''))
       const userTemplate = await db.select().from(templates).where(eq(templates.id, userId))

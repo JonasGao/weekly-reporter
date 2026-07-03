@@ -16,7 +16,7 @@ export const collectSources = sqliteTable("collect_sources", {
 	type: text().notNull(),
 	name: text().notNull(),
 	config: text().notNull(),
-	enabled: integer().default(true).notNull(),
+	enabled: integer({ mode: 'boolean' }).default(true).notNull(),
 	lastSyncAt: integer("last_sync_at"),
 	lastSyncStatus: text("last_sync_status"),
 	createdAt: integer("created_at").notNull(),
