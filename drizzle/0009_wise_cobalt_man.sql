@@ -1,0 +1,1 @@
+ALTER TABLE `reports` ADD `ai_style_override` text;

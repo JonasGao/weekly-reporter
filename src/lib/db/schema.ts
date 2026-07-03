@@ -6,6 +6,7 @@ export const reports = sqliteTable('reports', {
   content: text('content').notNull(),
   weekStart: text('week_start').notNull(),
   weekEnd: text('week_end').notNull(),
+  aiStyleOverride: text('ai_style_override').$type<AIStyle>(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 })
