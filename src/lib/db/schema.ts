@@ -14,6 +14,7 @@ export type Report = typeof reports.$inferSelect
 export type NewReport = typeof reports.$inferInsert
 
 export type SectionType = 'achievement' | 'risk' | 'routine' | 'plan'
+export type AIStyle = 'formal' | 'technical' | 'concise' | 'detailed'
 
 export interface SectionRenderConfig {
   maxItems?: number
@@ -41,7 +42,7 @@ export const templates = sqliteTable('templates', {
   description: text('description'),
   tags: text('tags'),
   sourceTemplateId: text('source_template_id'),
-  aiStyle: text('ai_style').default('formal'),
+  aiStyle: text('ai_style').default('formal').notNull().$type<AIStyle>(),
   config: text('config', { mode: 'json' }).notNull().default({}),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),

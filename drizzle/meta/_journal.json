@@ -57,6 +57,13 @@
       "when": 1783057615006,
       "tag": "0007_swift_jocasta",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1783058027147,
+      "tag": "0008_wooden_johnny_blaze",
+      "breakpoints": true
     }
   ]
 }
