@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sparkles, Expand, Palette, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
@@ -36,6 +36,16 @@ export function AIAssistantPanel({
   const [selectedEvent, setSelectedEvent] = useState('')
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<ErrorState | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [])
 
   // Helper to get content to process
   const getContentToProcess = () => {
@@ -63,6 +73,14 @@ export function AIAssistantPanel({
       return
     }
 
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // Create new AbortController
+    abortControllerRef.current = new AbortController()
+
     setLoading('polish')
     setError(null)
     
@@ -75,6 +93,7 @@ export function AIAssistantPanel({
           templateId,
           styleOverride,
         }),
+        signal: abortControllerRef.current.signal,
       })
 
       if (!response.ok) {
@@ -93,6 +112,11 @@ export function AIAssistantPanel({
       // Clear the textarea after successful polish
       setSelectedEvent('')
     } catch (error) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        return
+      }
+      
       const errorMessage = error instanceof Error ? error.message : '网络错误，请检查网络连接'
       setError({
         operation: 'polish',
@@ -103,6 +127,7 @@ export function AIAssistantPanel({
       console.error('Polish error:', error)
     } finally {
       setLoading(null)
+      abortControllerRef.current = null
     }
   }
 
@@ -113,6 +138,14 @@ export function AIAssistantPanel({
       toast.error('请选择或输入要扩展的文本')
       return
     }
+
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // Create new AbortController
+    abortControllerRef.current = new AbortController()
 
     setLoading('expand')
     setError(null)
@@ -126,6 +159,7 @@ export function AIAssistantPanel({
           templateId,
           styleOverride,
         }),
+        signal: abortControllerRef.current.signal,
       })
 
       if (!response.ok) {
@@ -144,6 +178,11 @@ export function AIAssistantPanel({
       // Clear the textarea after successful expand
       setSelectedEvent('')
     } catch (error) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        return
+      }
+      
       const errorMessage = error instanceof Error ? error.message : '网络错误，请检查网络连接'
       setError({
         operation: 'expand',
@@ -154,10 +193,19 @@ export function AIAssistantPanel({
       console.error('Expand error:', error)
     } finally {
       setLoading(null)
+      abortControllerRef.current = null
     }
   }
 
   const handleUnify = async () => {
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // Create new AbortController
+    abortControllerRef.current = new AbortController()
+
     setLoading('unify')
     setError(null)
     
@@ -170,6 +218,7 @@ export function AIAssistantPanel({
           templateId,
           styleOverride,
         }),
+        signal: abortControllerRef.current.signal,
       })
 
       if (!response.ok) {
@@ -185,6 +234,11 @@ export function AIAssistantPanel({
         onUnify(data.unifiedContent)
       }
     } catch (error) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        return
+      }
+      
       const errorMessage = error instanceof Error ? error.message : '网络错误，请检查网络连接'
       setError({
         operation: 'unify',
@@ -195,6 +249,7 @@ export function AIAssistantPanel({
       console.error('Unify error:', error)
     } finally {
       setLoading(null)
+      abortControllerRef.current = null
     }
   }
 

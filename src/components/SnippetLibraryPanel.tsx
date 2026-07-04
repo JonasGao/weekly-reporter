@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Select,
   SelectContent,
@@ -17,40 +17,87 @@ interface SnippetLibraryPanelProps {
   onSelectSnippet?: (snippet: string) => void
 }
 
+// Global cache for snippets to avoid repeated fetches
+const snippetCache = {
+  data: null as SentenceSnippet[] | null,
+  timestamp: 0,
+  maxAge: 5 * 60 * 1000, // 5 minutes cache
+}
+
 export function SnippetLibraryPanel({ onSelectSnippet }: SnippetLibraryPanelProps) {
   const [snippets, setSnippets] = useState<SentenceSnippet[]>([])
   const [categories, setCategories] = useState<string[]>(['全部'])
   const [selectedCategory, setSelectedCategory] = useState('全部')
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState<number | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     fetchSnippets()
+    
+    // Cleanup on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
   }, [])
 
   const fetchSnippets = async () => {
     try {
+      // Check cache first
+      const now = Date.now()
+      if (snippetCache.data && (now - snippetCache.timestamp) < snippetCache.maxAge) {
+        setSnippets(snippetCache.data)
+        extractCategories(snippetCache.data)
+        setLoading(false)
+        return
+      }
+
+      // Cancel any pending request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      // Create new AbortController
+      abortControllerRef.current = new AbortController()
+
       setLoading(true)
-      const response = await fetch('/api/snippets')
+      const response = await fetch('/api/snippets', {
+        signal: abortControllerRef.current.signal,
+      })
+      
       if (!response.ok) throw new Error('获取片段失败')
       
       const data = await response.json()
-      setSnippets(data.snippets || [])
+      const fetchedSnippets = data.snippets || []
       
-      // Extract unique categories
-      const uniqueCategories = new Set(['全部'])
-      data.snippets?.forEach((snippet: SentenceSnippet) => {
-        if (snippet.category) {
-          uniqueCategories.add(snippet.category)
-        }
-      })
-      setCategories(Array.from(uniqueCategories))
+      // Update cache
+      snippetCache.data = fetchedSnippets
+      snippetCache.timestamp = now
+      
+      setSnippets(fetchedSnippets)
+      extractCategories(fetchedSnippets)
     } catch (error) {
-      console.error('Failed to fetch snippets:', error)
-      toast.error('获取片段库失败')
+      // Ignore abort errors
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Failed to fetch snippets:', error)
+        toast.error('获取片段库失败')
+      }
     } finally {
       setLoading(false)
+      abortControllerRef.current = null
     }
+  }
+
+  const extractCategories = (snippetList: SentenceSnippet[]) => {
+    const uniqueCategories = new Set(['全部'])
+    snippetList.forEach((snippet: SentenceSnippet) => {
+      if (snippet.category) {
+        uniqueCategories.add(snippet.category)
+      }
+    })
+    setCategories(Array.from(uniqueCategories))
   }
 
   const filteredSnippets = selectedCategory === '全部'

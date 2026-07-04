@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Select,
   SelectContent,
@@ -43,19 +43,52 @@ const styleOptions: Array<{ value: AIStyle; label: string; description: string }
 export function StyleSelector({ value, onChange, templateId }: StyleSelectorProps) {
   const [templateStyle, setTemplateStyle] = useState<AIStyle | null>(null)
   const [loading, setLoading] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (templateId) {
+      // Cancel any pending request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      // Create new AbortController for this request
+      abortControllerRef.current = new AbortController()
+      
       setLoading(true)
-      fetch(`/api/templates/${templateId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.template?.aiStyle) {
-            setTemplateStyle(data.template.aiStyle as AIStyle)
-          }
+      
+      // Debounce the fetch request to avoid rapid consecutive calls
+      const timeoutId = setTimeout(() => {
+        fetch(`/api/templates/${templateId}`, {
+          signal: abortControllerRef.current?.signal,
         })
-        .catch(console.error)
-        .finally(() => setLoading(false))
+          .then(res => {
+            if (!res.ok) throw new Error('Failed to fetch template')
+            return res.json()
+          })
+          .then(data => {
+            if (data.template?.aiStyle) {
+              setTemplateStyle(data.template.aiStyle as AIStyle)
+            }
+          })
+          .catch(error => {
+            // Ignore abort errors
+            if (error.name !== 'AbortError') {
+              console.error('Failed to fetch template style:', error)
+            }
+          })
+          .finally(() => {
+            setLoading(false)
+            abortControllerRef.current = null
+          })
+      }, 300) // 300ms debounce delay
+
+      return () => {
+        clearTimeout(timeoutId)
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort()
+        }
+      }
     }
   }, [templateId])
 
