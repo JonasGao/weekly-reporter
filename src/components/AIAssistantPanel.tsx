@@ -10,14 +10,46 @@ interface AIAssistantPanelProps {
   reportId: number
   templateId?: number
   styleOverride?: AIStyle
+  // Editor integration callbacks
+  onPolish?: (polishedContent: string) => void
+  onExpand?: (expandedContent: string) => void
+  onUnify?: (unifiedContent: string) => void
+  // Optional: get current editor content
+  getEditorContent?: () => string
 }
 
-export function AIAssistantPanel({ reportId, templateId, styleOverride }: AIAssistantPanelProps) {
+export function AIAssistantPanel({ 
+  reportId, 
+  templateId, 
+  styleOverride,
+  onPolish,
+  onExpand,
+  onUnify,
+  getEditorContent,
+}: AIAssistantPanelProps) {
   const [selectedEvent, setSelectedEvent] = useState('')
   const [loading, setLoading] = useState<string | null>(null)
 
+  // Helper to get content to process
+  const getContentToProcess = () => {
+    // If there's selected text in the textarea, use it
+    if (selectedEvent.trim()) {
+      return selectedEvent
+    }
+    // Otherwise, try to get from editor
+    if (getEditorContent) {
+      const editorContent = getEditorContent()
+      if (editorContent.trim()) {
+        return editorContent
+      }
+    }
+    return ''
+  }
+
   const handlePolish = async () => {
-    if (!selectedEvent.trim()) {
+    const contentToPolish = getContentToProcess()
+    
+    if (!contentToPolish.trim()) {
       toast.error('请选择或输入要润色的事件')
       return
     }
@@ -28,7 +60,7 @@ export function AIAssistantPanel({ reportId, templateId, styleOverride }: AIAssi
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          eventContent: selectedEvent,
+          eventContent: contentToPolish,
           templateId,
           styleOverride,
         }),
@@ -38,8 +70,14 @@ export function AIAssistantPanel({ reportId, templateId, styleOverride }: AIAssi
 
       const data = await response.json()
       toast.success('润色成功')
-      // TODO: Insert polished content into editor
-      console.log('Polished content:', data.polishedContent)
+      
+      // Call the callback to update editor
+      if (onPolish) {
+        onPolish(data.polishedContent)
+      }
+      
+      // Clear the textarea after successful polish
+      setSelectedEvent('')
     } catch (error) {
       toast.error('润色失败，请重试')
       console.error(error)
@@ -49,7 +87,9 @@ export function AIAssistantPanel({ reportId, templateId, styleOverride }: AIAssi
   }
 
   const handleExpand = async () => {
-    if (!selectedEvent.trim()) {
+    const contentToExpand = getContentToProcess()
+    
+    if (!contentToExpand.trim()) {
       toast.error('请选择或输入要扩展的事件')
       return
     }
@@ -60,7 +100,7 @@ export function AIAssistantPanel({ reportId, templateId, styleOverride }: AIAssi
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: selectedEvent,
+          content: contentToExpand,
           templateId,
           styleOverride,
         }),
@@ -70,8 +110,14 @@ export function AIAssistantPanel({ reportId, templateId, styleOverride }: AIAssi
 
       const data = await response.json()
       toast.success('扩展成功')
-      // TODO: Insert expanded content into editor
-      console.log('Expanded content:', data.expandedContent)
+      
+      // Call the callback to update editor
+      if (onExpand) {
+        onExpand(data.expandedContent)
+      }
+      
+      // Clear the textarea after successful expand
+      setSelectedEvent('')
     } catch (error) {
       toast.error('扩展失败，请重试')
       console.error(error)
@@ -97,8 +143,11 @@ export function AIAssistantPanel({ reportId, templateId, styleOverride }: AIAssi
 
       const data = await response.json()
       toast.success('风格统一成功')
-      // TODO: Update editor with unified content
-      console.log('Unified content:', data.unifiedContent)
+      
+      // Call the callback to update editor
+      if (onUnify) {
+        onUnify(data.unifiedContent)
+      }
     } catch (error) {
       toast.error('统一风格失败，请重试')
       console.error(error)

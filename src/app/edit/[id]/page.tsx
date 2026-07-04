@@ -72,6 +72,26 @@ export default function EditReportPage() {
     toast.success('已插入片段')
   }
 
+  function handlePolish(polishedContent: string) {
+    // Replace the entire content with polished version
+    setContent(polishedContent)
+    setEditorKey(k => k + 1)
+  }
+
+  function handleExpand(expandedContent: string) {
+    // Insert expanded content at the end
+    setContent(prev => prev + '\n\n' + expandedContent)
+    setEditorKey(k => k + 1)
+  }
+
+  function handleUnify(unifiedContent: string) {
+    // Replace entire content with unified version
+    setContent(unifiedContent)
+    setEditorKey(k => k + 1)
+  }
+
+  const getEditorContent = () => content
+
   async function handleSubmit() {
     if (!title.trim() || !content.trim()) {
       toast.error('请填写所有必填项')
@@ -193,6 +213,10 @@ export default function EditReportPage() {
             reportId={parseInt(id)}
             onStyleChange={handleStyleChange}
             onSelectSnippet={handleSelectSnippet}
+            onPolish={handlePolish}
+            onExpand={handleExpand}
+            onUnify={handleUnify}
+            getEditorContent={getEditorContent}
           />
         </div>
       </div>

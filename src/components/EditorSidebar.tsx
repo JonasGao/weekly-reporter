@@ -13,6 +13,11 @@ interface EditorSidebarProps {
   templateId?: number
   onStyleChange?: (style: AIStyle) => void
   onSelectSnippet?: (snippet: string) => void
+  // AI operation callbacks
+  onPolish?: (polishedContent: string) => void
+  onExpand?: (expandedContent: string) => void
+  onUnify?: (unifiedContent: string) => void
+  getEditorContent?: () => string
 }
 
 export function EditorSidebar({
@@ -20,6 +25,10 @@ export function EditorSidebar({
   templateId,
   onStyleChange,
   onSelectSnippet,
+  onPolish,
+  onExpand,
+  onUnify,
+  getEditorContent,
 }: EditorSidebarProps) {
   const [activeTab, setActiveTab] = useState<'ai' | 'snippets'>('ai')
   const [styleOverride, setStyleOverride] = useState<AIStyle | undefined>()
@@ -66,6 +75,10 @@ export function EditorSidebar({
               reportId={reportId}
               templateId={templateId}
               styleOverride={styleOverride}
+              onPolish={onPolish}
+              onExpand={onExpand}
+              onUnify={onUnify}
+              getEditorContent={getEditorContent}
             />
           </TabsContent>
 
