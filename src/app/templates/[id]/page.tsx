@@ -5,8 +5,9 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { TemplateForm } from '@/components/TemplateForm'
+import { StyleSelector } from '@/components/StyleSelector'
 import { toast } from 'sonner'
-import type { Template } from '@/lib/db/schema'
+import type { Template, AIStyle } from '@/lib/db/schema'
 
 export default function EditTemplatePage() {
   const router = useRouter()
@@ -15,6 +16,7 @@ export default function EditTemplatePage() {
 
   const [template, setTemplate] = useState<Template | null>(null)
   const [loading, setLoading] = useState(true)
+  const [aiStyle, setAiStyle] = useState<AIStyle>('formal')
 
   useEffect(() => {
     fetchTemplate()
@@ -26,6 +28,7 @@ export default function EditTemplatePage() {
       if (response.ok) {
         const data = await response.json()
         setTemplate(data.template)
+        setAiStyle(data.template.aiStyle || 'formal')
       } else {
         toast.error('模板不存在')
         router.push('/templates')
@@ -35,6 +38,35 @@ export default function EditTemplatePage() {
       router.push('/templates')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleStyleChange(style: AIStyle) {
+    setAiStyle(style)
+    
+    try {
+      const response = await fetch(`/api/templates/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aiStyle: style }),
+      })
+
+      if (response.ok) {
+        toast.success('AI风格已更新')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || '更新失败')
+        // Revert to previous style
+        if (template) {
+          setAiStyle(template.aiStyle || 'formal')
+        }
+      }
+    } catch (error) {
+      toast.error('更新失败')
+      // Revert to previous style
+      if (template) {
+        setAiStyle(template.aiStyle || 'formal')
+      }
     }
   }
 
@@ -80,11 +112,22 @@ export default function EditTemplatePage() {
         <h1 className="text-2xl font-bold">编辑模板</h1>
       </div>
 
-      <TemplateForm 
-        template={template} 
-        onSave={handleSave} 
-        onCancel={() => router.push('/templates')} 
-      />
+      <div className="space-y-6">
+        {/* AI Style Selector */}
+        <div className="bg-card border rounded-lg p-4">
+          <StyleSelector
+            value={aiStyle}
+            onChange={handleStyleChange}
+          />
+        </div>
+
+        {/* Template Form */}
+        <TemplateForm 
+          template={template} 
+          onSave={handleSave} 
+          onCancel={() => router.push('/templates')} 
+        />
+      </div>
     </main>
   )
 }
