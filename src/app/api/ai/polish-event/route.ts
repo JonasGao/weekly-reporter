@@ -36,11 +36,12 @@ export async function POST(request: Request) {
     }
 
     // Get style configuration
+    // Priority: styleOverride (explicit user choice) > templateId > default
     let styleConfig
-    if (body.templateId) {
-      styleConfig = await getStyleFromTemplate(body.templateId)
-    } else if (body.styleOverride) {
+    if (body.styleOverride) {
       styleConfig = getAIStyle(body.styleOverride)
+    } else if (body.templateId) {
+      styleConfig = await getStyleFromTemplate(body.templateId)
     } else {
       styleConfig = getAIStyle() // Default style
     }
