@@ -5,11 +5,12 @@ import { sentenceSnippets } from '@/lib/db/schema'
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const db = getDb()
-    const snippetId = parseInt(params.id, 10)
+    const { id } = await params
+    const snippetId = parseInt(id, 10)
     
     // Validate ID
     if (isNaN(snippetId)) {

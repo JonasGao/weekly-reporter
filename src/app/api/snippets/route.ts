@@ -14,13 +14,9 @@ export async function GET(request: Request) {
     const category = searchParams.get('category')
     
     // Build query with optional category filter
-    let query = db.select().from(sentenceSnippets)
-    
-    if (category) {
-      query = query.where(eq(sentenceSnippets.category, category))
-    }
-    
-    const snippets = await query
+    const snippets = category
+      ? await db.select().from(sentenceSnippets).where(eq(sentenceSnippets.category, category))
+      : await db.select().from(sentenceSnippets)
     
     return NextResponse.json({
       snippets,

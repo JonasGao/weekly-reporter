@@ -79,7 +79,7 @@ export function SnippetLibraryPanel({ onSelectSnippet }: SnippetLibraryPanelProp
         <label className="text-sm font-medium text-foreground mb-2 block">
           分类筛选
         </label>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+        <Select value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as string)}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="选择分类" />
           </SelectTrigger>
