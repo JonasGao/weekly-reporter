@@ -10,9 +10,10 @@ import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
 import { CheckPanel } from '@/components/CheckPanel'
 import { ScorePanel } from '@/components/ScorePanel'
 import { VariableToolbar } from '@/components/VariableToolbar'
+import { EditorSidebar } from '@/components/EditorSidebar'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Report } from '@/lib/db/schema'
+import type { Report, AIStyle } from '@/lib/db/schema'
 
 export default function EditReportPage() {
   const router = useRouter()
@@ -27,6 +28,7 @@ export default function EditReportPage() {
   const [saving, setSaving] = useState(false)
   const [showScorePanel, setShowScorePanel] = useState(false)
   const [editorKey, setEditorKey] = useState(0)
+  const [styleOverride, setStyleOverride] = useState<AIStyle | undefined>()
 
   useEffect(() => {
     async function fetchReport() {
@@ -57,6 +59,17 @@ export default function EditReportPage() {
     setContent(prev => prev + '\n' + variable + '\n')
     setEditorKey(k => k + 1)
     toast.success(`已插入变量：${variable}`)
+  }
+
+  function handleStyleChange(style: AIStyle) {
+    setStyleOverride(style)
+    toast.success('已应用AI风格')
+  }
+
+  function handleSelectSnippet(snippet: string) {
+    setContent(prev => prev + '\n' + snippet + '\n')
+    setEditorKey(k => k + 1)
+    toast.success('已插入片段')
   }
 
   async function handleSubmit() {
@@ -102,69 +115,87 @@ export default function EditReportPage() {
   }
 
   return (
-    <main className="container mx-auto py-8 px-4 max-w-5xl">
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <h1 className="text-2xl font-bold">编辑周报</h1>
+    <main className="h-screen flex flex-col">
+      <div className="container mx-auto px-4 py-6 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold">编辑周报</h1>
+        </div>
       </div>
 
-      <form className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="title">标题</Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="container mx-auto px-4 py-6 max-w-4xl">
+            <form className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="title">标题</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>开始日期（周一）</Label>
+                  <div className="text-sm text-muted-foreground py-1.5">{weekStart}</div>
+                </div>
+                <div className="space-y-2">
+                  <Label>结束日期（周日）</Label>
+                  <div className="text-sm text-muted-foreground py-1.5">{weekEnd}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>内容</Label>
+                    <VariableToolbar onInsertVariable={handleInsertVariable} />
+                  </div>
+                  <MilkdownEditor key={editorKey} value={content} onChange={setContent} />
+                </div>
+                <div>
+                  <CheckPanel content={content} />
+                </div>
+              </div>
+
+              {showScorePanel ? (
+                <ScorePanel
+                  content={content}
+                  onConfirm={handleSubmit}
+                  onCancel={() => setShowScorePanel(false)}
+                />
+              ) : (
+                <div className="flex justify-end gap-4">
+                  <Link href="/">
+                    <Button type="button" variant="outline">
+                      取消
+                    </Button>
+                  </Link>
+                  <Button type="button" onClick={() => setShowScorePanel(true)} disabled={saving}>
+                    {saving ? '保存中...' : '保存'}
+                  </Button>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="w-80 flex-shrink-0">
+          <EditorSidebar
+            reportId={parseInt(id)}
+            onStyleChange={handleStyleChange}
+            onSelectSnippet={handleSelectSnippet}
           />
         </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>开始日期（周一）</Label>
-            <div className="text-sm text-muted-foreground py-1.5">{weekStart}</div>
-          </div>
-          <div className="space-y-2">
-            <Label>结束日期（周日）</Label>
-            <div className="text-sm text-muted-foreground py-1.5">{weekEnd}</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>内容</Label>
-              <VariableToolbar onInsertVariable={handleInsertVariable} />
-            </div>
-            <MilkdownEditor key={editorKey} value={content} onChange={setContent} />
-          </div>
-          <div>
-            <CheckPanel content={content} />
-          </div>
-        </div>
-
-        {showScorePanel ? (
-          <ScorePanel
-            content={content}
-            onConfirm={handleSubmit}
-            onCancel={() => setShowScorePanel(false)}
-          />
-        ) : (
-          <div className="flex justify-end gap-4">
-            <Link href="/">
-              <Button type="button" variant="outline">
-                取消
-              </Button>
-            </Link>
-            <Button type="button" onClick={() => setShowScorePanel(true)} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </Button>
-          </div>
-        )}
-      </form>
+      </div>
     </main>
   )
 }
