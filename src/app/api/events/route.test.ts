@@ -266,5 +266,133 @@ describe('/api/events', () => {
       expect(db.insert).toHaveBeenCalled()
       expect(db.values).toHaveBeenCalled()
     })
+
+    it('should reject empty content', async () => {
+      const request = new Request('http://localhost/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: '',
+        }),
+      })
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('内容不能为空')
+      expect(data.code).toBe('INVALID_CONTENT')
+    })
+
+    it('should reject whitespace-only content', async () => {
+      const request = new Request('http://localhost/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: '   ',
+        }),
+      })
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('内容不能为空')
+      expect(data.code).toBe('INVALID_CONTENT')
+    })
+
+    it('should reject missing content', async () => {
+      const request = new Request('http://localhost/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventTime: '2024-01-10T10:00:00',
+        }),
+      })
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('内容不能为空')
+      expect(data.code).toBe('INVALID_CONTENT')
+    })
+
+    it('should reject invalid eventTime format', async () => {
+      const request = new Request('http://localhost/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: 'Test event',
+          eventTime: 'invalid-date',
+        }),
+      })
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('时间格式无效')
+      expect(data.code).toBe('INVALID_EVENT_TIME')
+    })
+
+    it('should accept valid eventTime', async () => {
+      const mockEvent = {
+        id: 1,
+        content: 'Test event',
+        tags: [],
+        eventTime: new Date('2024-01-15T14:30:00'),
+        source: 'manual',
+        sectionType: 'routine',
+        status: 'pending',
+        isImportant: false,
+        createdAt: new Date('2024-01-10T10:00:00'),
+        updatedAt: new Date('2024-01-10T10:00:00'),
+      }
+
+      const { getDb } = await import('@/lib/db')
+      const db = getDb()
+      db.returning.mockResolvedValueOnce([mockEvent])
+
+      const request = new Request('http://localhost/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: 'Test event',
+          eventTime: '2024-01-15T14:30:00',
+        }),
+      })
+      const response = await POST(request)
+
+      expect(response.status).toBe(201)
+      expect(db.insert).toHaveBeenCalled()
+    })
+
+    it('should accept content without eventTime', async () => {
+      const mockEvent = {
+        id: 1,
+        content: 'Test event',
+        tags: [],
+        eventTime: new Date(),
+        source: 'manual',
+        sectionType: 'routine',
+        status: 'pending',
+        isImportant: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const { getDb } = await import('@/lib/db')
+      const db = getDb()
+      db.returning.mockResolvedValueOnce([mockEvent])
+
+      const request = new Request('http://localhost/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: 'Test event',
+        }),
+      })
+      const response = await POST(request)
+
+      expect(response.status).toBe(201)
+      expect(db.insert).toHaveBeenCalled()
+    })
   })
 })

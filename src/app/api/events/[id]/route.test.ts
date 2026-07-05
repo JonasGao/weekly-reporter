@@ -174,6 +174,213 @@ describe('/api/events/[id]', () => {
       expect(response.status).toBe(404)
       expect(data.error).toBe('Event not found')
     })
+
+    it('should reject empty content', async () => {
+      const existingEvent = {
+        id: 1,
+        content: 'Original content',
+        tags: [],
+        eventTime: new Date('2024-01-10T10:00:00'),
+        source: 'manual',
+        sectionType: 'routine',
+        status: 'pending',
+        isImportant: false,
+        createdAt: new Date('2024-01-10T10:00:00'),
+        updatedAt: new Date('2024-01-10T10:00:00'),
+      }
+
+      const { getDb } = await import('@/lib/db')
+      const db = getDb()
+      db.limit.mockResolvedValueOnce([existingEvent])
+
+      const request = new Request('http://localhost/api/events/1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: '',
+        }),
+      })
+      const params = { id: '1' }
+      const response = await PUT(request, { params })
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('内容不能为空')
+      expect(data.code).toBe('INVALID_CONTENT')
+    })
+
+    it('should reject whitespace-only content', async () => {
+      const existingEvent = {
+        id: 1,
+        content: 'Original content',
+        tags: [],
+        eventTime: new Date('2024-01-10T10:00:00'),
+        source: 'manual',
+        sectionType: 'routine',
+        status: 'pending',
+        isImportant: false,
+        createdAt: new Date('2024-01-10T10:00:00'),
+        updatedAt: new Date('2024-01-10T10:00:00'),
+      }
+
+      const { getDb } = await import('@/lib/db')
+      const db = getDb()
+      db.limit.mockResolvedValueOnce([existingEvent])
+
+      const request = new Request('http://localhost/api/events/1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: '   ',
+        }),
+      })
+      const params = { id: '1' }
+      const response = await PUT(request, { params })
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('内容不能为空')
+      expect(data.code).toBe('INVALID_CONTENT')
+    })
+
+    it('should reject invalid eventTime format', async () => {
+      const existingEvent = {
+        id: 1,
+        content: 'Original content',
+        tags: [],
+        eventTime: new Date('2024-01-10T10:00:00'),
+        source: 'manual',
+        sectionType: 'routine',
+        status: 'pending',
+        isImportant: false,
+        createdAt: new Date('2024-01-10T10:00:00'),
+        updatedAt: new Date('2024-01-10T10:00:00'),
+      }
+
+      const { getDb } = await import('@/lib/db')
+      const db = getDb()
+      db.limit.mockResolvedValueOnce([existingEvent])
+
+      const request = new Request('http://localhost/api/events/1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventTime: 'invalid-date',
+        }),
+      })
+      const params = { id: '1' }
+      const response = await PUT(request, { params })
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('时间格式无效')
+      expect(data.code).toBe('INVALID_EVENT_TIME')
+    })
+
+    it('should reject non-boolean isImportant', async () => {
+      const existingEvent = {
+        id: 1,
+        content: 'Original content',
+        tags: [],
+        eventTime: new Date('2024-01-10T10:00:00'),
+        source: 'manual',
+        sectionType: 'routine',
+        status: 'pending',
+        isImportant: false,
+        createdAt: new Date('2024-01-10T10:00:00'),
+        updatedAt: new Date('2024-01-10T10:00:00'),
+      }
+
+      const { getDb } = await import('@/lib/db')
+      const db = getDb()
+      db.limit.mockResolvedValueOnce([existingEvent])
+
+      const request = new Request('http://localhost/api/events/1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isImportant: 'yes',
+        }),
+      })
+      const params = { id: '1' }
+      const response = await PUT(request, { params })
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('isImportant 必须是布尔值')
+      expect(data.code).toBe('INVALID_IS_IMPORTANT')
+    })
+
+    it('should reject invalid request body', async () => {
+      const existingEvent = {
+        id: 1,
+        content: 'Original content',
+        tags: [],
+        eventTime: new Date('2024-01-10T10:00:00'),
+        source: 'manual',
+        sectionType: 'routine',
+        status: 'pending',
+        isImportant: false,
+        createdAt: new Date('2024-01-10T10:00:00'),
+        updatedAt: new Date('2024-01-10T10:00:00'),
+      }
+
+      const { getDb } = await import('@/lib/db')
+      const db = getDb()
+      db.limit.mockResolvedValueOnce([existingEvent])
+
+      const request = new Request('http://localhost/api/events/1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: 'not-json',
+      })
+      const params = { id: '1' }
+      const response = await PUT(request, { params })
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('请求体格式无效')
+      expect(data.code).toBe('INVALID_BODY')
+    })
+
+    it('should accept boolean false for isImportant', async () => {
+      const existingEvent = {
+        id: 1,
+        content: 'Original content',
+        tags: [],
+        eventTime: new Date('2024-01-10T10:00:00'),
+        source: 'manual',
+        sectionType: 'routine',
+        status: 'pending',
+        isImportant: true,
+        createdAt: new Date('2024-01-10T10:00:00'),
+        updatedAt: new Date('2024-01-10T10:00:00'),
+      }
+
+      const updatedEvent = {
+        ...existingEvent,
+        isImportant: false,
+        updatedAt: new Date('2024-01-11T10:00:00'),
+      }
+
+      const { getDb } = await import('@/lib/db')
+      const db = getDb()
+      db.limit.mockResolvedValueOnce([existingEvent])
+      db.returning.mockResolvedValueOnce([updatedEvent])
+
+      const request = new Request('http://localhost/api/events/1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isImportant: false,
+        }),
+      })
+      const params = { id: '1' }
+      const response = await PUT(request, { params })
+
+      expect(response.status).toBe(200)
+      expect(db.set).toHaveBeenCalled()
+    })
   })
 
   describe('DELETE', () => {

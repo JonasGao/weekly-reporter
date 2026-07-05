@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { rawEvents } from '@/lib/db/schema'
+import { rawEvents, RawEvent } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { parseTags } from '@/lib/tags/parser'
 import { mapTagsToSectionType } from '@/lib/tags/mapper'
+
+type EventUpdateData = Partial<Pick<RawEvent, 'content' | 'tags' | 'eventTime' | 'sectionType' | 'isImportant' | 'updatedAt'>>
 
 export async function PUT(
   request: NextRequest,
@@ -29,21 +31,60 @@ export async function PUT(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
     
-    const body = await request.json()
-    const updateData: Record<string, any> = { updatedAt: new Date() }
+    let body
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json(
+        { error: '请求体格式无效', code: 'INVALID_BODY' },
+        { status: 400 }
+      )
+    }
     
-    if (body.content) {
+    // Validate request body exists and has at least one field
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json(
+        { error: '请求体不能为空', code: 'EMPTY_BODY' },
+        { status: 400 }
+      )
+    }
+    
+    const updateData: EventUpdateData = { updatedAt: new Date() }
+    
+    // Validate content if provided
+    if (body.content !== undefined) {
+      if (typeof body.content !== 'string' || body.content.trim().length === 0) {
+        return NextResponse.json(
+          { error: '内容不能为空', code: 'INVALID_CONTENT' },
+          { status: 400 }
+        )
+      }
       const { content, tags } = parseTags(body.content)
       updateData.content = content
       updateData.tags = tags
       updateData.sectionType = await mapTagsToSectionType(tags)
     }
     
-    if (body.eventTime) {
-      updateData.eventTime = new Date(body.eventTime)
+    // Validate eventTime if provided
+    if (body.eventTime !== undefined) {
+      const parsedDate = new Date(body.eventTime)
+      if (isNaN(parsedDate.getTime())) {
+        return NextResponse.json(
+          { error: '时间格式无效', code: 'INVALID_EVENT_TIME' },
+          { status: 400 }
+        )
+      }
+      updateData.eventTime = parsedDate
     }
     
+    // Validate isImportant if provided
     if (body.isImportant !== undefined) {
+      if (typeof body.isImportant !== 'boolean') {
+        return NextResponse.json(
+          { error: 'isImportant 必须是布尔值', code: 'INVALID_IS_IMPORTANT' },
+          { status: 400 }
+        )
+      }
       updateData.isImportant = body.isImportant
     }
     
@@ -95,7 +136,6 @@ export async function DELETE(
     
     await db.delete(rawEvents)
       .where(eq(rawEvents.id, id))
-      .returning()
     
     return new NextResponse(null, { status: 204 })
   } catch (error) {

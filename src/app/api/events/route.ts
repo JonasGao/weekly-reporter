@@ -54,6 +54,25 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { content, eventTime } = body
     
+    // Validate content is required and non-empty
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      return NextResponse.json(
+        { error: '内容不能为空', code: 'INVALID_CONTENT' },
+        { status: 400 }
+      )
+    }
+    
+    // Validate eventTime format if provided
+    if (eventTime !== undefined && eventTime !== null) {
+      const parsedDate = new Date(eventTime)
+      if (isNaN(parsedDate.getTime())) {
+        return NextResponse.json(
+          { error: '时间格式无效', code: 'INVALID_EVENT_TIME' },
+          { status: 400 }
+        )
+      }
+    }
+    
     const { content: cleanContent, tags } = parseTags(content)
     const sectionType = await mapTagsToSectionType(tags)
     
