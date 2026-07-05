@@ -31,12 +31,9 @@ describe('initializeBuiltInTags', () => {
 
   afterAll(async () => {
     const db = getDb()
-    try {
-      await db
-        .delete(schema.tags)
-        .where(eq(schema.tags.isBuiltIn, true))
-    } catch (error) {
-    }
+    await db
+      .delete(schema.tags)
+      .where(eq(schema.tags.isBuiltIn, true))
   })
 
   it('should insert built-in tags when table is empty', async () => {
