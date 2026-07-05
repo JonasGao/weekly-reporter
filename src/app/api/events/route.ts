@@ -24,7 +24,10 @@ export async function GET(request: Request) {
     if (tagsParam) {
       const tags = tagsParam.split(',').map(t => t.trim()).filter(Boolean)
       if (tags.length > 0) {
-        conditions.push(sql`${rawEvents.tags} IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(${rawEvents.tags}) WHERE json_each.value IN ${sql.raw(`(${tags.map(t => `'${t}'`).join(',')})`)})`)
+        // Use parameterized query to prevent SQL injection
+        // Create safe IN clause with proper parameter binding
+        const inClause = sql`(${sql.join(tags.map(t => sql`${t}`), sql`, `)})`
+        conditions.push(sql`${rawEvents.tags} IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(${rawEvents.tags}) WHERE json_each.value IN ${inClause})`)
       }
     }
 
