@@ -141,6 +141,8 @@ describe('renderTemplate', () => {
       category: null,
       sectionType,
       status: 'pending',
+      tags: null,
+      isImportant: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -366,6 +368,8 @@ describe('renderTemplate', () => {
       category: null,
       sectionType,
       status: 'pending',
+      tags: null,
+      isImportant: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

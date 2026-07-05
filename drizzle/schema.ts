@@ -1,5 +1,17 @@
 import { sqliteTable, AnySQLiteColumn, integer, text } from "drizzle-orm/sqlite-core"
-  import { sql } from "drizzle-orm"
+import { sql } from "drizzle-orm"
+
+export type SectionType = 'achievement' | 'risk' | 'routine' | 'plan'
+
+export const tags = sqliteTable("tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  sectionType: text("section_type").$type<SectionType>(),
+  color: text("color"),
+  isBuiltIn: integer("is_built_in", { mode: "boolean" }).default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
 
 export const reports = sqliteTable("reports", {
 	id: integer().primaryKey({ autoIncrement: true }).notNull(),
@@ -24,15 +36,18 @@ export const collectSources = sqliteTable("collect_sources", {
 });
 
 export const rawEvents = sqliteTable("raw_events", {
-	id: integer().primaryKey({ autoIncrement: true }).notNull(),
-	eventTime: integer("event_time").notNull(),
-	source: text().notNull(),
-	content: text().notNull(),
-	metadata: text(),
-	category: text(),
-	status: text().default("pending").notNull(),
-	createdAt: integer("created_at").notNull(),
-	updatedAt: integer("updated_at").notNull(),
+	id: integer("id").primaryKey({ autoIncrement: true }).notNull(),
+	eventTime: integer("event_time", { mode: "timestamp" }).notNull(),
+	source: text("source").notNull(),
+	content: text("content").notNull(),
+	metadata: text("metadata", { mode: "json" }),
+	category: text("category"),
+	sectionType: text("section_type").default("routine").notNull().$type<SectionType>(),
+	status: text("status").default("pending").notNull(),
+	tags: text("tags", { mode: "json" }),
+	isImportant: integer("is_important", { mode: "boolean" }).default(false),
+	createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+	updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
 export const templates = sqliteTable("templates", {

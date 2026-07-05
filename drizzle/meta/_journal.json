@@ -71,6 +71,13 @@
       "when": 1783061208990,
       "tag": "0009_wise_cobalt_man",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1783261045805,
+      "tag": "0010_typical_sally_floyd",
+      "breakpoints": true
     }
   ]
 }

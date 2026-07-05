@@ -47,6 +47,19 @@ export interface TemplateConfig {
   }
 }
 
+export const tags = sqliteTable('tags', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  sectionType: text('section_type').$type<SectionType>(),
+  color: text('color'),
+  isBuiltIn: integer('is_built_in', { mode: 'boolean' }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
+export type Tag = typeof tags.$inferSelect
+export type NewTag = typeof tags.$inferInsert
+
 export const templates = sqliteTable('templates', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
@@ -102,6 +115,8 @@ export const rawEvents = sqliteTable('raw_events', {
   category: text('category'),
   sectionType: text('section_type').default('routine').notNull().$type<SectionType>(),
   status: text('status').default('pending').notNull(),
+  tags: text('tags', { mode: 'json' }).$type<string[]>(),
+  isImportant: integer('is_important', { mode: 'boolean' }).default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 })
