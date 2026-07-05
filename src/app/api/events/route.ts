@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { desc, eq, between, sql } from 'drizzle-orm'
 import { rawEvents } from '@/lib/db/schema'
+import { parseTags } from '@/lib/tags/parser'
+import { mapTagsToSectionType } from '@/lib/tags/mapper'
 
 export async function GET(request: Request) {
   try {
@@ -41,6 +43,38 @@ export async function GET(request: Request) {
     console.error('Error fetching events:', error)
     return NextResponse.json(
       { error: '获取事件列表失败', code: 'FETCH_ERROR' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const db = getDb()
+    const body = await request.json()
+    const { content, eventTime } = body
+    
+    const { content: cleanContent, tags } = parseTags(content)
+    const sectionType = await mapTagsToSectionType(tags)
+    
+    const now = new Date()
+    const newEvent = await db.insert(rawEvents).values({
+      content: cleanContent,
+      tags,
+      eventTime: eventTime ? new Date(eventTime) : now,
+      source: 'manual',
+      sectionType,
+      status: 'pending',
+      isImportant: false,
+      createdAt: now,
+      updatedAt: now,
+    }).returning()
+    
+    return NextResponse.json(newEvent[0], { status: 201 })
+  } catch (error) {
+    console.error('Error creating event:', error)
+    return NextResponse.json(
+      { error: '创建事件失败', code: 'CREATE_ERROR' },
       { status: 500 }
     )
   }

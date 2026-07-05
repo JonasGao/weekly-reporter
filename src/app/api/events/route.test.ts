@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { GET } from './route'
+import { GET, POST } from './route'
 
 vi.mock('@/lib/db', () => {
   let mockChain: ReturnType<typeof createMockChain> | null = null
@@ -11,12 +11,19 @@ vi.mock('@/lib/db', () => {
     const mockFromResult = { where: mockWhere }
     const mockFrom = vi.fn().mockReturnValue(mockFromResult)
     const mockSelect = vi.fn().mockReturnValue({ from: mockFrom })
+    const mockReturning = vi.fn()
+    const mockValuesResult = { returning: mockReturning }
+    const mockValues = vi.fn().mockReturnValue(mockValuesResult)
+    const mockInsert = vi.fn().mockReturnValue({ values: mockValues })
 
     return {
       select: mockSelect,
       from: mockFrom,
       where: mockWhere,
       orderBy: mockOrderBy,
+      insert: mockInsert,
+      values: mockValues,
+      returning: mockReturning,
     }
   }
 
@@ -29,6 +36,26 @@ vi.mock('@/lib/db', () => {
     }),
   }
 })
+
+vi.mock('@/lib/tags/parser', () => ({
+  parseTags: vi.fn((input: string) => {
+    const tags: string[] = []
+    const content = input.replace(/#([\w\u4e00-\u9fa5]+)/g, (match, tag) => {
+      tags.push(tag)
+      return ''
+    }).replace(/\s+/g, ' ').trim()
+    return { content, tags }
+  }),
+}))
+
+vi.mock('@/lib/tags/mapper', () => ({
+  mapTagsToSectionType: vi.fn(async (tagNames: string[]) => {
+    if (tagNames.includes('成果') || tagNames.includes('achievement')) return 'achievement'
+    if (tagNames.includes('风险') || tagNames.includes('risk')) return 'risk'
+    if (tagNames.includes('计划') || tagNames.includes('plan')) return 'plan'
+    return 'routine'
+  }),
+}))
 
 describe('/api/events', () => {
   beforeEach(() => {
@@ -198,6 +225,46 @@ describe('/api/events', () => {
 
       expect(response.status).toBe(200)
       expect(data.events).toHaveLength(1)
+    })
+  })
+
+  describe('POST', () => {
+    it('should create new memo event with tags', async () => {
+      const mockEvent = {
+        id: 1,
+        content: '完成评审',
+        tags: ['成果', '工作'],
+        eventTime: new Date('2024-01-10T10:00:00'),
+        source: 'manual',
+        sectionType: 'achievement',
+        status: 'pending',
+        isImportant: false,
+        createdAt: new Date('2024-01-10T10:00:00'),
+        updatedAt: new Date('2024-01-10T10:00:00'),
+      }
+
+      const { getDb } = await import('@/lib/db')
+      const db = getDb()
+      db.returning.mockResolvedValueOnce([mockEvent])
+
+      const request = new Request('http://localhost/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: '完成评审 #成果 #工作',
+          eventTime: '2024-01-10T10:00:00',
+        }),
+      })
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(201)
+      expect(data.tags).toEqual(['成果', '工作'])
+      expect(data.sectionType).toBe('achievement')
+      expect(data.content).toBe('完成评审')
+      expect(data.source).toBe('manual')
+      expect(db.insert).toHaveBeenCalled()
+      expect(db.values).toHaveBeenCalled()
     })
   })
 })
