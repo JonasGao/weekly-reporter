@@ -11,6 +11,8 @@ import { CheckPanel } from '@/components/CheckPanel'
 import { ScorePanel } from '@/components/ScorePanel'
 import { VariableToolbar } from '@/components/VariableToolbar'
 import { EditorSidebar } from '@/components/EditorSidebar'
+import { ViewSwitcher } from '@/components/ViewSwitcher'
+import { ExportDialog } from '@/components/ExportDialog'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Report, AIStyle } from '@/lib/db/schema'
@@ -29,6 +31,9 @@ export default function EditReportPage() {
   const [showScorePanel, setShowScorePanel] = useState(false)
   const [editorKey, setEditorKey] = useState(0)
   const [styleOverride, setStyleOverride] = useState<AIStyle | undefined>()
+  const [currentView, setCurrentView] = useState<'leadership' | 'personal'>('personal')
+  const [viewLoading, setViewLoading] = useState(false)
+  const [baseContent, setBaseContent] = useState('')
 
   useEffect(() => {
     async function fetchReport() {
@@ -38,6 +43,7 @@ export default function EditReportPage() {
           const report: Report = await response.json()
           setTitle(report.title)
           setContent(report.content)
+          setBaseContent(report.content)
           setWeekStart(report.weekStart)
           setWeekEnd(report.weekEnd)
         } else {
@@ -88,6 +94,39 @@ export default function EditReportPage() {
     // Replace entire content with unified version
     setContent(unifiedContent)
     setEditorKey(k => k + 1)
+  }
+
+  async function handleViewChange(view: 'leadership' | 'personal') {
+    if (view === currentView) return
+
+    setViewLoading(true)
+
+    try {
+      const response = await fetch('/api/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: baseContent,
+          templateId: 'official-general',
+          viewType: view,
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('视图渲染失败')
+      }
+
+      const data = await response.json()
+      setContent(data.content)
+      setCurrentView(view)
+      setEditorKey(k => k + 1)
+
+      toast.success(`已切换到${view === 'leadership' ? '领导版' : '个人版'}视图`)
+    } catch {
+      toast.error('视图切换失败，请重试')
+    } finally {
+      setViewLoading(false)
+    }
   }
 
   const getEditorContent = () => content
@@ -144,6 +183,11 @@ export default function EditReportPage() {
             </Button>
           </Link>
           <h1 className="text-2xl font-bold">编辑周报</h1>
+          <ViewSwitcher
+            currentView={currentView}
+            onViewChange={handleViewChange}
+            isLoading={viewLoading}
+          />
         </div>
       </div>
 
@@ -198,6 +242,7 @@ export default function EditReportPage() {
                       取消
                     </Button>
                   </Link>
+                  <ExportDialog content={baseContent} templateId="official-general" />
                   <Button type="button" onClick={() => setShowScorePanel(true)} disabled={saving}>
                     {saving ? '保存中...' : '保存'}
                   </Button>

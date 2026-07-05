@@ -23,6 +23,12 @@ export interface SectionRenderConfig {
   filterTrivial?: boolean
 }
 
+export interface ViewConfig {
+  enabledSections: string[]
+  sectionConfig: Record<string, SectionRenderConfig>
+  aiStyle: AIStyle
+}
+
 export interface TemplateConfig {
   sectionSkeleton?: {
     type: 'unordered' | 'ordered' | 'task'
@@ -33,6 +39,11 @@ export interface TemplateConfig {
     risk?: SectionRenderConfig
     routine?: SectionRenderConfig
     plan?: SectionRenderConfig
+  }
+  sectionTypeMap?: Record<string, SectionType>
+  viewConfigs?: {
+    leadership?: ViewConfig
+    personal?: ViewConfig
   }
 }
 

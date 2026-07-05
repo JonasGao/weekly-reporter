@@ -14,6 +14,8 @@ export interface RenderOptions {
   date?: Date;
   events?: RawEvent[];
   sectionConfig?: TemplateConfig['sectionConfig'];
+  enabledSections?: string[];
+  sectionTypeMap?: Record<string, SectionType>;
 }
 
 const EMPTY_LIST_ITEMS = '- \n- \n- ';
@@ -59,6 +61,27 @@ function filterAndFormatEvents(
   return filtered.map((e) => `- ${e.content}`).join('\n');
 }
 
+function removeSection(content: string, sectionTitle: string): string {
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let skipping = false;
+
+  for (const line of lines) {
+    if (line.trim() === `## ${sectionTitle}`) {
+      skipping = true;
+      continue;
+    }
+    if (skipping && line.startsWith('## ')) {
+      skipping = false;
+    }
+    if (!skipping) {
+      result.push(line);
+    }
+  }
+
+  return result.join('\n');
+}
+
 export function renderTemplate(content: string, options?: RenderOptions): string {
   const baseDate = options?.date ?? new Date();
 
@@ -90,30 +113,37 @@ export function renderTemplate(content: string, options?: RenderOptions): string
   result = result.replace(/\{\{月份\}\}/g, `${month}月`);
 
   // Replace section variables
-  const SECTION_CONFIG: Record<string, SectionType> = {
+  const DEFAULT_SECTION_CONFIG: Record<string, SectionType> = {
     核心成果: 'achievement',
     问题与风险: 'risk',
     下周计划: 'plan',
     日常事务: 'routine',
   };
 
-  for (const [section, sectionType] of Object.entries(SECTION_CONFIG)) {
+  const sectionMap = options?.sectionTypeMap || DEFAULT_SECTION_CONFIG;
+
+  for (const [sectionTitle, sectionType] of Object.entries(sectionMap)) {
+    if (options?.enabledSections && !options.enabledSections.includes(sectionTitle)) {
+      result = removeSection(result, sectionTitle);
+      const placeholderRegex = new RegExp(`\\{\\{${sectionTitle}\\}\\}`, 'g');
+      result = result.replace(placeholderRegex, '');
+      continue;
+    }
+
     let replacement: string;
 
     if (options?.events && options.events.length > 0) {
-      // If events are provided, filter and format them
       replacement = filterAndFormatEvents(
         options.events,
         sectionType,
         options.sectionConfig?.[sectionType]
       );
     } else {
-      // Backward compatibility: use empty list items
       replacement = EMPTY_LIST_ITEMS;
     }
 
     result = result.replace(
-      new RegExp(`\\{\\{${section}\\}\\}`, 'g'),
+      new RegExp(`\\{\\{${sectionTitle}\\}\\}`, 'g'),
       replacement
     );
   }

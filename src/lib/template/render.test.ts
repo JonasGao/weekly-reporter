@@ -351,4 +351,86 @@ describe('renderTemplate', () => {
       expect(result).toContain('- 日常1');
     });
   });
+
+  describe('enabledSections', () => {
+    const createEvent = (
+      content: string,
+      sectionType: SectionType,
+      eventTime: Date
+    ): RawEvent => ({
+      id: 1,
+      eventTime,
+      source: 'test',
+      content,
+      metadata: {},
+      category: null,
+      sectionType,
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    it('should remove disabled sections', () => {
+      const content = '## 本周完成\n{{本周完成}}\n## 进行中\n{{进行中}}\n## 下周计划\n{{下周计划}}';
+      const sectionTypeMap = {
+        '本周完成': 'achievement' as SectionType,
+        '进行中': 'plan' as SectionType,
+        '下周计划': 'plan' as SectionType,
+      };
+      const result = renderTemplate(content, {
+        enabledSections: ['本周完成', '下周计划'],
+        sectionTypeMap,
+      });
+
+      expect(result).toContain('## 本周完成');
+      expect(result).toContain('## 下周计划');
+      expect(result).not.toContain('## 进行中');
+      expect(result).not.toContain('{{进行中}}');
+    });
+
+    it('should keep all sections when enabledSections includes all', () => {
+      const content = '## 本周完成\n{{本周完成}}\n## 下周计划\n{{下周计划}}';
+      const sectionTypeMap = {
+        '本周完成': 'achievement' as SectionType,
+        '下周计划': 'plan' as SectionType,
+      };
+      const result = renderTemplate(content, {
+        enabledSections: ['本周完成', '下周计划'],
+        sectionTypeMap,
+      });
+
+      expect(result).toContain('## 本周完成');
+      expect(result).toContain('## 下周计划');
+    });
+
+    it('should apply sectionConfig by SectionType for enabled sections', () => {
+      const content = '## 核心成果\n{{核心成果}}';
+      const events: RawEvent[] = [
+        createEvent('事件1', 'achievement', new Date('2026-07-01')),
+        createEvent('事件2', 'achievement', new Date('2026-07-02')),
+        createEvent('事件3', 'achievement', new Date('2026-07-03')),
+        createEvent('事件4', 'achievement', new Date('2026-07-04')),
+      ];
+
+      const result = renderTemplate(content, {
+        events,
+        sectionConfig: {
+          achievement: { maxItems: 3, autoSort: true, filterTrivial: false }
+        }
+      });
+
+      const lines = result.split('\n').filter(l => l.startsWith('- '));
+      expect(lines.length).toBe(3);
+    });
+
+    it('should fall back to default SECTION_CONFIG when no sectionTypeMap provided', () => {
+      const content = '## 核心成果\n{{核心成果}}\n## 下周计划\n{{下周计划}}';
+      const result = renderTemplate(content);
+
+      expect(result).toContain('## 核心成果');
+      expect(result).toContain('## 下周计划');
+      expect(result).not.toContain('{{核心成果}}');
+      expect(result).not.toContain('{{下周计划}}');
+    });
+  });
 });
