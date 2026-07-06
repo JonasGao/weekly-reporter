@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -42,6 +42,82 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
       enabled: true,
     }
   )
+
+  // 邮箱自动补全 — 从当前仓库获取
+  const [knownEmails, setKnownEmails] = useState<string[]>([])
+  const [showEmailSuggestions, setShowEmailSuggestions] = useState(false)
+  const [activeEmailIndex, setActiveEmailIndex] = useState(-1)
+  const emailInputRef = useRef<HTMLInputElement>(null)
+
+  // 根据当前表单值获取仓库邮箱（防抖）
+  useEffect(() => {
+    const params = new URLSearchParams({ type: formData.type })
+    if (isLocal(formData.type)) {
+      if (!formData.config.owner) return
+      params.set('path', formData.config.owner)
+    } else {
+      if (!formData.config.owner || !formData.config.repo || !formData.config.token) return
+      params.set('owner', formData.config.owner)
+      params.set('repo', formData.config.repo)
+      params.set('token', formData.config.token)
+      if (formData.config.baseUrl) params.set('baseUrl', formData.config.baseUrl)
+    }
+    if (formData.config.branch) params.set('branch', formData.config.branch)
+
+    const timer = setTimeout(() => {
+      fetch(`/api/collect/sources/emails?${params}`)
+        .then(res => res.json())
+        .then(data => setKnownEmails(data.emails || []))
+        .catch(() => {})
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [formData.type, formData.config.owner, formData.config.repo, formData.config.token, formData.config.baseUrl, formData.config.branch])
+
+  // 取当前正在编辑的邮箱片段（最后一个逗号之后的内容）
+  function getCurrentEmailFragment(): string {
+    const val = formData.config.authorEmails
+    const lastComma = val.lastIndexOf(',')
+    return (lastComma >= 0 ? val.slice(lastComma + 1) : val).trim()
+  }
+
+  const emailFragment = getCurrentEmailFragment()
+  const alreadyAdded = formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean)
+  const emailSuggestions = emailFragment
+    ? knownEmails.filter(e => e.toLowerCase().includes(emailFragment.toLowerCase()) && !alreadyAdded.includes(e))
+    : []
+
+  function selectEmailSuggestion(email: string) {
+    const val = formData.config.authorEmails
+    const lastComma = val.lastIndexOf(',')
+    const prefix = lastComma >= 0 ? val.slice(0, lastComma + 1) : ''
+    const existing = prefix ? prefix.split(',').map(e => e.trim()).filter(Boolean) : []
+    const newList = [...existing, email]
+    handleConfigChange('authorEmails', newList.join(', ') + ', ')
+    setShowEmailSuggestions(false)
+    setActiveEmailIndex(-1)
+    emailInputRef.current?.focus()
+  }
+
+  function handleEmailKeyDown(e: React.KeyboardEvent) {
+    if (!showEmailSuggestions || emailSuggestions.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveEmailIndex(prev => (prev + 1) % emailSuggestions.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveEmailIndex(prev => (prev - 1 + emailSuggestions.length) % emailSuggestions.length)
+    } else if (e.key === 'Enter' && activeEmailIndex >= 0) {
+      e.preventDefault()
+      selectEmailSuggestion(emailSuggestions[activeEmailIndex])
+    } else if (e.key === 'Tab' && emailSuggestions.length > 0) {
+      e.preventDefault()
+      const target = activeEmailIndex >= 0 ? emailSuggestions[activeEmailIndex] : emailSuggestions[0]
+      selectEmailSuggestion(target)
+    } else if (e.key === 'Escape') {
+      setShowEmailSuggestions(false)
+      setActiveEmailIndex(-1)
+    }
+  }
 
   function handleChange(field: keyof FormData, value: string | boolean) {
     setFormData(prev => ({
@@ -224,15 +300,40 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
 
           <div className="space-y-2">
             <Label htmlFor="authorEmails">作者邮箱（多个用逗号分隔）</Label>
-            <input
-              id="authorEmails"
-              type="text"
-              value={formData.config.authorEmails}
-              onChange={e => handleConfigChange('authorEmails', e.target.value)}
-              placeholder="例如：user@example.com, work@company.com"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              required
-            />
+            <div className="relative">
+              <input
+                ref={emailInputRef}
+                id="authorEmails"
+                type="text"
+                value={formData.config.authorEmails}
+                onChange={e => {
+                  handleConfigChange('authorEmails', e.target.value)
+                  setShowEmailSuggestions(true)
+                  setActiveEmailIndex(-1)
+                }}
+                onFocus={() => emailSuggestions.length > 0 && setShowEmailSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowEmailSuggestions(false), 200)}
+                onKeyDown={handleEmailKeyDown}
+                placeholder="例如：user@example.com, work@company.com"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                required
+              />
+              {showEmailSuggestions && emailSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-input rounded-md shadow-lg max-h-40 overflow-y-auto z-10">
+                  {emailSuggestions.map((email, index) => (
+                    <div
+                      key={email}
+                      onMouseDown={() => selectEmailSuggestion(email)}
+                      className={`px-3 py-1.5 cursor-pointer text-sm ${
+                        index === activeEmailIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
+                      }`}
+                    >
+                      {email}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               只采集这些邮箱的提交记录
             </p>

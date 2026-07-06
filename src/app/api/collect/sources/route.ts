@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { desc } from 'drizzle-orm'
+import { like, and } from 'drizzle-orm'
 import { collectSources } from '@/lib/db/schema'
 import { collectSourceSchema } from '@/lib/validations'
 
@@ -10,18 +11,22 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
-    
+    const name = searchParams.get('name') || ''
+
     const offset = (page - 1) * pageSize
-    
+
+    const conditions = name ? like(collectSources.name, `%${name}%`) : undefined
+
     const sources = await db.query.collectSources.findMany({
+      where: conditions,
       orderBy: [desc(collectSources.createdAt)],
       limit: pageSize,
       offset,
     })
-    
-    const totalResult = await db.select().from(collectSources)
+
+    const totalResult = await db.select({ id: collectSources.id }).from(collectSources).where(conditions)
     const total = totalResult.length
-    
+
     return NextResponse.json({
       sources: sources.map(s => ({
         ...s,

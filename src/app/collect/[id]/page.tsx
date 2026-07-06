@@ -42,10 +42,10 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
         config: {
           baseUrl: data.config.baseUrl || '',
           owner: data.config.owner,
-          repo: data.config.repo,
+          repo: data.config.repo || '',
           token: '',
           branch: data.config.branch || '',
-          authorEmails: data.config.authorEmails.join(','),
+          authorEmails: Array.isArray(data.config.authorEmails) ? data.config.authorEmails.join(',') : '',
         },
         enabled: data.enabled,
       })

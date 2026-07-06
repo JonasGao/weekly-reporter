@@ -37,6 +37,7 @@ export function ScanReposDialog({
   const [repos, setRepos] = useState<FoundRepo[]>([])
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set())
   const [adding, setAdding] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   
   const inputRef = useRef<HTMLInputElement>(null)
   
@@ -55,21 +56,24 @@ export function ScanReposDialog({
   
   const fetchSuggestions = useCallback(async (currentPath: string) => {
     try {
+      setFetchError(null)
       const res = await fetch(`/api/collect/scan-path?path=${encodeURIComponent(currentPath)}`)
       const data = await res.json()
-      
+
       if (data.error) {
         setSuggestions([])
         setShowSuggestions(false)
+        setFetchError(data.error)
         return
       }
-      
+
       setSuggestions(data.directories || [])
       setShowSuggestions(true)
       setActiveIndex(-1)
     } catch (error) {
       setSuggestions([])
       setShowSuggestions(false)
+      setFetchError('网络错误，无法获取目录列表')
     }
   }, [])
   
@@ -156,6 +160,16 @@ export function ScanReposDialog({
     }
     setSelectedRepos(newSelected)
   }
+
+  function handleSelectAll() {
+    const selectable = repos.filter(r => !r.alreadyAdded)
+    const allSelected = selectable.every(r => selectedRepos.has(r.path))
+    if (allSelected) {
+      setSelectedRepos(new Set())
+    } else {
+      setSelectedRepos(new Set(selectable.map(r => r.path)))
+    }
+  }
   
   async function handleBatchAdd() {
     const selected = repos.filter(r => selectedRepos.has(r.path))
@@ -187,7 +201,7 @@ export function ScanReposDialog({
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="w-full max-w-lg mx-4 overflow-visible">
+      <Card className="w-full max-w-3xl mx-4 overflow-visible">
         {step === 'scan' && (
           <>
             <CardHeader>
@@ -228,6 +242,9 @@ export function ScanReposDialog({
                     </div>
                   )}
                 </div>
+                {fetchError && (
+                  <p className="text-xs text-destructive">{fetchError}</p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   输入路径会自动显示子目录补全，支持模糊搜索（如 /home/god/git）
                 </p>
@@ -256,43 +273,43 @@ export function ScanReposDialog({
         
         {step === 'result' && (
           <>
-            <CardHeader>
-              <CardTitle>扫描结果</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">扫描结果 <span className="text-sm font-normal text-muted-foreground">— 找到 {repos.length} 个仓库</span></CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                找到 {repos.length} 个 Git 仓库：
-              </p>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+            <CardContent className="pb-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-[55vh] overflow-y-auto pr-1">
                 {repos.map(repo => (
-                  <div
+                  <label
                     key={repo.path}
-                    className={`flex items-start gap-3 p-3 rounded-md border ${
-                      repo.alreadyAdded ? 'bg-muted opacity-50' : 'bg-background'
-                    }`}
+                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border cursor-pointer text-sm transition-colors ${
+                      repo.alreadyAdded ? 'bg-muted opacity-50 cursor-not-allowed' : 'bg-background hover:bg-muted/50'
+                    } ${selectedRepos.has(repo.path) ? 'ring-1 ring-primary border-primary/30 bg-primary/5' : ''}`}
                   >
                     <input
                       type="checkbox"
                       checked={selectedRepos.has(repo.path)}
                       onChange={() => handleToggleRepo(repo.path)}
                       disabled={repo.alreadyAdded}
-                      className="mt-1 rounded border-input"
+                      className="shrink-0 rounded border-input"
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{repo.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{repo.path}</p>
-                      {repo.alreadyAdded && (
-                        <span className="inline-block px-2 py-0.5 bg-secondary text-secondary-foreground text-xs rounded mt-1">
-                          已添加
-                        </span>
-                      )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-xs truncate leading-tight">
+                        {repo.name}
+                        {repo.alreadyAdded && <span className="text-muted-foreground font-normal ml-1">(已添加)</span>}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate leading-tight">{repo.path}</p>
                     </div>
-                  </div>
+                  </label>
                 ))}
               </div>
             </CardContent>
-            <CardFooter className="gap-2">
-              <Button onClick={handleBatchAdd} disabled={adding || selectedRepos.size === 0}>
+            <CardFooter className="gap-2 pt-2">
+              <Button size="sm" variant="outline" onClick={handleSelectAll}>
+                {repos.filter(r => !r.alreadyAdded).every(r => selectedRepos.has(r.path)) && repos.some(r => !r.alreadyAdded)
+                  ? '取消全选' : '全选'}
+              </Button>
+              <div className="flex-1" />
+              <Button size="sm" onClick={handleBatchAdd} disabled={adding || selectedRepos.size === 0}>
                 {adding ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -302,7 +319,7 @@ export function ScanReposDialog({
                   `批量添加 (${selectedRepos.size})`
                 )}
               </Button>
-              <Button variant="outline" onClick={onClose} disabled={adding}>
+              <Button size="sm" variant="outline" onClick={onClose} disabled={adding}>
                 取消
               </Button>
             </CardFooter>

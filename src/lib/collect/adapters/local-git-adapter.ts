@@ -1,8 +1,8 @@
 import type { GitAdapter, GitCommit, FetchCommitsOptions, RawEventData } from '../types'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 export const localGitAdapter: GitAdapter = {
   platform: 'git-local',
@@ -30,8 +30,8 @@ export const localGitAdapter: GitAdapter = {
     }
     
     try {
-      const { stdout } = await execAsync(
-        `git ${args.join(' ')}`,
+      const { stdout } = await execFileAsync(
+        'git', args,
         { cwd: repoPath, maxBuffer: 1024 * 1024 * 10 }
       )
       

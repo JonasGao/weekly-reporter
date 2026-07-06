@@ -22,7 +22,7 @@ export default function CollectPage() {
   }
   
   return (
-    <main className="container mx-auto py-8 px-4 max-w-3xl">
+    <main className="container mx-auto py-6 px-4 max-w-7xl">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <Link href="/">
