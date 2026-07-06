@@ -49,5 +49,9 @@ data/
 
 # playwright
 .playwright-cli/
+.playwright-mcp/
+test-results/
+playwright-report/
+blob-report/
 *.yml
 *.yaml
