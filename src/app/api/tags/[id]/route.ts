@@ -8,10 +8,11 @@ const VALID_SECTION_TYPES: SectionType[] = ['achievement', 'risk', 'routine', 'p
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id)
+    const { id: paramId } = await params
+    const id = parseInt(paramId)
     if (isNaN(id)) {
       return NextResponse.json(
         { error: 'Invalid tag ID', code: 'INVALID_ID' },
@@ -87,10 +88,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id)
+    const { id: paramId } = await params
+    const id = parseInt(paramId)
     if (isNaN(id)) {
       return NextResponse.json(
         { error: 'Invalid tag ID', code: 'INVALID_ID' },

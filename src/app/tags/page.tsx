@@ -106,13 +106,13 @@ export default function TagsPage() {
         <h1 className="text-2xl font-bold">标签管理</h1>
         
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
+          <DialogTrigger render={
             <Button onClick={() => {
               setEditingTag(null)
               setForm({ name: '', sectionType: 'routine', color: '' })
-            }}>
-              新建标签
-            </Button>
+            }} />
+          }>
+            新建标签
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>

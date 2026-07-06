@@ -11,7 +11,7 @@ export async function GET() {
       .select({
         name: tags.name,
         color: tags.color,
-        usage_count: sql<number>`count(${rawEvents.id})`,
+        usage_count: sql<number>`count(${rawEvents.id})`.as('usage_count'),
       })
       .from(tags)
       .leftJoin(rawEvents, sql`json_array_length(${rawEvents.tags}) > 0 AND exists(select 1 from json_each(${rawEvents.tags}) where json_each.value = ${tags.name})`)
