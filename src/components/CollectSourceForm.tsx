@@ -188,7 +188,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
   }
 
   return (
-    <Card>
+    <Card className="overflow-visible">
       <form onSubmit={handleSubmit}>
         <CardHeader>
           <CardTitle>配置信息</CardTitle>
@@ -350,7 +350,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
             <Label htmlFor="enabled">启用此采集源</Label>
           </div>
         </CardContent>
-        <CardFooter className="gap-2">
+        <CardFooter className="gap-2 pt-4">
           <Button type="submit" disabled={loading}>
             {loading ? '保存中...' : '保存'}
           </Button>

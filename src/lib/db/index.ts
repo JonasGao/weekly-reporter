@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3'
+import path from 'path'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { DB_PATH, ensureDataDir } from '../paths'
@@ -11,20 +12,18 @@ export function getDb() {
     ensureDataDir()
     const sqlite = new Database(DB_PATH)
     db = drizzle(sqlite, { schema })
-    
-    // Skip migrations - schema has been manually updated already
-    // Uncomment if you need to run migrations for a fresh database
-    // try {
-    //   migrate(db, { migrationsFolder: './drizzle' })
-    // } catch (error) {
-    //   console.error('Migration warning:', error)
-    // }
+
+    try {
+      migrate(db, { migrationsFolder: path.join(process.cwd(), 'drizzle') })
+    } catch (error) {
+      console.error('[db] Migration failed:', error instanceof Error ? error.message : error)
+    }
   }
-  
+
   if (!db) {
     throw new Error('Database initialization failed')
   }
-  
+
   return db
 }
 

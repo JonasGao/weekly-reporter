@@ -1,18 +1,49 @@
 import { NextResponse } from 'next/server'
-import { readdirSync, statSync, existsSync } from 'fs'
-import { resolve, dirname, basename } from 'path'
+// Runtime-only fs/path — loaded via eval('require') so NFT static analysis
+// cannot trace the dynamic filesystem operations on user-provided paths.
+// Type-only imports are erased at compile time and do not affect tracing.
+import type {
+  readdirSync as readdirSyncType,
+  statSync as statSyncType,
+  existsSync as existsSyncType,
+} from 'fs'
+import type {
+  resolve as resolveType,
+  dirname as dirnameType,
+  basename as basenameType,
+} from 'path'
 
-const ALLOWED_BASE_DIRS = [
-  process.env.HOME || '/home',
-  '/opt',
-  '/srv',
-  '/var',
-  '/tmp',
-]
+// eslint-disable-next-line @typescript-eslint/no-require-imports, no-eval
+const fs = eval('require')('fs') as {
+  readdirSync: typeof readdirSyncType
+  statSync: typeof statSyncType
+  existsSync: typeof existsSyncType
+}
+// eslint-disable-next-line @typescript-eslint/no-require-imports, no-eval
+const path = eval('require')('path') as {
+  resolve: typeof resolveType
+  dirname: typeof dirnameType
+  basename: typeof basenameType
+}
 
-function isPathAllowed(path: string): boolean {
-  const resolvedPath = resolve(path)
-  return ALLOWED_BASE_DIRS.some(baseDir => resolvedPath.startsWith(baseDir))
+const ALLOWED_BASE_DIRS = (() => {
+  const dirs = new Set([
+    process.env.HOME,
+    '/home',
+    '/opt',
+    '/srv',
+    '/var',
+    '/tmp',
+  ])
+  dirs.delete(undefined)
+  return [...dirs] as string[]
+})()
+
+function isPathAllowed(inputPath: string): boolean {
+  const resolvedPath = path.resolve(inputPath)
+  return ALLOWED_BASE_DIRS.some(baseDir =>
+    resolvedPath === baseDir || resolvedPath.startsWith(baseDir + '/')
+  )
 }
 
 function fuzzyMatch(name: string, query: string): boolean {
@@ -52,18 +83,18 @@ function findExistingBase(inputPath: string): { basePath: string; query: string 
   let current = inputPath
   const segments: string[] = []
   while (current !== '/' && current !== '') {
-    const base = basename(current)
+    const base = path.basename(current)
     if (base) segments.unshift(base)
-    const parent = dirname(current)
+    const parent = path.dirname(current)
     if (parent === current) break
     current = parent
   }
   let lastExistingIndex = -1
   let lastExistingPath = ''
   for (let i = 0; i < segments.length; i++) {
-    const testPath = i === 0 ? (segments[0].startsWith('/') ? segments[0] : '/' + segments[0]) : resolve('/', ...segments.slice(0, i + 1))
-    if (existsSync(testPath)) {
-      const stats = statSync(testPath)
+    const testPath = i === 0 ? (segments[0].startsWith('/') ? segments[0] : '/' + segments[0]) : path.resolve('/', ...segments.slice(0, i + 1))
+    if (fs.existsSync(testPath)) {
+      const stats = fs.statSync(testPath)
       if (stats.isDirectory()) {
         lastExistingIndex = i
         lastExistingPath = testPath
@@ -81,11 +112,11 @@ function collectDirs(basePath: string, query: string, maxDepth: number = 3, curr
   if (currentDepth >= maxDepth) return []
   const results: { name: string; path: string; score: number }[] = []
   try {
-    const entries = readdirSync(basePath, { withFileTypes: true })
+    const entries = fs.readdirSync(basePath, { withFileTypes: true })
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
       if (entry.name.startsWith('.') && entry.name !== '.') continue
-      const fullPath = resolve(basePath, entry.name)
+      const fullPath = path.resolve(basePath, entry.name)
       const score = fuzzyScore(entry.name, query)
       if (score >= 0) {
         results.push({ name: entry.name, path: fullPath, score })
@@ -101,46 +132,110 @@ function collectDirs(basePath: string, query: string, maxDepth: number = 3, curr
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const path = searchParams.get('path') || '/'
+    const input = searchParams.get('path') || ''
+    const HOME = process.env.HOME || '/home'
 
-    const resolvedPath = resolve(path)
+    // 1. 解析输入：确定 basePath 和 query
+    let basePath: string
+    let query: string
+    let exists = false
 
-    if (!isPathAllowed(resolvedPath)) {
-      return NextResponse.json(
-        { error: '不允许访问此目录', code: 'FORBIDDEN' },
-        { status: 403 }
-      )
-    }
+    if (input.startsWith('/')) {
+      // 绝对路径：最后一个 / 分割为 basePath + query
+      const lastSlash = input.lastIndexOf('/')
+      if (lastSlash === 0) {
+        basePath = '/'
+        query = input.slice(1)
+      } else {
+        basePath = input.slice(0, lastSlash) || '/'
+        query = input.slice(lastSlash + 1)
+      }
 
-    if (existsSync(resolvedPath)) {
-      const stats = statSync(resolvedPath)
-      if (!stats.isDirectory()) {
+      const resolvedBase = path.resolve(basePath)
+      if (!isPathAllowed(resolvedBase)) {
         return NextResponse.json(
-          { error: '路径不是目录', code: 'NOT_DIRECTORY' },
-          { status: 400 }
+          { error: '不允许访问此目录', code: 'FORBIDDEN' },
+          { status: 403 }
         )
       }
 
-      const entries = readdirSync(resolvedPath, { withFileTypes: true })
-      const directories = entries
+      if (fs.existsSync(resolvedBase) && fs.statSync(resolvedBase).isDirectory()) {
+        exists = true
+      }
+    } else if (input.includes('/')) {
+      // 相对路径含 /：在 $HOME 下解析
+      const lastSlash = input.lastIndexOf('/')
+      const basePart = input.slice(0, lastSlash)
+      query = input.slice(lastSlash + 1)
+      basePath = path.resolve(HOME, basePart)
+
+      if (!isPathAllowed(basePath)) {
+        return NextResponse.json(
+          { error: '不允许访问此目录', code: 'FORBIDDEN' },
+          { status: 403 }
+        )
+      }
+
+      if (fs.existsSync(basePath) && fs.statSync(basePath).isDirectory()) {
+        exists = true
+      }
+    } else {
+      // 无 /：直接在 $HOME 下搜索
+      basePath = HOME
+      query = input
+
+      if (!isPathAllowed(HOME)) {
+        return NextResponse.json(
+          { error: '不允许访问此目录', code: 'FORBIDDEN' },
+          { status: 403 }
+        )
+      }
+
+      exists = true
+    }
+
+    // 2. basePath 存在：列出子目录，如有 query 则做模糊过滤
+    if (exists) {
+      const resolvedBase = path.resolve(basePath)
+      const entries = fs.readdirSync(resolvedBase, { withFileTypes: true })
+      const allDirs = entries
         .filter(entry => entry.isDirectory())
         .filter(entry => !entry.name.startsWith('.') || entry.name === '.')
-        .slice(0, 50)
         .map(entry => ({
           name: entry.name,
-          path: resolve(resolvedPath, entry.name),
+          path: path.resolve(resolvedBase, entry.name),
         }))
+
+      const directories = query
+        ? allDirs
+            .map(d => ({ ...d, score: fuzzyScore(d.name, query) }))
+            .filter(d => d.score >= 0)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 50)
+        : allDirs.slice(0, 50)
 
       return NextResponse.json({
         directories,
-        path: resolvedPath,
+        path: resolvedBase,
         exists: true,
       })
     }
 
-    const found = findExistingBase(resolvedPath)
-    if (!found || !found.query.trim()) {
-      return NextResponse.json({ directories: [], path: resolvedPath, exists: false })
+    // 3. basePath 不存在：向上找最近的存在的祖先目录，模糊搜索剩余部分
+    const resolvedBase = path.resolve(basePath)
+    const found = findExistingBase(resolvedBase)
+    if (!found) {
+      return NextResponse.json({ directories: [], path: resolvedBase, exists: false })
+    }
+
+    // 将 query 与路径中不存在的部分合并作为模糊搜索词
+    const nonExistingTail = resolvedBase.slice(found.basePath.length).replace(/^\//, '')
+    const fullQuery = nonExistingTail
+      ? [nonExistingTail, query].filter(Boolean).join('/')
+      : query
+
+    if (!fullQuery.trim()) {
+      return NextResponse.json({ directories: [], path: resolvedBase, exists: false })
     }
 
     if (!isPathAllowed(found.basePath)) {
@@ -150,16 +245,15 @@ export async function GET(request: Request) {
       )
     }
 
-    const matched = collectDirs(found.basePath, found.query)
+    const matched = collectDirs(found.basePath, fullQuery)
     matched.sort((a, b) => b.score - a.score)
-
     const directories = matched.slice(0, 50).map(m => ({ name: m.name, path: m.path }))
 
     return NextResponse.json({
       directories,
-      path: resolvedPath,
+      path: resolvedBase,
       exists: false,
-      fuzzyQuery: found.query,
+      fuzzyQuery: fullQuery,
       fuzzyBase: found.basePath,
     })
   } catch (error) {
