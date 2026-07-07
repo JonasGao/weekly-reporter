@@ -116,6 +116,31 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     }
   }
 
+  async function handleResync(sourceId: number) {
+    if (!confirm('重新同步将拉取全部历史 commit（已存在的不会重复入库），确定继续？')) return
+    setSyncingIds(prev => new Set(prev).add(sourceId))
+    try {
+      const res = await fetch('/api/collect/git-remote/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId, resync: true }),
+      })
+      const data = await res.json()
+
+      if (data.result?.status === 'success') {
+        toast.success(`重新同步完成，新增 ${data.result.eventsCount} 条事件`)
+      } else {
+        toast.error(data.error || '重新同步失败')
+      }
+
+      fetchSources()
+    } catch (error) {
+      toast.error('重新同步失败')
+    } finally {
+      setSyncingIds(prev => { const n = new Set(prev); n.delete(sourceId); return n })
+    }
+  }
+
   async function handleToggle(sourceId: number, currentEnabled: boolean) {
     setTogglingIds(prev => new Set(prev).add(sourceId))
     // 乐观更新
@@ -271,10 +296,20 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                 </div>
               </CardContent>
               <CardFooter className="gap-1 pt-2 mt-auto">
-                <Button size="sm" variant="default" className="h-7 px-2 text-xs" disabled={isSyncing} onClick={() => handleSync(source.id)}>
-                  {isSyncing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                  {isSyncing ? '同步中' : '同步'}
-                </Button>
+                <div className="flex items-center gap-0.5">
+                  <Button size="sm" variant="default" className="h-7 px-2 text-xs" disabled={isSyncing} onClick={() => handleSync(source.id)}>
+                    {isSyncing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                    {isSyncing ? '同步中' : '同步'}
+                  </Button>
+                  <button
+                    title="重新同步（拉取全部历史，不重复入库）"
+                    className="h-7 w-5 inline-flex items-center justify-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                    disabled={isSyncing}
+                    onClick={() => handleResync(source.id)}
+                  >
+                    ↻
+                  </button>
+                </div>
                 <Link href={`/collect/${source.id}`} className="flex-1">
                   <Button size="sm" variant="outline" className="h-7 w-full px-2 text-xs">
                     <Edit className="h-3 w-3 mr-1" />

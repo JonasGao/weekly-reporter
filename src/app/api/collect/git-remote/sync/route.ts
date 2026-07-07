@@ -4,8 +4,8 @@ import { syncSource, syncAllSources } from '@/lib/collect/sync'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { sourceId } = body
-    
+    const { sourceId, resync } = body
+
     if (sourceId) {
       const sourceIdNum = parseInt(sourceId)
       if (isNaN(sourceIdNum)) {
@@ -14,20 +14,20 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
-      
-      const result = await syncSource(sourceIdNum)
-      
+
+      const result = await syncSource(sourceIdNum, resync)
+
       if (result.status === 'failed') {
         return NextResponse.json(
           { error: result.error, code: 'SYNC_FAILED', result },
           { status: 500 }
         )
       }
-      
+
       return NextResponse.json({ result })
     } else {
-      const results = await syncAllSources()
-      
+      const results = await syncAllSources(resync)
+
       const failed = results.filter(r => r.status === 'failed')
       if (failed.length > 0) {
         return NextResponse.json(
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
           { status: 500 }
         )
       }
-      
+
       return NextResponse.json({ results })
     }
   } catch (error) {

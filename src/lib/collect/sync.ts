@@ -15,7 +15,7 @@ export interface SyncResult {
   error?: string
 }
 
-export async function syncSource(sourceId: number): Promise<SyncResult> {
+export async function syncSource(sourceId: number, resync?: boolean): Promise<SyncResult> {
   const db = getDb()
   
   const source = await db.query.collectSources.findFirst({
@@ -59,7 +59,8 @@ export async function syncSource(sourceId: number): Promise<SyncResult> {
   try {
     const options: FetchCommitsOptions = {
       config: source.config,
-      since: source.lastSyncAt || undefined,
+      // resync 模式下不传 since，全量拉取后靠 SHA 去重
+      since: resync ? undefined : (source.lastSyncAt || undefined),
       until: new Date(),
     }
     
@@ -79,7 +80,7 @@ export async function syncSource(sourceId: number): Promise<SyncResult> {
 
     const events = commits.map(c => adapter.normalizeCommit(c, source.type, sourceInfo))
 
-    // 按 sourceId 去重，避免不同采集源之间互相影响
+    // 按 sourceId 去重
     const existingEvents = await db.query.rawEvents.findMany({
       where: sql`json_extract(${rawEvents.metadata}, '$.sourceId') = ${source.id}`,
     })
@@ -88,7 +89,7 @@ export async function syncSource(sourceId: number): Promise<SyncResult> {
         .filter(e => e.metadata?.sha)
         .map(e => e.metadata?.sha)
     )
-    
+
     const newEvents = events.filter(e => !existingShaSet.has(e.metadata?.sha))
     
     const now = new Date()
@@ -139,19 +140,19 @@ export async function syncSource(sourceId: number): Promise<SyncResult> {
   }
 }
 
-export async function syncAllSources(): Promise<SyncResult[]> {
+export async function syncAllSources(resync?: boolean): Promise<SyncResult[]> {
   const db = getDb()
-  
+
   const sources = await db.query.collectSources.findMany({
     where: eq(collectSources.enabled, true),
   })
-  
+
   const results: SyncResult[] = []
-  
+
   for (const source of sources) {
-    const result = await syncSource(source.id)
+    const result = await syncSource(source.id, resync)
     results.push(result)
   }
-  
+
   return results
 }
