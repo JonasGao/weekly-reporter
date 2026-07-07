@@ -4,6 +4,12 @@ import { promisify } from 'util'
 
 const execFileAsync = promisify(execFile)
 
+interface AuthorInfo {
+  email: string
+  name: string
+  count: number
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -15,38 +21,51 @@ export async function GET(request: Request) {
     const baseUrl = searchParams.get('baseUrl') || ''
     const branch = searchParams.get('branch') || ''
 
-    let emails: string[] = []
+    let authors: AuthorInfo[] = []
 
     if (type === 'git-local' && path) {
-      emails = await getLocalEmails(path, branch)
+      authors = await getLocalAuthors(path, branch)
     } else if (type === 'git-remote-github' && owner && repo && token) {
-      emails = await getGitHubEmails(owner, repo, token)
+      authors = await getGitHubAuthors(owner, repo, token)
     } else if (type === 'git-remote-gitlab' && owner && repo && token) {
-      emails = await getGitLabEmails(owner, repo, token, baseUrl)
+      authors = await getGitLabAuthors(owner, repo, token, baseUrl)
     }
 
-    return NextResponse.json({ emails: [...new Set(emails)].filter(Boolean).sort() })
+    return NextResponse.json({ authors })
   } catch {
-    return NextResponse.json({ emails: [] })
+    return NextResponse.json({ authors: [] })
   }
 }
 
-async function getLocalEmails(repoPath: string, branch?: string): Promise<string[]> {
-  const args = ['log', '--pretty=format:%ae', '--no-merges', '-200']
+async function getLocalAuthors(repoPath: string, branch?: string): Promise<AuthorInfo[]> {
+  const args = ['log', '--pretty=format:%ae\t%an', '--no-merges', '-300']
   if (branch) args.push(branch)
   try {
     const { stdout } = await execFileAsync('git', args, {
       cwd: repoPath,
       maxBuffer: 1024 * 1024,
     })
-    return stdout.trim().split('\n').filter(Boolean)
+    const map = new Map<string, { name: string; count: number }>()
+    for (const line of stdout.trim().split('\n').filter(Boolean)) {
+      const [email, name] = line.split('\t')
+      if (!email) continue
+      const existing = map.get(email)
+      if (existing) {
+        existing.count++
+      } else {
+        map.set(email, { name: name || email, count: 1 })
+      }
+    }
+    return [...map.entries()]
+      .map(([email, { name, count }]) => ({ email, name, count }))
+      .sort((a, b) => b.count - a.count)
   } catch {
     return []
   }
 }
 
-async function getGitHubEmails(owner: string, repo: string, token: string): Promise<string[]> {
-  const emails: string[] = []
+async function getGitHubAuthors(owner: string, repo: string, token: string): Promise<AuthorInfo[]> {
+  const map = new Map<string, { name: string; count: number }>()
   try {
     const res = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/commits?per_page=100`,
@@ -60,21 +79,27 @@ async function getGitHubEmails(owner: string, repo: string, token: string): Prom
     )
     if (!res.ok) return []
     const commits = (await res.json()) as Array<{
-      author?: { email?: string }
-      commit?: { author?: { email?: string } }
+      author?: { email?: string; login?: string }
+      commit?: { author?: { email?: string; name?: string } }
     }>
     for (const c of commits) {
       const email = c.author?.email || c.commit?.author?.email
-      if (email) emails.push(email)
+      const name = c.commit?.author?.name || c.author?.login || email || ''
+      if (!email) continue
+      const existing = map.get(email)
+      if (existing) existing.count++
+      else map.set(email, { name, count: 1 })
     }
   } catch {
     // ignore
   }
-  return emails
+  return [...map.entries()]
+    .map(([email, { name, count }]) => ({ email, name, count }))
+    .sort((a, b) => b.count - a.count)
 }
 
-async function getGitLabEmails(owner: string, repo: string, token: string, baseUrl?: string): Promise<string[]> {
-  const emails: string[] = []
+async function getGitLabAuthors(owner: string, repo: string, token: string, baseUrl?: string): Promise<AuthorInfo[]> {
+  const map = new Map<string, { name: string; count: number }>()
   const host = baseUrl || 'https://gitlab.com'
   const projectPath = encodeURIComponent(`${owner}/${repo}`)
   try {
@@ -83,12 +108,20 @@ async function getGitLabEmails(owner: string, repo: string, token: string, baseU
       { headers: { 'PRIVATE-TOKEN': token } }
     )
     if (!res.ok) return []
-    const commits = (await res.json()) as Array<{ author_email?: string }>
+    const commits = (await res.json()) as Array<{
+      author_email?: string
+      author_name?: string
+    }>
     for (const c of commits) {
-      if (c.author_email) emails.push(c.author_email)
+      if (!c.author_email) continue
+      const existing = map.get(c.author_email)
+      if (existing) existing.count++
+      else map.set(c.author_email, { name: c.author_name || c.author_email, count: 1 })
     }
   } catch {
     // ignore
   }
-  return emails
+  return [...map.entries()]
+    .map(([email, { name, count }]) => ({ email, name, count }))
+    .sort((a, b) => b.count - a.count)
 }

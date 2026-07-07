@@ -6,6 +6,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { UserCircle } from 'lucide-react'
+import { AuthorEmailPicker } from './AuthorEmailPicker'
 
 export interface FormData {
   type: 'git-remote-github' | 'git-remote-gitlab' | 'git-remote-gitee' | 'git-local'
@@ -49,6 +51,9 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
   const [activeEmailIndex, setActiveEmailIndex] = useState(-1)
   const emailInputRef = useRef<HTMLInputElement>(null)
 
+  // 邮箱表格选择器
+  const [pickerOpen, setPickerOpen] = useState(false)
+
   // 根据当前表单值获取仓库邮箱（防抖）
   useEffect(() => {
     const params = new URLSearchParams({ type: formData.type })
@@ -67,7 +72,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
     const timer = setTimeout(() => {
       fetch(`/api/collect/sources/emails?${params}`)
         .then(res => res.json())
-        .then(data => setKnownEmails(data.emails || []))
+        .then(data => setKnownEmails((data.authors || []).map((a: { email: string }) => a.email)))
         .catch(() => {})
     }, 500)
     return () => clearTimeout(timer)
@@ -299,7 +304,17 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="authorEmails">作者邮箱（多个用逗号分隔）</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="authorEmails">作者邮箱（多个用逗号分隔）</Label>
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <UserCircle className="h-3.5 w-3.5" />
+                从仓库选择
+              </button>
+            </div>
             <div className="relative">
               <input
                 ref={emailInputRef}
@@ -359,6 +374,22 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
           </Button>
         </CardFooter>
       </form>
+
+      <AuthorEmailPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onConfirm={emails => handleConfigChange('authorEmails', emails.join(', '))}
+        currentEmails={formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean)}
+        repoParams={{
+          type: formData.type,
+          path: isLocal(formData.type) ? formData.config.owner : undefined,
+          owner: formData.config.owner,
+          repo: formData.config.repo,
+          token: formData.config.token,
+          baseUrl: formData.config.baseUrl,
+          branch: formData.config.branch,
+        }}
+      />
     </Card>
   )
 }
