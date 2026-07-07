@@ -15,6 +15,7 @@ export async function GET(request: Request) {
     const status = searchParams.get('status') || 'pending'
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
     const cursorId = searchParams.get('cursorId') ? parseInt(searchParams.get('cursorId')!) : null
+    const cursorTime = searchParams.get('cursorTime') ? parseInt(searchParams.get('cursorTime')!) : null
 
     const conditions = [eq(rawEvents.status, status)]
 
@@ -33,21 +34,25 @@ export async function GET(request: Request) {
       }
     }
 
-    // 游标分页：基于 id 降序（auto-increment，同一时间的事件按 id 排序也稳定）
-    if (cursorId !== null) {
-      conditions.push(sql`${rawEvents.id} < ${cursorId}`)
+    // 游标分页：基于 (eventTime, id) 复合排序
+    // SQLite 中 eventTime 存为秒级时间戳，cursorTime 是毫秒，需要转换
+    if (cursorId !== null && cursorTime !== null) {
+      const cursorTimeSec = Math.floor(cursorTime / 1000)
+      conditions.push(
+        sql`((${rawEvents.eventTime} < ${cursorTimeSec}) OR (${rawEvents.eventTime} = ${cursorTimeSec} AND ${rawEvents.id} < ${cursorId}))`
+      )
     }
 
     const events = await db.select()
       .from(rawEvents)
       .where(sql.join(conditions, sql` AND `))
-      .orderBy(desc(rawEvents.id))
+      .orderBy(desc(rawEvents.eventTime))
       .limit(limit + 1)
 
     const hasMore = events.length > limit
     const page = events.slice(0, limit)
     const last = page[page.length - 1]
-    const nextCursor = last ? last.id : null
+    const nextCursor = last ? { id: last.id, eventTime: last.eventTime.getTime() } : null
 
     return NextResponse.json({ events: page, nextCursor, hasMore })
   } catch (error) {

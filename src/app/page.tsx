@@ -21,18 +21,19 @@ export default function TimelinePage() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
-  const [nextCursor, setNextCursor] = useState<number | null>(null)
+  const [nextCursor, setNextCursor] = useState<{ id: number; eventTime: number } | null>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
-  const loadEvents = useCallback(async (cursorId?: number, append = false) => {
+  const loadEvents = useCallback(async (cursor?: { id: number; eventTime: number }, append = false) => {
     try {
       const params = new URLSearchParams()
       params.set('limit', '30')
       if (selectedTags.length > 0) {
         params.append('tags', selectedTags.join(','))
       }
-      if (cursorId !== undefined) {
-        params.set('cursorId', String(cursorId))
+      if (cursor) {
+        params.set('cursorId', String(cursor.id))
+        params.set('cursorTime', String(cursor.eventTime))
       }
 
       const res = await fetch(`/api/events?${params}`)
