@@ -13,6 +13,8 @@ export async function GET(request: Request) {
     const weekEnd = searchParams.get('weekEnd')
     const tagsParam = searchParams.get('tags')
     const status = searchParams.get('status') || 'pending'
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
+    const cursorId = searchParams.get('cursorId') ? parseInt(searchParams.get('cursorId')!) : null
 
     const conditions = [eq(rawEvents.status, status)]
 
@@ -26,19 +28,28 @@ export async function GET(request: Request) {
     if (tagsParam) {
       const tags = tagsParam.split(',').map(t => t.trim()).filter(Boolean)
       if (tags.length > 0) {
-        // Use parameterized query to prevent SQL injection
-        // Create safe IN clause with proper parameter binding
         const inClause = sql`(${sql.join(tags.map(t => sql`${t}`), sql`, `)})`
         conditions.push(sql`${rawEvents.tags} IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(${rawEvents.tags}) WHERE json_each.value IN ${inClause})`)
       }
     }
 
+    // 游标分页：基于 id 降序（auto-increment，同一时间的事件按 id 排序也稳定）
+    if (cursorId !== null) {
+      conditions.push(sql`${rawEvents.id} < ${cursorId}`)
+    }
+
     const events = await db.select()
       .from(rawEvents)
       .where(sql.join(conditions, sql` AND `))
-      .orderBy(desc(rawEvents.eventTime))
+      .orderBy(desc(rawEvents.id))
+      .limit(limit + 1)
 
-    return NextResponse.json({ events })
+    const hasMore = events.length > limit
+    const page = events.slice(0, limit)
+    const last = page[page.length - 1]
+    const nextCursor = last ? last.id : null
+
+    return NextResponse.json({ events: page, nextCursor, hasMore })
   } catch (error) {
     console.error('Error fetching events:', error)
     return NextResponse.json(
