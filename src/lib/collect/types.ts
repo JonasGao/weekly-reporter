@@ -38,5 +38,5 @@ export interface RawEventData {
 export interface GitAdapter {
   platform: string
   fetchCommits(options: FetchCommitsOptions): Promise<GitCommit[]>
-  normalizeCommit(commit: GitCommit, source: string): RawEventData
+  normalizeCommit(commit: GitCommit, source: string, sourceInfo?: { repo?: string; branch?: string; sourceId?: number; sourceName?: string }): RawEventData
 }

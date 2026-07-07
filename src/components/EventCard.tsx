@@ -89,7 +89,7 @@ export function EventCard({ event, onEdit, onDelete, onTagClick }: EventCardProp
               </div>
             )}
             
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
               {event.source === 'manual' ? (
                 <FileText className="h-3 w-3" />
               ) : (
@@ -98,6 +98,21 @@ export function EventCard({ event, onEdit, onDelete, onTagClick }: EventCardProp
               <span>
                 {formatDistanceToNow(event.eventTime, { addSuffix: true, locale: zhCN })}
               </span>
+              {event.metadata?.repo && (
+                <>
+                  <span className="text-muted-foreground/50">·</span>
+                  <span className="font-medium text-foreground/70">{event.metadata.repo}</span>
+                </>
+              )}
+              {event.metadata?.branch && (
+                <span className="text-muted-foreground/70">⌊{event.metadata.branch}⌋</span>
+              )}
+              {event.metadata?.sourceName && (
+                <>
+                  <span className="text-muted-foreground/50">·</span>
+                  <span>{event.metadata.sourceName}</span>
+                </>
+              )}
             </div>
           </div>
         </div>

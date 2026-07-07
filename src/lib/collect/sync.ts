@@ -1,9 +1,10 @@
 import { getDb } from '@/lib/db'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { collectSources, rawEvents } from '@/lib/db/schema'
 import type { CollectSource } from '@/lib/db/schema'
 import { getAdapter } from './adapters'
 import type { FetchCommitsOptions } from './types'
+import { basename } from 'path'
 
 export interface SyncResult {
   sourceId: number
@@ -63,11 +64,24 @@ export async function syncSource(sourceId: number): Promise<SyncResult> {
     }
     
     const commits = await adapter.fetchCommits(options)
-    
-    const events = commits.map(c => adapter.normalizeCommit(c, source.type))
-    
+
+    // 构建仓库显示名：本地取路径 basename，远程取 owner/repo
+    const repoName = source.config.repo
+      ? `${source.config.owner}/${source.config.repo}`
+      : basename(source.config.owner)
+
+    const sourceInfo = {
+      repo: repoName,
+      branch: source.config.branch || '',
+      sourceId: source.id,
+      sourceName: source.name,
+    }
+
+    const events = commits.map(c => adapter.normalizeCommit(c, source.type, sourceInfo))
+
+    // 按 sourceId 去重，避免不同采集源之间互相影响
     const existingEvents = await db.query.rawEvents.findMany({
-      where: eq(rawEvents.source, source.type),
+      where: sql`json_extract(${rawEvents.metadata}, '$.sourceId') = ${source.id}`,
     })
     const existingShaSet = new Set(
       existingEvents

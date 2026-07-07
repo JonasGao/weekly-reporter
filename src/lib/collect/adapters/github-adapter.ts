@@ -81,7 +81,7 @@ export const githubAdapter: GitAdapter = {
       }))
   },
   
-  normalizeCommit(commit: GitCommit, source: string): RawEventData {
+  normalizeCommit(commit: GitCommit, source: string, sourceInfo?: { repo?: string; branch?: string; sourceId?: number; sourceName?: string }): RawEventData {
     return {
       eventTime: commit.authorDate,
       source,
@@ -89,7 +89,10 @@ export const githubAdapter: GitAdapter = {
       metadata: {
         sha: commit.sha,
         url: commit.url,
-        repo: '',
+        repo: sourceInfo?.repo || '',
+        branch: sourceInfo?.branch || '',
+        sourceId: sourceInfo?.sourceId,
+        sourceName: sourceInfo?.sourceName,
       },
       category: '核心开发',
     }

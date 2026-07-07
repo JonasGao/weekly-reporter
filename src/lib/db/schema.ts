@@ -104,6 +104,9 @@ export interface RawEventMetadata {
   sha?: string
   url?: string
   repo?: string
+  branch?: string
+  sourceId?: number
+  sourceName?: string
 }
 
 export const rawEvents = sqliteTable('raw_events', {
