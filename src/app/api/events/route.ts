@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { desc, eq, between, sql, inArray } from 'drizzle-orm'
-import { rawEvents, type SectionType } from '@/lib/db/schema'
+import { desc, eq, between, sql } from 'drizzle-orm'
+import { rawEvents } from '@/lib/db/schema'
 import { parseTags } from '@/lib/tags/parser'
 import { mapTagsToSectionType } from '@/lib/tags/mapper'
 
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const weekStart = searchParams.get('weekStart')
     const weekEnd = searchParams.get('weekEnd')
     const tagsParam = searchParams.get('tags')
-    const sectionTypeParam = searchParams.get('sectionType')
+    const sourceParam = searchParams.get('source')
     const status = searchParams.get('status') || 'pending'
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
     const cursorId = searchParams.get('cursorId') ? parseInt(searchParams.get('cursorId')!) : null
@@ -35,10 +35,12 @@ export async function GET(request: Request) {
       }
     }
 
-    if (sectionTypeParam) {
-      const types = sectionTypeParam.split(',').map(t => t.trim()).filter(Boolean) as SectionType[]
-      if (types.length > 0) {
-        conditions.push(inArray(rawEvents.sectionType, types))
+    // source 筛选：manual = 手动, auto = 非手动（自动采集）
+    if (sourceParam) {
+      if (sourceParam === 'manual') {
+        conditions.push(eq(rawEvents.source, 'manual'))
+      } else if (sourceParam === 'auto') {
+        conditions.push(sql`${rawEvents.source} != 'manual'`)
       }
     }
 

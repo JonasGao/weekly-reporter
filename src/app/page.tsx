@@ -4,10 +4,10 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { QuickInputBar } from '@/components/QuickInputBar'
 import { TimelineView } from '@/components/TimelineView'
 import { TagFilterPanel } from '@/components/TagFilterPanel'
-import { SectionTypeFilterPanel } from '@/components/SectionTypeFilterPanel'
+import { SourceFilterPanel, type SourceFilter } from '@/components/SourceFilterPanel'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
-import type { RawEvent, SectionType } from '@/lib/db/schema'
+import type { RawEvent } from '@/lib/db/schema'
 
 interface TagStat {
   name: string
@@ -19,7 +19,7 @@ export default function TimelinePage() {
   const [events, setEvents] = useState<RawEvent[]>([])
   const [tagStats, setTagStats] = useState<TagStat[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [selectedTypes, setSelectedTypes] = useState<SectionType[]>([])
+  const [selectedSources, setSelectedSources] = useState<SourceFilter[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -33,8 +33,8 @@ export default function TimelinePage() {
       if (selectedTags.length > 0) {
         params.append('tags', selectedTags.join(','))
       }
-      if (selectedTypes.length > 0) {
-        params.append('sectionType', selectedTypes.join(','))
+      if (selectedSources.length > 0 && selectedSources.length < 2) {
+        params.set('source', selectedSources[0])
       }
       if (cursor) {
         params.set('cursorId', String(cursor.id))
@@ -58,7 +58,7 @@ export default function TimelinePage() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [selectedTags])
+  }, [selectedTags, selectedSources])
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasMore || nextCursor === null) return
@@ -73,7 +73,7 @@ export default function TimelinePage() {
     setNextCursor(null)
     setHasMore(true)
     loadEvents()
-  }, [selectedTags, selectedTypes])
+  }, [selectedTags, selectedSources])
 
   // 滚动到底部自动加载更多
   useEffect(() => {
@@ -101,7 +101,6 @@ export default function TimelinePage() {
     }
   }
 
-  // 初始加载 tagStats（只一次）
   useEffect(() => {
     loadTagStats()
   }, [])
@@ -112,7 +111,6 @@ export default function TimelinePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, tags }),
     })
-    // 新事件插到最前面
     loadEvents(undefined, false)
     loadTagStats()
   }
@@ -140,17 +138,17 @@ export default function TimelinePage() {
     )
   }
 
-  const handleTypeSelect = (type: SectionType) => {
-    setSelectedTypes(prev =>
-      prev.includes(type)
-        ? prev.filter(t => t !== type)
-        : [...prev, type]
+  const handleSourceSelect = (source: SourceFilter) => {
+    setSelectedSources(prev =>
+      prev.includes(source)
+        ? prev.filter(s => s !== source)
+        : [...prev, source]
     )
   }
 
   const handleClearFilters = () => {
     setSelectedTags([])
-    setSelectedTypes([])
+    setSelectedSources([])
   }
 
   const handleManageTags = () => {
@@ -194,9 +192,9 @@ export default function TimelinePage() {
         </div>
 
         <div className="space-y-4">
-          <SectionTypeFilterPanel
-            selectedTypes={selectedTypes}
-            onTypeSelect={handleTypeSelect}
+          <SourceFilterPanel
+            selectedSources={selectedSources}
+            onSourceSelect={handleSourceSelect}
             onClearFilters={handleClearFilters}
           />
           <TagFilterPanel
