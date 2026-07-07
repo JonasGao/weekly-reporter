@@ -4,9 +4,10 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { QuickInputBar } from '@/components/QuickInputBar'
 import { TimelineView } from '@/components/TimelineView'
 import { TagFilterPanel } from '@/components/TagFilterPanel'
+import { SectionTypeFilterPanel } from '@/components/SectionTypeFilterPanel'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
-import type { RawEvent } from '@/lib/db/schema'
+import type { RawEvent, SectionType } from '@/lib/db/schema'
 
 interface TagStat {
   name: string
@@ -18,6 +19,7 @@ export default function TimelinePage() {
   const [events, setEvents] = useState<RawEvent[]>([])
   const [tagStats, setTagStats] = useState<TagStat[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedTypes, setSelectedTypes] = useState<SectionType[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -30,6 +32,9 @@ export default function TimelinePage() {
       params.set('limit', '30')
       if (selectedTags.length > 0) {
         params.append('tags', selectedTags.join(','))
+      }
+      if (selectedTypes.length > 0) {
+        params.append('sectionType', selectedTypes.join(','))
       }
       if (cursor) {
         params.set('cursorId', String(cursor.id))
@@ -68,7 +73,7 @@ export default function TimelinePage() {
     setNextCursor(null)
     setHasMore(true)
     loadEvents()
-  }, [selectedTags])
+  }, [selectedTags, selectedTypes])
 
   // 滚动到底部自动加载更多
   useEffect(() => {
@@ -135,8 +140,17 @@ export default function TimelinePage() {
     )
   }
 
+  const handleTypeSelect = (type: SectionType) => {
+    setSelectedTypes(prev =>
+      prev.includes(type)
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
+    )
+  }
+
   const handleClearFilters = () => {
     setSelectedTags([])
+    setSelectedTypes([])
   }
 
   const handleManageTags = () => {
@@ -179,7 +193,12 @@ export default function TimelinePage() {
           )}
         </div>
 
-        <div>
+        <div className="space-y-4">
+          <SectionTypeFilterPanel
+            selectedTypes={selectedTypes}
+            onTypeSelect={handleTypeSelect}
+            onClearFilters={handleClearFilters}
+          />
           <TagFilterPanel
             tags={tagStats}
             selectedTags={selectedTags}

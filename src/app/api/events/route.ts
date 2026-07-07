@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { desc, eq, between, sql } from 'drizzle-orm'
-import { rawEvents } from '@/lib/db/schema'
+import { desc, eq, between, sql, inArray } from 'drizzle-orm'
+import { rawEvents, type SectionType } from '@/lib/db/schema'
 import { parseTags } from '@/lib/tags/parser'
 import { mapTagsToSectionType } from '@/lib/tags/mapper'
 
@@ -12,6 +12,7 @@ export async function GET(request: Request) {
     const weekStart = searchParams.get('weekStart')
     const weekEnd = searchParams.get('weekEnd')
     const tagsParam = searchParams.get('tags')
+    const sectionTypeParam = searchParams.get('sectionType')
     const status = searchParams.get('status') || 'pending'
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
     const cursorId = searchParams.get('cursorId') ? parseInt(searchParams.get('cursorId')!) : null
@@ -31,6 +32,13 @@ export async function GET(request: Request) {
       if (tags.length > 0) {
         const inClause = sql`(${sql.join(tags.map(t => sql`${t}`), sql`, `)})`
         conditions.push(sql`${rawEvents.tags} IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(${rawEvents.tags}) WHERE json_each.value IN ${inClause})`)
+      }
+    }
+
+    if (sectionTypeParam) {
+      const types = sectionTypeParam.split(',').map(t => t.trim()).filter(Boolean) as SectionType[]
+      if (types.length > 0) {
+        conditions.push(inArray(rawEvents.sectionType, types))
       }
     }
 
