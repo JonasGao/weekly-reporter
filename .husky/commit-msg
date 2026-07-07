@@ -1,1 +1,5 @@
+# Run commitlint
 npx commitlint --edit "$1"
+
+# Check ASCII-only (English)
+.husky/check-ascii.sh "$1"
