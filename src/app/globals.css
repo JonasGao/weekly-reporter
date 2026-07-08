@@ -132,9 +132,7 @@
   }
 }
 
-/* 确保边框样式不被第三方 CSS 重置覆盖 */
-@layer utilities {
-  * {
-    @apply border-border outline-ring/50;
-  }
+/* 无 layer - 优先级高于所有 @layer，确保不被第三方 CSS 覆盖 */
+* {
+  @apply border-border outline-ring/50;
 }
