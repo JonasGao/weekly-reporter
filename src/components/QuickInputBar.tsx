@@ -33,7 +33,6 @@ export function QuickInputBar({
   const [showCompletion, setShowCompletion] = useState(false)
   const [filterText, setFilterText] = useState('')
   const [cursorPosition, setCursorPosition] = useState({ top: 0, left: 0 })
-  const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const measureRef = useRef<HTMLSpanElement>(null)
   const commandRef = useRef<HTMLDivElement>(null)
@@ -119,7 +118,6 @@ export function QuickInputBar({
       hashPositionRef.current = token.hashIndex
       setFilterText(token.filterText)
       setShowCompletion(true)
-      setSelectedIndex(0) // Reset selection when filter changes
 
       // Calculate cursor position for dropdown
       const textBeforeCursor = newValue.slice(0, cursorPos)
@@ -203,41 +201,47 @@ export function QuickInputBar({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // If completion is showing, handle navigation
-    if (showCompletion) {
-      const allItems = [...filteredTags.slice(0, 8)]
-      if (shouldShowCreate) {
-        allItems.push({ name: filterText, color: null, usage_count: 0, isCreate: true })
-      }
-
+    // If completion is showing, forward navigation keys to Command
+    if (showCompletion && commandRef.current) {
       if (e.key === 'Escape') {
         e.preventDefault()
         setShowCompletion(false)
-        setSelectedIndex(0)
         return
       }
 
-      if (e.key === 'ArrowDown') {
+      // Forward arrow keys to Command for native handling
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault()
-        setSelectedIndex(prev => (prev + 1) % allItems.length)
+        // Find the Command list and dispatch event to it
+        const commandList = commandRef.current.querySelector('[cmdk-list]')
+        if (commandList) {
+          const event = new KeyboardEvent('keydown', {
+            key: e.key,
+            bubbles: true,
+            cancelable: true
+          })
+          commandList.dispatchEvent(event)
+        }
         return
       }
 
-      if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        setSelectedIndex(prev => (prev - 1 + allItems.length) % allItems.length)
-        return
-      }
-
+      // Handle Enter to select the currently highlighted item
       if (e.key === 'Enter') {
         e.preventDefault()
-        if (allItems.length > 0 && selectedIndex < allItems.length) {
-          const selectedItem = allItems[selectedIndex]
-          if (selectedItem.isCreate) {
-            handleSelectTag(filterText, true)
-          } else {
-            handleSelectTag(selectedItem.name, false)
+        // Get the currently selected item from Command's DOM
+        const selectedItem = commandRef.current.querySelector('[data-selected="true"]')
+        if (selectedItem) {
+          const value = selectedItem.getAttribute('data-value')
+          if (value) {
+            if (value.startsWith('__create_')) {
+              handleSelectTag(filterText, true)
+            } else {
+              handleSelectTag(value, false)
+            }
           }
+        } else if (filteredTags.length > 0) {
+          // No item explicitly selected, select the first one
+          handleSelectTag(filteredTags[0].name, false)
         } else {
           // No items, submit
           handleSubmit()
@@ -257,27 +261,6 @@ export function QuickInputBar({
     setTimeout(() => {
       setShowCompletion(false)
     }, 200)
-  }
-
-  const renderHighlightedValue = () => {
-    const parts: Array<{ text: string; isTag: boolean }> = []
-    const regex = /#([\w一-龥]+)/g
-    let lastIndex = 0
-    let match
-
-    while ((match = regex.exec(value)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push({ text: value.slice(lastIndex, match.index), isTag: false })
-      }
-      parts.push({ text: match[0], isTag: true })
-      lastIndex = match.index + match[0].length
-    }
-
-    if (lastIndex < value.length) {
-      parts.push({ text: value.slice(lastIndex), isTag: false })
-    }
-
-    return parts.length > 0 ? parts : [{ text: value, isTag: false }]
   }
 
   // Filter tags by prefix
@@ -309,18 +292,6 @@ export function QuickInputBar({
         disabled={loading}
         className="w-full"
       />
-      {value && (
-        <div className="absolute inset-0 flex items-center pointer-events-none px-2.5 overflow-hidden">
-          {renderHighlightedValue().map((part, index) => (
-            <span
-              key={index}
-              className={part.isTag ? 'bg-blue-100 px-1 rounded text-sm' : 'text-sm'}
-            >
-              {part.text}
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* Tag completion dropdown */}
       {showCompletion && (
@@ -335,12 +306,10 @@ export function QuickInputBar({
           <Command className="w-64 rounded-lg border shadow-md bg-popover">
             <CommandList className="max-h-64">
               <CommandGroup>
-                {filteredTags.slice(0, 8).map((tag, index) => (
+                {filteredTags.slice(0, 8).map(tag => (
                   <CommandItem
                     key={tag.name}
                     value={tag.name}
-                    data-selected={index === selectedIndex ? 'true' : undefined}
-                    onMouseEnter={() => setSelectedIndex(index)}
                     onClick={() => handleSelectTag(tag.name)}
                     className="flex items-center gap-2"
                   >
@@ -359,8 +328,6 @@ export function QuickInputBar({
                 {shouldShowCreate && (
                   <CommandItem
                     value={`__create_${filterText}`}
-                    data-selected={filteredTags.length === selectedIndex ? 'true' : undefined}
-                    onMouseEnter={() => setSelectedIndex(filteredTags.length)}
                     onClick={() => handleSelectTag(filterText, true)}
                     className="text-primary"
                   >
