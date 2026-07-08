@@ -2,35 +2,36 @@
 
 import { useEffect, useState } from 'react'
 
-interface BuildInfo {
-  version: string
+const VERSION = '0.1.0'
+
+interface BuildMeta {
   commitHash: string
   buildTime: string
 }
 
 export function Footer() {
-  const [info, setInfo] = useState<BuildInfo | null>(null)
+  const [meta, setMeta] = useState<BuildMeta | null>(null)
   const [localTime, setLocalTime] = useState('')
 
   useEffect(() => {
     fetch('/build-info.json')
       .then(res => res.json())
-      .then(setInfo)
+      .then(setMeta)
       .catch(() => {})
   }, [])
 
   useEffect(() => {
-    if (info?.buildTime) {
-      const date = new Date(info.buildTime)
+    if (meta?.buildTime) {
+      const date = new Date(meta.buildTime)
       setLocalTime(date.toLocaleString())
     }
-  }, [info])
+  }, [meta])
 
-  if (!info) return null
+  if (!meta) return null
 
   return (
     <footer className="border-t mt-12 py-4 px-4 text-center text-xs text-muted-foreground">
-      v{info.version} · {info.commitHash} · {localTime}
+      v{VERSION} · {meta.commitHash} · {localTime}
     </footer>
   )
 }
