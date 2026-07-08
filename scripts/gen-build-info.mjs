@@ -1,9 +1,7 @@
-// Generate build-info.json with version, commit hash, and build time
+// Generate build-info.ts with commit hash and build time
 import { execFileSync } from 'child_process'
 import { writeFileSync } from 'fs'
-import { readFileSync } from 'fs'
 
-const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 let commitHash = ''
 try {
   commitHash = execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim()
@@ -11,11 +9,10 @@ try {
   commitHash = 'unknown'
 }
 
-const info = {
-  version: pkg.version,
-  commitHash,
-  buildTime: new Date().toISOString(),
-}
+const content = `// Auto-generated at build time. Do not edit.
+export const COMMIT_HASH = '${commitHash}'
+export const BUILD_TIME = '${new Date().toISOString()}'
+`
 
-writeFileSync('./public/build-info.json', JSON.stringify(info, null, 2))
-console.log('build-info.json generated:', info)
+writeFileSync('./src/lib/build-info.ts', content)
+console.log('build-info.ts generated')
