@@ -30,7 +30,7 @@ export function Navigation() {
                 <Button
                   variant={isActive ? 'default' : 'ghost'}
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 focus-visible:ring-0"
                 >
                   <Icon className="h-4 w-4" />
                   {item.label}
