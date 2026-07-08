@@ -18,8 +18,20 @@ interface TagStat {
 export default function TimelinePage() {
   const [events, setEvents] = useState<RawEvent[]>([])
   const [tagStats, setTagStats] = useState<TagStat[]>([])
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [selectedSources, setSelectedSources] = useState<SourceFilter[]>([])
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('selectedTags')
+      return saved ? JSON.parse(saved) : []
+    }
+    return []
+  })
+  const [selectedSources, setSelectedSources] = useState<SourceFilter[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('selectedSources')
+      return saved ? JSON.parse(saved) : []
+    }
+    return []
+  })
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -104,6 +116,15 @@ export default function TimelinePage() {
   useEffect(() => {
     loadTagStats()
   }, [])
+
+  // 持久化筛选条件到 sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('selectedTags', JSON.stringify(selectedTags))
+  }, [selectedTags])
+
+  useEffect(() => {
+    sessionStorage.setItem('selectedSources', JSON.stringify(selectedSources))
+  }, [selectedSources])
 
   const handleSubmit = async ({ content, tags }: { content: string; tags: string[] }) => {
     await fetch('/api/events', {
