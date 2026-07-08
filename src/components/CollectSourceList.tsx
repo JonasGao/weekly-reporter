@@ -32,8 +32,18 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
-  const [searchInput, setSearchInput] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchInput, setSearchInput] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('sourceSearch') || ''
+    }
+    return ''
+  })
+  const [searchTerm, setSearchTerm] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('sourceSearch') || ''
+    }
+    return ''
+  })
   const [syncingIds, setSyncingIds] = useState<Set<number>>(new Set())
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set())
   const pageSize = 12
@@ -41,7 +51,9 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
   // 防抖搜索
   useEffect(() => {
     const timer = setTimeout(() => {
-      setSearchTerm(searchInput.trim())
+      const trimmed = searchInput.trim()
+      setSearchTerm(trimmed)
+      sessionStorage.setItem('sourceSearch', trimmed)
       setPage(1)
     }, 300)
     return () => clearTimeout(timer)
