@@ -12,7 +12,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
+import dynamic from 'next/dynamic'
+
+const MilkdownEditor = dynamic(
+  () => import('@/components/editor/MilkdownEditor').then(m => ({ default: m.MilkdownEditor })),
+  { ssr: false }
+)
 import { toast } from 'sonner'
 import type { OfficialTemplate } from '@/lib/official-templates'
 import type { Template } from '@/lib/db/schema'
