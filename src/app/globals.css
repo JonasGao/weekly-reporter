@@ -123,14 +123,18 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-ui);
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* 确保边框样式不被第三方 CSS 重置覆盖 */
+@layer utilities {
+  * {
+    @apply border-border outline-ring/50;
   }
 }
