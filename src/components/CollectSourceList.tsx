@@ -212,7 +212,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     return <div className="text-center py-8">加载中...</div>
   }
 
-  if (total === 0 && !loading && !searchTerm) {
+  if (total === 0 && !loading && !searchTerm && !syncStatusFilter) {
     return (
       <Card>
         <CardContent className="py-8 text-center">
@@ -287,9 +287,14 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
         )}
       </div>
 
-      {total === 0 && !loading && searchTerm ? (
+      {total === 0 && !loading && (searchTerm || syncStatusFilter) ? (
         <div className="text-center py-12 text-muted-foreground text-sm">
-          未找到匹配「{searchTerm}」的采集源
+          {searchTerm && syncStatusFilter
+            ? <>未找到匹配「{searchTerm}」且状态为「{syncStatusFilter === 'success' ? '成功' : syncStatusFilter === 'failure' ? '失败' : '未同步'}」的采集源</>
+            : searchTerm
+            ? <>未找到匹配「{searchTerm}」的采集源</>
+            : <>未找到状态为「{syncStatusFilter === 'success' ? '成功' : syncStatusFilter === 'failure' ? '失败' : '未同步'}」的采集源</>
+          }
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
