@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RefreshCw, Trash2, Edit, Plus, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight } from 'lucide-react'
+import { RefreshCw, Trash2, Edit, Plus, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface CollectSource {
@@ -21,6 +21,7 @@ interface CollectSource {
     branch?: string
   }
   enabled: boolean
+  status: 'enabled' | 'disabled' | 'unavailable' | null
   lastSyncAt: string | null
   lastSyncStatus: string | null
   createdAt: string
@@ -47,6 +48,12 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
   const [syncStatusFilter, setSyncStatusFilter] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem('sourceSyncStatus') || ''
+    }
+    return ''
+  })
+  const [sourceStatusFilter, setSourceStatusFilter] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('sourceStatusFilter') || ''
     }
     return ''
   })
@@ -77,7 +84,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
   useEffect(() => {
     if (!loading) fetchSources()
-  }, [page, searchTerm, syncStatusFilter])
+  }, [page, searchTerm, syncStatusFilter, sourceStatusFilter])
 
   async function fetchSources(targetPage?: number) {
     const p = targetPage ?? page
@@ -86,6 +93,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       const params = new URLSearchParams({ page: String(p), pageSize: String(pageSize) })
       if (searchTerm) params.set('name', searchTerm)
       if (syncStatusFilter) params.set('syncStatus', syncStatusFilter)
+      if (sourceStatusFilter) params.set('sourceStatus', sourceStatusFilter)
       const res = await fetch(`/api/collect/sources?${params}`)
       const data = await res.json()
       setSources(data.sources || [])
@@ -123,6 +131,8 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
       if (data.result?.status === 'success') {
         toast.success(`${data.result.eventsCount} 条事件已同步`)
+      } else if (data.result?.autoDisabled) {
+        toast.error('路径不存在，已自动标记为不可用')
       } else {
         toast.error(data.error || '同步失败')
       }
@@ -148,6 +158,8 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
       if (data.result?.status === 'success') {
         toast.success(`重新同步完成，新增 ${data.result.eventsCount} 条事件`)
+      } else if (data.result?.autoDisabled) {
+        toast.error('路径不存在，已自动标记为不可用')
       } else {
         toast.error(data.error || '重新同步失败')
       }
@@ -160,23 +172,25 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     }
   }
 
-  async function handleToggle(sourceId: number, currentEnabled: boolean) {
+  async function handleToggle(sourceId: number, currentStatus: string) {
+    if (currentStatus === 'unavailable') return
+    const newStatus = currentStatus === 'enabled' ? 'disabled' : 'enabled'
     setTogglingIds(prev => new Set(prev).add(sourceId))
     // 乐观更新
-    setSources(prev => prev.map(s => s.id === sourceId ? { ...s, enabled: !currentEnabled } : s))
+    setSources(prev => prev.map(s => s.id === sourceId ? { ...s, status: newStatus as any, enabled: newStatus === 'enabled' } : s))
     try {
       const res = await fetch(`/api/collect/sources/${sourceId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: !currentEnabled }),
+        body: JSON.stringify({ status: newStatus }),
       })
       if (!res.ok) {
         // 回滚
-        setSources(prev => prev.map(s => s.id === sourceId ? { ...s, enabled: currentEnabled } : s))
+        setSources(prev => prev.map(s => s.id === sourceId ? { ...s, status: currentStatus as any, enabled: currentStatus === 'enabled' } : s))
         toast.error('更新状态失败')
       }
     } catch {
-      setSources(prev => prev.map(s => s.id === sourceId ? { ...s, enabled: currentEnabled } : s))
+      setSources(prev => prev.map(s => s.id === sourceId ? { ...s, status: currentStatus as any, enabled: currentStatus === 'enabled' } : s))
       toast.error('更新状态失败')
     } finally {
       setTogglingIds(prev => { const n = new Set(prev); n.delete(sourceId); return n })
@@ -264,7 +278,39 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             </label>
           ))}
         </div>
-        {(searchTerm || syncStatusFilter) && (
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="采集源状态筛选">
+          {[
+            { value: '', label: '全部' },
+            { value: 'enabled', label: '启用' },
+            { value: 'disabled', label: '禁用' },
+            { value: 'unavailable', label: '不可用' },
+          ].map(option => (
+            <label
+              key={option.value}
+              className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md cursor-pointer transition-colors ${
+                sourceStatusFilter === option.value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <input
+                type="radio"
+                name="sourceStatus"
+                value={option.value}
+                checked={sourceStatusFilter === option.value}
+                onChange={e => {
+                  const val = e.target.value
+                  setSourceStatusFilter(val)
+                  sessionStorage.setItem('sourceStatusFilter', val)
+                  setPage(1)
+                }}
+                className="sr-only"
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+        {(searchTerm || syncStatusFilter || sourceStatusFilter) && (
           <span className="text-xs text-muted-foreground">
             找到 {total} 个结果
           </span>
@@ -299,29 +345,34 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
           {sources.map(source => {
             const isSyncing = syncingIds.has(source.id)
             const isToggling = togglingIds.has(source.id)
+            const sourceStatus = source.status || (source.enabled ? 'enabled' : 'disabled')
             return (
             <Card key={source.id} size="sm" className={`flex flex-col ${source.lastSyncStatus === 'failure' ? 'ring-1 ring-red-300 dark:ring-red-800' : ''}`}>
               <CardHeader className="pb-1">
                 <div className="flex items-center justify-between gap-1">
                   <CardTitle className="text-sm truncate">{source.name}</CardTitle>
                   <button
-                    onClick={() => !isToggling && handleToggle(source.id, source.enabled)}
-                    disabled={isToggling}
-                    className={`shrink-0 inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full cursor-pointer transition-all ${
-                      source.enabled
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50'
-                        : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50'
+                    onClick={() => !isToggling && handleToggle(source.id, sourceStatus)}
+                    disabled={isToggling || sourceStatus === 'unavailable'}
+                    className={`shrink-0 inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full transition-all ${
+                      sourceStatus === 'enabled'
+                        ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50 cursor-pointer'
+                        : sourceStatus === 'unavailable'
+                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 cursor-not-allowed'
+                        : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 cursor-pointer'
                     } ${isToggling ? 'opacity-50 pointer-events-none' : ''}`}
-                    title={source.enabled ? '点击禁用' : '点击启用'}
+                    title={sourceStatus === 'enabled' ? '点击禁用' : sourceStatus === 'unavailable' ? '路径不可用，需手动恢复' : '点击启用'}
                   >
                     {isToggling ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : source.enabled ? (
+                    ) : sourceStatus === 'enabled' ? (
                       <ToggleRight className="h-3 w-3" />
+                    ) : sourceStatus === 'unavailable' ? (
+                      <AlertTriangle className="h-3 w-3" />
                     ) : (
                       <ToggleLeft className="h-3 w-3" />
                     )}
-                    {source.enabled ? '启用' : '禁用'}
+                    {sourceStatus === 'enabled' ? '启用' : sourceStatus === 'unavailable' ? '不可用' : '禁用'}
                   </button>
                 </div>
                 <CardDescription className="text-xs truncate">

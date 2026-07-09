@@ -137,6 +137,12 @@ export async function PATCH(
     // 只允许 PATCH 已知的安全字段
     const updates: Record<string, unknown> = { updatedAt: new Date() }
     if ('enabled' in body) updates.enabled = Boolean(body.enabled)
+    if ('status' in body) {
+      const validStatuses = ['enabled', 'disabled', 'unavailable']
+      if (validStatuses.includes(body.status)) {
+        updates.status = body.status
+      }
+    }
 
     const result = await db.update(collectSources)
       .set(updates)

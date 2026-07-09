@@ -85,12 +85,15 @@ export interface CollectSourceConfig {
   branch?: string
 }
 
+export type CollectSourceStatus = 'enabled' | 'disabled' | 'unavailable'
+
 export const collectSources = sqliteTable('collect_sources', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   type: text('type').notNull(),
   name: text('name').notNull(),
   config: text('config', { mode: 'json' }).notNull().$type<CollectSourceConfig>(),
   enabled: integer('enabled', { mode: 'boolean' }).default(true).notNull(),
+  status: text('status').$type<CollectSourceStatus>().default('enabled'),
   lastSyncAt: integer('last_sync_at', { mode: 'timestamp' }),
   lastSyncStatus: text('last_sync_status'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

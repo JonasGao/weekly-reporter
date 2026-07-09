@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
     const name = searchParams.get('name') || ''
     const syncStatus = searchParams.get('syncStatus') || ''
+    const sourceStatus = searchParams.get('sourceStatus') || ''
 
     const offset = (page - 1) * pageSize
 
@@ -24,6 +25,9 @@ export async function GET(request: Request) {
       conditions.push(eq(collectSources.lastSyncStatus, syncStatus))
     } else if (syncStatus === 'never') {
       conditions.push(isNull(collectSources.lastSyncAt))
+    }
+    if (sourceStatus === 'enabled' || sourceStatus === 'disabled' || sourceStatus === 'unavailable') {
+      conditions.push(eq(collectSources.status, sourceStatus))
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined

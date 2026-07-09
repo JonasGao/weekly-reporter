@@ -13,6 +13,7 @@ export interface SyncResult {
   commitsCount: number
   eventsCount: number
   error?: string
+  autoDisabled?: boolean
 }
 
 export async function syncSource(sourceId: number, resync?: boolean): Promise<SyncResult> {
@@ -33,14 +34,14 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
     }
   }
   
-  if (!source.enabled) {
+  if (source.status !== 'enabled') {
     return {
       sourceId: source.id,
       sourceName: source.name,
       status: 'failed',
       commitsCount: 0,
       eventsCount: 0,
-      error: '采集源已禁用',
+      error: source.status === 'disabled' ? '采集源已禁用' : '采集源不可用',
     }
   }
   
@@ -121,14 +122,32 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '未知错误'
-    
-    await db.update(collectSources)
-      .set({
-        lastSyncStatus: 'failed',
-        updatedAt: new Date(),
-      })
-      .where(eq(collectSources.id, source.id))
-    
+
+    // Check if the error is due to missing/invalid directory for local git sources
+    const isUnavailable = source.type === 'git-local' && (
+      errorMessage.includes('路径不是 Git 仓库') ||
+      errorMessage.includes('not a git repository') ||
+      errorMessage.includes('no such file or directory') ||
+      errorMessage.includes('ENOENT')
+    )
+
+    if (isUnavailable) {
+      await db.update(collectSources)
+        .set({
+          status: 'unavailable',
+          lastSyncStatus: 'failed',
+          updatedAt: new Date(),
+        })
+        .where(eq(collectSources.id, source.id))
+    } else {
+      await db.update(collectSources)
+        .set({
+          lastSyncStatus: 'failed',
+          updatedAt: new Date(),
+        })
+        .where(eq(collectSources.id, source.id))
+    }
+
     return {
       sourceId: source.id,
       sourceName: source.name,
@@ -136,6 +155,7 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
       commitsCount: 0,
       eventsCount: 0,
       error: errorMessage,
+      autoDisabled: isUnavailable,
     }
   }
 }
@@ -144,7 +164,7 @@ export async function syncAllSources(resync?: boolean): Promise<SyncResult[]> {
   const db = getDb()
 
   const sources = await db.query.collectSources.findMany({
-    where: eq(collectSources.enabled, true),
+    where: eq(collectSources.status, 'enabled'),
   })
 
   const results: SyncResult[] = []
