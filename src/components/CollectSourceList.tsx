@@ -44,6 +44,12 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     }
     return ''
   })
+  const [syncStatusFilter, setSyncStatusFilter] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('sourceSyncStatus') || ''
+    }
+    return ''
+  })
   const [syncingIds, setSyncingIds] = useState<Set<number>>(new Set())
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set())
   const pageSize = 12
@@ -71,7 +77,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
   useEffect(() => {
     if (!loading) fetchSources()
-  }, [page, searchTerm])
+  }, [page, searchTerm, syncStatusFilter])
 
   async function fetchSources(targetPage?: number) {
     const p = targetPage ?? page
@@ -79,6 +85,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       setLoading(true)
       const params = new URLSearchParams({ page: String(p), pageSize: String(pageSize) })
       if (searchTerm) params.set('name', searchTerm)
+      if (syncStatusFilter) params.set('syncStatus', syncStatusFilter)
       const res = await fetch(`/api/collect/sources?${params}`)
       const data = await res.json()
       setSources(data.sources || [])
@@ -223,7 +230,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-3 mb-3">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -241,7 +248,39 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             </button>
           )}
         </div>
-        {searchTerm && (
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="同步状态筛选">
+          {[
+            { value: '', label: '全部' },
+            { value: 'success', label: '成功' },
+            { value: 'failure', label: '失败' },
+            { value: 'never', label: '未同步' },
+          ].map(option => (
+            <label
+              key={option.value}
+              className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md cursor-pointer transition-colors ${
+                syncStatusFilter === option.value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <input
+                type="radio"
+                name="syncStatus"
+                value={option.value}
+                checked={syncStatusFilter === option.value}
+                onChange={e => {
+                  const val = e.target.value
+                  setSyncStatusFilter(val)
+                  sessionStorage.setItem('sourceSyncStatus', val)
+                  setPage(1)
+                }}
+                className="sr-only"
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+        {(searchTerm || syncStatusFilter) && (
           <span className="text-xs text-muted-foreground">
             找到 {total} 个结果
           </span>

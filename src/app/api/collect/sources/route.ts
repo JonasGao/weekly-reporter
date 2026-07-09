@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { desc } from 'drizzle-orm'
-import { like, and } from 'drizzle-orm'
+import { desc, isNull } from 'drizzle-orm'
+import { like, and, eq } from 'drizzle-orm'
 import { collectSources } from '@/lib/db/schema'
 import { collectSourceSchema } from '@/lib/validations'
 
@@ -12,19 +12,30 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
     const name = searchParams.get('name') || ''
+    const syncStatus = searchParams.get('syncStatus') || ''
 
     const offset = (page - 1) * pageSize
 
-    const conditions = name ? like(collectSources.name, `%${name}%`) : undefined
+    const conditions = []
+    if (name) {
+      conditions.push(like(collectSources.name, `%${name}%`))
+    }
+    if (syncStatus === 'success' || syncStatus === 'failure') {
+      conditions.push(eq(collectSources.lastSyncStatus, syncStatus))
+    } else if (syncStatus === 'never') {
+      conditions.push(isNull(collectSources.lastSyncAt))
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
     const sources = await db.query.collectSources.findMany({
-      where: conditions,
+      where: whereClause,
       orderBy: [desc(collectSources.createdAt)],
       limit: pageSize,
       offset,
     })
 
-    const totalResult = await db.select({ id: collectSources.id }).from(collectSources).where(conditions)
+    const totalResult = await db.select({ id: collectSources.id }).from(collectSources).where(whereClause)
     const total = totalResult.length
 
     return NextResponse.json({
