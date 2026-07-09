@@ -62,7 +62,9 @@ export function AutoCompleteInput({
 
   // Filter suggestions based on current fragment
   const fragment = getCurrentFragment()
-  const existingValues = value.split(',').map(v => v.trim()).filter(Boolean)
+  // Get values that are already committed (before the current fragment)
+  const allValues = value.split(',').map(v => v.trim()).filter(Boolean)
+  const existingValues = allValues.filter(v => v !== fragment)
   const filtered = suggestions.filter(s =>
     s.toLowerCase().includes(fragment.toLowerCase()) &&
     !existingValues.includes(s)
@@ -71,8 +73,7 @@ export function AutoCompleteInput({
   // Show create option if allowed and no exact match
   const showCreate = allowCreate &&
     fragment.trim() &&
-    !suggestions.some(s => s.toLowerCase() === fragment.toLowerCase()) &&
-    !existingValues.includes(fragment)
+    !suggestions.some(s => s.toLowerCase() === fragment.toLowerCase())
 
   // Handle input change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,7 +237,7 @@ export function AutoCompleteInput({
                   <CommandItem
                     key={item}
                     value={item}
-                    onClick={() => handleSelect(item)}
+                    onSelect={() => handleSelect(item)}
                   >
                     {renderItem ? renderItem(item, false) : item}
                   </CommandItem>
@@ -244,7 +245,7 @@ export function AutoCompleteInput({
                 {showCreate && (
                   <CommandItem
                     value={`__create_${fragment}`}
-                    onClick={() => handleSelect(fragment)}
+                    onSelect={() => handleSelect(fragment)}
                     className="text-primary"
                   >
                     {createLabel(fragment)}
