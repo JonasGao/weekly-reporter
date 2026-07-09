@@ -212,22 +212,6 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     return <div className="text-center py-8">加载中...</div>
   }
 
-  if (total === 0 && !loading && !searchTerm && !syncStatusFilter) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground mb-4">暂无采集源</p>
-          <Link href="/collect/new">
-            <Button variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              添加采集源
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
     <>
       <div className="flex items-center gap-3 mb-3">
@@ -287,15 +271,29 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
         )}
       </div>
 
-      {total === 0 && !loading && (searchTerm || syncStatusFilter) ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          {searchTerm && syncStatusFilter
-            ? <>未找到匹配「{searchTerm}」且状态为「{syncStatusFilter === 'success' ? '成功' : syncStatusFilter === 'failure' ? '失败' : '未同步'}」的采集源</>
-            : searchTerm
-            ? <>未找到匹配「{searchTerm}」的采集源</>
-            : <>未找到状态为「{syncStatusFilter === 'success' ? '成功' : syncStatusFilter === 'failure' ? '失败' : '未同步'}」的采集源</>
-          }
-        </div>
+      {total === 0 && !loading ? (
+        !searchTerm && !syncStatusFilter ? (
+          <Card>
+            <CardContent className="py-8 text-center">
+              <p className="text-muted-foreground mb-4">暂无采集源</p>
+              <Link href="/collect/new">
+                <Button variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  添加采集源
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="text-center py-12 text-muted-foreground text-sm">
+            {searchTerm && syncStatusFilter
+              ? <>未找到匹配「{searchTerm}」且状态为「{syncStatusFilter === 'success' ? '成功' : syncStatusFilter === 'failure' ? '失败' : '未同步'}」的采集源</>
+              : searchTerm
+              ? <>未找到匹配「{searchTerm}」的采集源</>
+              : <>未找到状态为「{syncStatusFilter === 'success' ? '成功' : syncStatusFilter === 'failure' ? '失败' : '未同步'}」的采集源</>
+            }
+          </div>
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {sources.map(source => {
