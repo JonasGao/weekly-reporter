@@ -95,11 +95,18 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       if (syncStatusFilter) params.set('syncStatus', syncStatusFilter)
       if (sourceStatusFilter) params.set('sourceStatus', sourceStatusFilter)
       const res = await fetch(`/api/collect/sources?${params}`)
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: '未知错误' }))
+        throw new Error(errorData.error || `HTTP ${res.status}`)
+      }
+
       const data = await res.json()
       setSources(data.sources || [])
       setTotal(data.total || 0)
     } catch (error) {
-      toast.error('获取采集源列表失败')
+      console.error('Failed to fetch sources:', error)
+      toast.error(error instanceof Error ? error.message : '获取采集源列表失败')
     } finally {
       setLoading(false)
     }
