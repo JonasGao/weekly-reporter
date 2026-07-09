@@ -58,28 +58,40 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
   }
   
   try {
-    const options: FetchCommitsOptions = {
-      config: source.config,
-      // resync 模式下不传 since，全量拉取后靠 SHA 去重
-      since: resync ? undefined : (source.lastSyncAt || undefined),
-      until: new Date(),
-    }
-    
-    const commits = await adapter.fetchCommits(options)
+    // Get branches to sync - default to single empty branch for backward compatibility
+    const branches = source.config.branches?.length ? source.config.branches : ['']
 
     // 构建仓库显示名：本地取路径 basename，远程取 owner/repo
     const repoName = source.config.repo
       ? `${source.config.owner}/${source.config.repo}`
       : basename(source.config.owner)
 
+    let allCommits: Awaited<ReturnType<typeof adapter.fetchCommits>> = []
+
+    // Sync each branch
+    for (const branch of branches) {
+      const options: FetchCommitsOptions = {
+        config: {
+          ...source.config,
+          branch: branch || undefined,
+        },
+        // resync 模式下不传 since，全量拉取后靠 SHA 去重
+        since: resync ? undefined : (source.lastSyncAt || undefined),
+        until: new Date(),
+      }
+
+      const commits = await adapter.fetchCommits(options)
+      allCommits = allCommits.concat(commits)
+    }
+
     const sourceInfo = {
       repo: repoName,
-      branch: source.config.branch || '',
+      branch: branches[0] || '',
       sourceId: source.id,
       sourceName: source.name,
     }
 
-    const events = commits.map(c => adapter.normalizeCommit(c, source.type, sourceInfo))
+    const events = allCommits.map(c => adapter.normalizeCommit(c, source.type, sourceInfo))
 
     // 按 sourceId 去重
     const existingEvents = await db.query.rawEvents.findMany({
@@ -117,7 +129,7 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
       sourceId: source.id,
       sourceName: source.name,
       status: 'success',
-      commitsCount: commits.length,
+      commitsCount: allCommits.length,
       eventsCount: newEvents.length,
     }
   } catch (error) {

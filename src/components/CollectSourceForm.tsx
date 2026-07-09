@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { UserCircle } from 'lucide-react'
 import { AuthorEmailPicker } from './AuthorEmailPicker'
+import { AutoCompleteInput } from './AutoCompleteInput'
 
 export interface FormData {
   type: 'git-remote-github' | 'git-remote-gitlab' | 'git-remote-gitee' | 'git-local'
@@ -18,7 +19,7 @@ export interface FormData {
     repo: string
     token: string
     authorEmails: string
-    branch: string
+    branches: string
   }
   enabled: boolean
 }
@@ -39,7 +40,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
         repo: '',
         token: '',
         authorEmails: '',
-        branch: '',
+        branches: '',
       },
       enabled: true,
     }
@@ -47,9 +48,8 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
 
   // 邮箱自动补全 — 从当前仓库获取
   const [knownEmails, setKnownEmails] = useState<string[]>([])
-  const [showEmailSuggestions, setShowEmailSuggestions] = useState(false)
-  const [activeEmailIndex, setActiveEmailIndex] = useState(-1)
-  const emailInputRef = useRef<HTMLInputElement>(null)
+  // 分支自动补全 — 从当前仓库获取
+  const [knownBranches, setKnownBranches] = useState<string[]>([])
 
   // 邮箱表格选择器
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -67,7 +67,9 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
       params.set('token', formData.config.token)
       if (formData.config.baseUrl) params.set('baseUrl', formData.config.baseUrl)
     }
-    if (formData.config.branch) params.set('branch', formData.config.branch)
+    // Use first branch for email fetching
+    const firstBranch = formData.config.branches.split(',')[0]?.trim()
+    if (firstBranch) params.set('branch', firstBranch)
 
     const timer = setTimeout(() => {
       fetch(`/api/collect/sources/emails?${params}`)
@@ -76,53 +78,30 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
         .catch(() => {})
     }, 500)
     return () => clearTimeout(timer)
-  }, [formData.type, formData.config.owner, formData.config.repo, formData.config.token, formData.config.baseUrl, formData.config.branch])
+  }, [formData.type, formData.config.owner, formData.config.repo, formData.config.token, formData.config.baseUrl, formData.config.branches])
 
-  // 取当前正在编辑的邮箱片段（最后一个逗号之后的内容）
-  function getCurrentEmailFragment(): string {
-    const val = formData.config.authorEmails
-    const lastComma = val.lastIndexOf(',')
-    return (lastComma >= 0 ? val.slice(lastComma + 1) : val).trim()
-  }
-
-  const emailFragment = getCurrentEmailFragment()
-  const alreadyAdded = formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean)
-  const emailSuggestions = emailFragment
-    ? knownEmails.filter(e => e.toLowerCase().includes(emailFragment.toLowerCase()) && !alreadyAdded.includes(e))
-    : []
-
-  function selectEmailSuggestion(email: string) {
-    const val = formData.config.authorEmails
-    const lastComma = val.lastIndexOf(',')
-    const prefix = lastComma >= 0 ? val.slice(0, lastComma + 1) : ''
-    const existing = prefix ? prefix.split(',').map(e => e.trim()).filter(Boolean) : []
-    const newList = [...existing, email]
-    handleConfigChange('authorEmails', newList.join(', ') + ', ')
-    setShowEmailSuggestions(false)
-    setActiveEmailIndex(-1)
-    emailInputRef.current?.focus()
-  }
-
-  function handleEmailKeyDown(e: React.KeyboardEvent) {
-    if (!showEmailSuggestions || emailSuggestions.length === 0) return
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActiveEmailIndex(prev => (prev + 1) % emailSuggestions.length)
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActiveEmailIndex(prev => (prev - 1 + emailSuggestions.length) % emailSuggestions.length)
-    } else if (e.key === 'Enter' && activeEmailIndex >= 0) {
-      e.preventDefault()
-      selectEmailSuggestion(emailSuggestions[activeEmailIndex])
-    } else if (e.key === 'Tab' && emailSuggestions.length > 0) {
-      e.preventDefault()
-      const target = activeEmailIndex >= 0 ? emailSuggestions[activeEmailIndex] : emailSuggestions[0]
-      selectEmailSuggestion(target)
-    } else if (e.key === 'Escape') {
-      setShowEmailSuggestions(false)
-      setActiveEmailIndex(-1)
+  // 根据当前表单值获取仓库分支（防抖）
+  useEffect(() => {
+    const params = new URLSearchParams({ type: formData.type })
+    if (isLocal(formData.type)) {
+      if (!formData.config.owner) return
+      params.set('path', formData.config.owner)
+    } else {
+      if (!formData.config.owner || !formData.config.repo || !formData.config.token) return
+      params.set('owner', formData.config.owner)
+      params.set('repo', formData.config.repo)
+      params.set('token', formData.config.token)
+      if (formData.config.baseUrl) params.set('baseUrl', formData.config.baseUrl)
     }
-  }
+
+    const timer = setTimeout(() => {
+      fetch(`/api/collect/sources/branches?${params}`)
+        .then(res => res.json())
+        .then(data => setKnownBranches(data.branches || []))
+        .catch(() => {})
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [formData.type, formData.config.owner, formData.config.repo, formData.config.token, formData.config.baseUrl])
 
   function handleChange(field: keyof FormData, value: string | boolean) {
     setFormData(prev => ({
@@ -152,7 +131,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
         ? {
           owner: formData.config.owner,
           authorEmails: formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean),
-          branch: formData.config.branch || undefined,
+          branches: formData.config.branches.split(',').map(b => b.trim()).filter(Boolean) || undefined,
         }
         : {
           baseUrl: formData.config.baseUrl || undefined,
@@ -160,7 +139,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
           repo: formData.config.repo,
           token: formData.config.token,
           authorEmails: formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean),
-          branch: formData.config.branch || undefined,
+          branches: formData.config.branches.split(',').map(b => b.trim()).filter(Boolean) || undefined,
         },
       enabled: formData.enabled,
     }
@@ -272,14 +251,12 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="branch">分支（可选，默认主分支）</Label>
-            <input
-              id="branch"
-              type="text"
-              value={formData.config.branch}
-              onChange={e => handleConfigChange('branch', e.target.value)}
-              placeholder="例如：develop"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            <Label htmlFor="branches">分支（可选，多个用逗号分隔，默认主分支）</Label>
+            <AutoCompleteInput
+              value={formData.config.branches}
+              onChange={v => handleConfigChange('branches', v)}
+              suggestions={knownBranches}
+              placeholder="例如：main, develop"
             />
           </div>
 
@@ -315,40 +292,13 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
                 从仓库选择
               </button>
             </div>
-            <div className="relative">
-              <input
-                ref={emailInputRef}
-                id="authorEmails"
-                type="text"
-                value={formData.config.authorEmails}
-                onChange={e => {
-                  handleConfigChange('authorEmails', e.target.value)
-                  setShowEmailSuggestions(true)
-                  setActiveEmailIndex(-1)
-                }}
-                onFocus={() => emailSuggestions.length > 0 && setShowEmailSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowEmailSuggestions(false), 200)}
-                onKeyDown={handleEmailKeyDown}
-                placeholder="例如：user@example.com, work@company.com"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                required
-              />
-              {showEmailSuggestions && emailSuggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-input rounded-md shadow-lg max-h-40 overflow-y-auto z-10">
-                  {emailSuggestions.map((email, index) => (
-                    <div
-                      key={email}
-                      onMouseDown={() => selectEmailSuggestion(email)}
-                      className={`px-3 py-1.5 cursor-pointer text-sm ${
-                        index === activeEmailIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
-                      }`}
-                    >
-                      {email}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <AutoCompleteInput
+              value={formData.config.authorEmails}
+              onChange={v => handleConfigChange('authorEmails', v)}
+              suggestions={knownEmails}
+              placeholder="例如：user@example.com, work@company.com"
+              allowCreate
+            />
             <p className="text-xs text-muted-foreground">
               只采集这些邮箱的提交记录
             </p>
@@ -387,7 +337,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
           repo: formData.config.repo,
           token: formData.config.token,
           baseUrl: formData.config.baseUrl,
-          branch: formData.config.branch,
+          branch: formData.config.branches.split(',')[0]?.trim() || undefined,
         }}
       />
     </Card>

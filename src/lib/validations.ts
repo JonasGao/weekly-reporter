@@ -53,7 +53,7 @@ export const collectSourceSchema = z.object({
     repo: z.string().optional(),
     token: z.string().optional(),
     authorEmails: z.array(z.string()).min(1, '至少需要一个作者邮箱'),
-    branch: z.string().optional(),
+    branches: z.array(z.string()).optional(),
   }),
   enabled: z.boolean().optional(),
 }).refine(

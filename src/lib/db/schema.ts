@@ -82,7 +82,7 @@ export interface CollectSourceConfig {
   repo?: string
   token?: string
   authorEmails: string[]
-  branch?: string
+  branches?: string[]
 }
 
 export type CollectSourceStatus = 'enabled' | 'disabled' | 'unavailable'

@@ -18,7 +18,7 @@ interface CollectSource {
     repo: string
     token: string
     authorEmails: string[]
-    branch?: string
+    branches?: string[]
   }
   enabled: boolean
   status: 'enabled' | 'disabled' | 'unavailable' | null
@@ -377,7 +377,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                 </div>
                 <CardDescription className="text-xs truncate">
                   {source.config.owner}/{source.config.repo}
-                  {source.config.branch && ` (${source.config.branch})`}
+                  {source.config.branches?.length ? ` (${source.config.branches.join(', ')})` : ''}
                 </CardDescription>
               </CardHeader>
               <CardContent className="pb-2">
