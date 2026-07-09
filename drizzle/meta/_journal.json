@@ -89,6 +89,13 @@
     {
       "idx": 12,
       "version": "6",
+      "when": 1783579367639,
+      "tag": "0011_data_migration",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
       "when": 1783665600000,
       "tag": "0012_migrate_branch_to_branches",
       "breakpoints": true
