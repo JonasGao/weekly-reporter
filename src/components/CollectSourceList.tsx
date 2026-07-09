@@ -351,14 +351,21 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
               </CardContent>
               <CardFooter className="gap-1 pt-2 mt-auto">
                 <div className="flex items-center gap-0.5">
-                  <Button size="sm" variant="default" className="h-7 px-2 text-xs" disabled={isSyncing} onClick={() => handleSync(source.id)}>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="h-7 px-2 text-xs"
+                    disabled={isSyncing || source.config.authorEmails.length === 0}
+                    onClick={() => handleSync(source.id)}
+                    title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : undefined}
+                  >
                     {isSyncing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
                     {isSyncing ? '同步中' : '同步'}
                   </Button>
                   <button
-                    title="重新同步（拉取全部历史，不重复入库）"
+                    title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : '重新同步（拉取全部历史，不重复入库）'}
                     className="h-7 w-5 inline-flex items-center justify-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
-                    disabled={isSyncing}
+                    disabled={isSyncing || source.config.authorEmails.length === 0}
                     onClick={() => handleResync(source.id)}
                   >
                     ↻
