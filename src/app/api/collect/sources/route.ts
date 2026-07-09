@@ -55,6 +55,7 @@ export async function GET(request: Request) {
       pageSize,
     })
   } catch (error) {
+    console.error('[API] Failed to fetch collect sources:', error)
     return NextResponse.json(
       { error: '获取采集源列表失败', code: 'FETCH_ERROR' },
       { status: 500 }
@@ -84,6 +85,7 @@ export async function POST(request: Request) {
       },
     }, { status: 201 })
   } catch (error) {
+    console.error('[API] Failed to create collect source:', error)
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
         { error: '数据验证失败', code: 'VALIDATION_ERROR', details: error },
