@@ -179,9 +179,14 @@ export async function syncAllSources(resync?: boolean): Promise<SyncResult[]> {
     where: eq(collectSources.status, 'enabled'),
   })
 
+  // 过滤掉没有配置邮箱的采集源（和单个同步按钮行为一致）
+  const eligibleSources = sources.filter(source =>
+    source.config?.authorEmails && source.config.authorEmails.length > 0
+  )
+
   const results: SyncResult[] = []
 
-  for (const source of sources) {
+  for (const source of eligibleSources) {
     const result = await syncSource(source.id, resync)
     results.push(result)
   }
