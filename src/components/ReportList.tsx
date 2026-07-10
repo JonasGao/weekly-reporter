@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react'
 import { ReportCard } from './ReportCard'
 import { SearchBar } from './SearchBar'
-import { ThemeSwitcher } from './ThemeSwitcher'
-import { FontSettingsButton } from './FontSettings'
 import { Button } from '@/components/ui/button'
 import { Plus, FileText, GitBranch } from 'lucide-react'
 import Link from 'next/link'
@@ -72,8 +70,6 @@ export function ReportList() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">周报编辑器</h1>
         <div className="flex items-center gap-2">
-          <FontSettingsButton />
-          <ThemeSwitcher />
           <Link href="/collect">
             <Button variant="outline">
               <GitBranch className="h-4 w-4 mr-2" />

@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Clock, FileText, Tag, FileStack, Cloud, BookOpen } from 'lucide-react'
+import { ThemeSwitcher } from './ThemeSwitcher'
+import { FontSettingsButton } from './FontSettings'
 
 const NAV_ITEMS = [
   { href: '/', label: '时间线', icon: Clock },
@@ -39,9 +41,13 @@ export function Navigation() {
             )
           })}
 
-          <div className="ml-auto flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <BookOpen className="h-4 w-4" />
-            <span>Weekly Reporter</span>
+          <div className="ml-auto flex items-center gap-2">
+            <FontSettingsButton />
+            <ThemeSwitcher />
+            <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              <BookOpen className="h-4 w-4" />
+              <span>Weekly Reporter</span>
+            </div>
           </div>
         </div>
       </div>
