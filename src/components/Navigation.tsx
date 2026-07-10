@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Clock, FileText, Tag, FileStack, Cloud } from 'lucide-react'
+import { Clock, FileText, Tag, FileStack, Cloud, BookOpen } from 'lucide-react'
 
 const NAV_ITEMS = [
   { href: '/', label: '时间线', icon: Clock },
@@ -22,9 +22,9 @@ export function Navigation() {
         <div className="flex h-16 items-center gap-4">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon
-            const isActive = pathname === item.href || 
+            const isActive = pathname === item.href ||
               (item.href !== '/' && pathname.startsWith(item.href))
-            
+
             return (
               <Link key={item.href} href={item.href}>
                 <Button
@@ -38,6 +38,11 @@ export function Navigation() {
               </Link>
             )
           })}
+
+          <div className="ml-auto flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <BookOpen className="h-4 w-4" />
+            <span>Weekly Reporter</span>
+          </div>
         </div>
       </div>
     </nav>
