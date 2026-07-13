@@ -13,10 +13,6 @@ export function ReportList() {
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchReports()
-  }, [])
-
   async function fetchReports() {
     try {
       const response = await fetch('/api/reports')
@@ -28,6 +24,32 @@ export function ReportList() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/reports')
+        const data = await response.json()
+        if (!cancelled) {
+          setReports(data.reports || [])
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error('加载周报失败')
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function handleSearch(query: string) {
     if (!query.trim()) {
@@ -95,7 +117,7 @@ export function ReportList() {
 
       {reports.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          暂无周报，点击"新建周报"开始创建
+          暂无周报，点击&quot;新建周报&quot;开始创建
         </div>
       ) : (
         <div className="grid gap-4">

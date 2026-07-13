@@ -25,7 +25,7 @@ export function ReportCard({ report, onDelete }: ReportCardProps) {
           <CardTitle className="text-lg">{report.title}</CardTitle>
           <div className="flex gap-2">
             <Link href={`/edit/${report.id}`}>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label="编辑">
                 <Pencil className="h-4 w-4" />
               </Button>
             </Link>
@@ -33,6 +33,7 @@ export function ReportCard({ report, onDelete }: ReportCardProps) {
               variant="ghost"
               size="icon"
               onClick={() => onDelete(report.id)}
+              aria-label="删除"
             >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
