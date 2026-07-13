@@ -153,6 +153,62 @@ describe('NewReportPage', () => {
     });
   });
 
+  describe('Week Navigation', () => {
+    it('should re-render template when switching weeks', async () => {
+      render(<NewReportPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('template-select')).toBeInTheDocument();
+      });
+
+      // Clear previous render calls from initial template selection
+      mockFetch.mockClear();
+
+      // Click next week
+      const nextButton = screen.getByRole('button', { name: /下一周/i });
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/api/templates/official-1/render')
+        );
+      });
+
+      const renderUrl = mockFetch.mock.calls.find((call) =>
+        call[0].includes('/api/templates/official-1/render')
+      )[0];
+      expect(renderUrl).toContain('date=');
+    });
+
+    it('should not call render API when no template is selected', async () => {
+      render(<NewReportPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('template-select')).toBeInTheDocument();
+      });
+
+      // Deselect template and wait for the resulting state update to settle
+      const select = screen.getByTestId('template-select');
+      fireEvent.change(select, { target: { value: '' } });
+      await waitFor(() => {
+        expect(select).toHaveValue('');
+      });
+
+      mockFetch.mockClear();
+
+      // Click previous week
+      const prevButton = screen.getByRole('button', { name: /上一周/i });
+      fireEvent.click(prevButton);
+
+      // Wait a tick to ensure no async render call is made
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(mockFetch).not.toHaveBeenCalledWith(
+        expect.stringContaining('/api/templates/')
+      );
+    });
+  });
+
   describe('Editor Key Refresh', () => {
     it('should update editorKey after inserting variable', async () => {
       render(<NewReportPage />);

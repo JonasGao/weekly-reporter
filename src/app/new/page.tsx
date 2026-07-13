@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,7 @@ export default function NewReportPage() {
   const [content, setContent] = useState('')
   const [editorKey, setEditorKey] = useState(0)
   const [saving, setSaving] = useState(false)
+  const latestRenderRef = useRef<string>('')
 
   const { start, end } = getWeekRange(baseDate)
   const weekStart = formatDate(start)
@@ -67,6 +68,10 @@ export default function NewReportPage() {
     const newYear = getYear(newDate)
     const newWeekNumber = getWeek(newDate, { weekStartsOn: 1 })
     setTitle(`${newYear}年第${newWeekNumber}周工作周报`)
+
+    if (selectedTemplateId) {
+      handleTemplateChange(selectedTemplateId, newDate)
+    }
   }
 
   function goToNextWeek() {
@@ -75,6 +80,10 @@ export default function NewReportPage() {
     const newYear = getYear(newDate)
     const newWeekNumber = getWeek(newDate, { weekStartsOn: 1 })
     setTitle(`${newYear}年第${newWeekNumber}周工作周报`)
+
+    if (selectedTemplateId) {
+      handleTemplateChange(selectedTemplateId, newDate)
+    }
   }
 
   function handleInsertVariable(variable: string) {
@@ -83,25 +92,37 @@ export default function NewReportPage() {
     toast.success(`已插入变量：${variable}`)
   }
 
-  async function handleTemplateChange(templateId: string) {
+  async function handleTemplateChange(templateId: string, date?: Date) {
+    const renderDate = date ?? baseDate
+    const renderKey = `${templateId}@${renderDate.toISOString()}`
+    latestRenderRef.current = renderKey
+
     setSelectedTemplateId(templateId)
-    
+
     try {
       const response = await fetch(
-        `/api/templates/${templateId}/render?date=${baseDate.toISOString()}`
+        `/api/templates/${templateId}/render?date=${renderDate.toISOString()}`
       )
-      
+
+      // 忽略过期请求的响应，避免竞态导致编辑器显示旧数据
+      if (latestRenderRef.current !== renderKey) {
+        return
+      }
+
       if (!response.ok) {
         const error = await response.json()
         toast.error(error.error || '模板加载失败')
         return
       }
-      
+
       const data = await response.json()
       setContent(data.content)
       setEditorKey(k => k + 1)
     } catch (error) {
-      toast.error('模板预览失败，请重试')
+      // 仅对最新请求显示错误提示
+      if (latestRenderRef.current === renderKey) {
+        toast.error('模板预览失败，请重试')
+      }
     }
   }
 
@@ -156,13 +177,13 @@ export default function NewReportPage() {
 
       <form className="space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <Button type="button" variant="outline" size="icon" onClick={goToPrevWeek}>
+          <Button type="button" variant="outline" size="icon" onClick={goToPrevWeek} aria-label="上一周">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="text-lg font-medium">
             {year}年第{weekNumber}周 ({weekStart} ~ {weekEnd})
           </div>
-          <Button type="button" variant="outline" size="icon" onClick={goToNextWeek}>
+          <Button type="button" variant="outline" size="icon" onClick={goToNextWeek} aria-label="下一周">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
