@@ -33,13 +33,14 @@ export function EventCard({ event, onEdit, onDelete, onTagClick }: EventCardProp
     }
   }
 
-  const renderTime = (eventTime: Date) => {
-    const msDiff = new Date().getTime() - eventTime.getTime()
+  const renderTime = (eventTime: Date | string | number) => {
+    const date = eventTime instanceof Date ? eventTime : new Date(eventTime)
+    const msDiff = new Date().getTime() - date.getTime()
     const twoHoursMs = 2 * 60 * 60 * 1000
     if (msDiff <= twoHoursMs) {
-      return formatDistanceToNow(eventTime, { addSuffix: true, locale: zhCN })
+      return formatDistanceToNow(date, { addSuffix: true, locale: zhCN })
     }
-    return format(eventTime, 'yyyy-MM-dd HH:mm')
+    return format(date, 'yyyy-MM-dd HH:mm')
   }
 
   const handleDelete = async () => {

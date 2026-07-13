@@ -8,12 +8,12 @@ vi.mock('next/navigation', () => ({
 }))
 
 describe('EventCard', () => {
-  const makeEvent = (eventTime: Date): RawEvent =>
+  const makeEvent = (eventTime: Date | string | number): RawEvent =>
     ({
       id: 1,
       content: '测试事件',
       source: 'manual',
-      eventTime,
+      eventTime: eventTime as Date,
       isImportant: false,
       tags: null,
       metadata: null,
@@ -59,6 +59,20 @@ describe('EventCard', () => {
       const event = makeEvent(new Date('2026-07-12T09:15:00'))
       render(<EventCard event={event} />)
       expect(screen.getByText('2026-07-12 09:15')).toBeInTheDocument()
+    })
+
+    it('应支持 ISO 8601 字符串输入', () => {
+      const isoString = new Date('2026-07-13T13:30:00').toISOString()
+      const event = makeEvent(isoString)
+      render(<EventCard event={event} />)
+      expect(screen.getByText(/30 分钟前/)).toBeInTheDocument()
+    })
+
+    it('应支持时间戳数字输入', () => {
+      const timestamp = new Date('2026-07-13T10:00:00').getTime()
+      const event = makeEvent(timestamp)
+      render(<EventCard event={event} />)
+      expect(screen.getByText('2026-07-13 10:00')).toBeInTheDocument()
     })
   })
 })
