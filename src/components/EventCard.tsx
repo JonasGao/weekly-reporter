@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,15 @@ export function EventCard({ event, onEdit, onDelete, onTagClick }: EventCardProp
     } finally {
       setLoading(false)
     }
+  }
+
+  const renderTime = (eventTime: Date) => {
+    const msDiff = new Date().getTime() - eventTime.getTime()
+    const twoHoursMs = 2 * 60 * 60 * 1000
+    if (msDiff <= twoHoursMs) {
+      return formatDistanceToNow(eventTime, { addSuffix: true, locale: zhCN })
+    }
+    return format(eventTime, 'yyyy-MM-dd HH:mm')
   }
 
   const handleDelete = async () => {
@@ -96,7 +105,7 @@ export function EventCard({ event, onEdit, onDelete, onTagClick }: EventCardProp
                 <GitBranch className="h-3 w-3" />
               )}
               <span>
-                {formatDistanceToNow(event.eventTime, { addSuffix: true, locale: zhCN })}
+                {renderTime(event.eventTime)}
               </span>
               {event.metadata?.repo && (
                 <>
