@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { CollectSourceList } from '@/components/CollectSourceList'
@@ -13,9 +13,9 @@ export default function CollectPage() {
   const [syncingAll, setSyncingAll] = useState(false)
   const refreshFnRef = useRef<(() => void) | null>(null)
 
-  const handleRefreshReady = (fetchFn: () => void) => {
+  const handleRefreshReady = useCallback((fetchFn: () => void) => {
     refreshFnRef.current = fetchFn
-  }
+  }, [])
 
   const handleScanSuccess = () => {
     if (refreshFnRef.current) {

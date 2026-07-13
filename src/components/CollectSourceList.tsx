@@ -67,26 +67,12 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       const trimmed = searchInput.trim()
       setSearchTerm(trimmed)
       sessionStorage.setItem('sourceSearch', trimmed)
-      setPage(1)
+      setPage(prev => prev !== 1 ? 1 : prev)
     }, 300)
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  useEffect(() => {
-    fetchSources()
-    if (onRefresh) {
-      onRefresh(() => {
-        setPage(1)
-        fetchSources(1)
-      })
-    }
-  }, [onRefresh])
-
-  useEffect(() => {
-    if (!loading) fetchSources()
-  }, [page, searchTerm, syncStatusFilter, sourceStatusFilter])
-
-  async function fetchSources(targetPage?: number) {
+  const fetchSources = useCallback(async (targetPage?: number) => {
     const p = targetPage ?? page
     try {
       setLoading(true)
@@ -110,7 +96,30 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, searchTerm, syncStatusFilter, sourceStatusFilter])
+
+  const fetchSourcesRef = useRef(fetchSources)
+
+  useEffect(() => {
+    fetchSourcesRef.current = fetchSources
+  })
+
+  const stableFetchSources = useCallback((targetPage?: number) => {
+    return fetchSourcesRef.current(targetPage)
+  }, [])
+
+  useEffect(() => {
+    stableFetchSources()
+  }, [stableFetchSources])
+
+  useEffect(() => {
+    if (onRefresh) {
+      onRefresh(() => {
+        setPage(1)
+        stableFetchSources(1)
+      })
+    }
+  }, [onRefresh, stableFetchSources])
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
@@ -277,7 +286,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                   const val = e.target.value
                   setSyncStatusFilter(val)
                   sessionStorage.setItem('sourceSyncStatus', val)
-                  setPage(1)
+                  setPage(prev => prev !== 1 ? 1 : prev)
                 }}
                 className="sr-only"
               />
@@ -309,7 +318,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                   const val = e.target.value
                   setSourceStatusFilter(val)
                   sessionStorage.setItem('sourceStatusFilter', val)
-                  setPage(1)
+                  setPage(prev => prev !== 1 ? 1 : prev)
                 }}
                 className="sr-only"
               />
