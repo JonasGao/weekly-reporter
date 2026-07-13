@@ -437,4 +437,237 @@ describe('renderTemplate', () => {
       expect(result).not.toContain('{{下周计划}}');
     });
   });
+
+  describe('Official Template Rendering', () => {
+    const createEvent = (
+      content: string,
+      sectionType: SectionType,
+      eventTime: Date
+    ): RawEvent => ({
+      id: 1,
+      eventTime,
+      source: 'test',
+      content,
+      metadata: {},
+      category: null,
+      sectionType,
+      status: 'pending',
+      tags: null,
+      isImportant: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    it('should render official-general template with events', () => {
+      const content = `## 本周完成
+{{本周完成}}
+
+## 进行中
+{{进行中}}
+
+## 遇到的问题
+{{遇到的问题}}
+
+## 下周计划
+{{下周计划}}`;
+
+      const events: RawEvent[] = [
+        createEvent('完成了用户认证模块', 'achievement', new Date('2026-07-10')),
+        createEvent('优化了数据库查询性能', 'achievement', new Date('2026-07-09')),
+        createEvent('正在开发支付功能', 'plan', new Date('2026-07-11')),
+        createEvent('服务器响应时间过长', 'risk', new Date('2026-07-08')),
+        createEvent('准备技术分享会', 'plan', new Date('2026-07-12')),
+      ];
+
+      const sectionTypeMap = {
+        '本周完成': 'achievement' as SectionType,
+        '进行中': 'plan' as SectionType,
+        '遇到的问题': 'risk' as SectionType,
+        '下周计划': 'plan' as SectionType,
+      };
+
+      const result = renderTemplate(content, { events, sectionTypeMap });
+
+      expect(result).toContain('- 完成了用户认证模块');
+      expect(result).toContain('- 优化了数据库查询性能');
+      expect(result).toContain('- 正在开发支付功能');
+      expect(result).toContain('- 服务器响应时间过长');
+      expect(result).toContain('- 准备技术分享会');
+      expect(result).not.toContain('{{本周完成}}');
+      expect(result).not.toContain('{{进行中}}');
+      expect(result).not.toContain('{{遇到的问题}}');
+      expect(result).not.toContain('{{下周计划}}');
+    });
+
+    it('should render official-tech-dev template with events', () => {
+      const content = `## 开发进度
+{{开发进度}}
+
+## Bug修复
+{{Bug修复}}
+
+## 运维工作
+{{运维工作}}
+
+## 技术沉淀
+{{技术沉淀}}
+
+## 下周计划
+{{下周计划}}`;
+
+      const events: RawEvent[] = [
+        createEvent('完成订单模块开发 80%', 'achievement', new Date('2026-07-10')),
+        createEvent('修复登录页面样式问题', 'risk', new Date('2026-07-09')),
+        createEvent('部署生产环境 v2.1', 'routine', new Date('2026-07-08')),
+        createEvent('编写 API 文档', 'achievement', new Date('2026-07-11')),
+        createEvent('学习微服务架构', 'plan', new Date('2026-07-12')),
+      ];
+
+      const sectionTypeMap = {
+        '开发进度': 'achievement' as SectionType,
+        'Bug修复': 'risk' as SectionType,
+        '运维工作': 'routine' as SectionType,
+        '技术沉淀': 'achievement' as SectionType,
+        '下周计划': 'plan' as SectionType,
+      };
+
+      const result = renderTemplate(content, { events, sectionTypeMap });
+
+      expect(result).toContain('- 完成订单模块开发 80%');
+      expect(result).toContain('- 修复登录页面样式问题');
+      expect(result).toContain('- 部署生产环境 v2.1');
+      expect(result).toContain('- 编写 API 文档');
+      expect(result).toContain('- 学习微服务架构');
+      expect(result).not.toContain('{{开发进度}}');
+      expect(result).not.toContain('{{Bug修复}}');
+      expect(result).not.toContain('{{运维工作}}');
+      expect(result).not.toContain('{{技术沉淀}}');
+      expect(result).not.toContain('{{下周计划}}');
+    });
+
+    it('should render official-minimal template with events', () => {
+      const content = `## 本周完成
+{{本周完成}}
+
+## 下周重点
+{{下周重点}}`;
+
+      const events: RawEvent[] = [
+        createEvent('完成项目 A 交付', 'achievement', new Date('2026-07-10')),
+        createEvent('准备下周会议材料', 'plan', new Date('2026-07-11')),
+      ];
+
+      const sectionTypeMap = {
+        '本周完成': 'achievement' as SectionType,
+        '下周重点': 'plan' as SectionType,
+      };
+
+      const result = renderTemplate(content, { events, sectionTypeMap });
+
+      expect(result).toContain('- 完成项目 A 交付');
+      expect(result).toContain('- 准备下周会议材料');
+      expect(result).not.toContain('{{本周完成}}');
+      expect(result).not.toContain('{{下周重点}}');
+    });
+
+    it('should render official-personal-review template with events', () => {
+      const content = `## 本周成果
+{{本周成果}}
+
+## 踩坑记录
+{{踩坑记录}}
+
+## 技术沉淀
+{{技术沉淀}}
+
+## 时间复盘
+{{时间复盘}}
+
+## 下周计划
+{{下周计划}}`;
+
+      const events: RawEvent[] = [
+        createEvent('成功上线新功能', 'achievement', new Date('2026-07-10')),
+        createEvent('遇到数据库死锁问题', 'risk', new Date('2026-07-09')),
+        createEvent('阅读源码学习设计模式', 'achievement', new Date('2026-07-11')),
+        createEvent('本周加班较多', 'routine', new Date('2026-07-08')),
+        createEvent('提升代码质量', 'plan', new Date('2026-07-12')),
+      ];
+
+      const sectionTypeMap = {
+        '本周成果': 'achievement' as SectionType,
+        '踩坑记录': 'risk' as SectionType,
+        '技术沉淀': 'achievement' as SectionType,
+        '时间复盘': 'routine' as SectionType,
+        '下周计划': 'plan' as SectionType,
+      };
+
+      const result = renderTemplate(content, { events, sectionTypeMap });
+
+      expect(result).toContain('- 成功上线新功能');
+      expect(result).toContain('- 遇到数据库死锁问题');
+      expect(result).toContain('- 阅读源码学习设计模式');
+      expect(result).toContain('- 本周加班较多');
+      expect(result).toContain('- 提升代码质量');
+      expect(result).not.toContain('{{本周成果}}');
+      expect(result).not.toContain('{{踩坑记录}}');
+      expect(result).not.toContain('{{技术沉淀}}');
+      expect(result).not.toContain('{{时间复盘}}');
+      expect(result).not.toContain('{{下周计划}}');
+    });
+
+    it('should not contain example text after rendering', () => {
+      const content = `## 本周完成
+{{本周完成}}
+
+## 下周计划
+{{下周计划}}`;
+
+      const events: RawEvent[] = [
+        createEvent('实际工作成果', 'achievement', new Date('2026-07-10')),
+      ];
+
+      const sectionTypeMap = {
+        '本周完成': 'achievement' as SectionType,
+        '下周计划': 'plan' as SectionType,
+      };
+
+      const result = renderTemplate(content, { events, sectionTypeMap });
+
+      // Should not contain example placeholders
+      expect(result).not.toContain('[工作项1');
+      expect(result).not.toContain('[工作项2');
+      expect(result).not.toContain('[项目/任务名称');
+      expect(result).not.toContain('[计划事项');
+
+      // Should contain actual event content
+      expect(result).toContain('实际工作成果');
+    });
+
+    it('should show empty list items when no events match', () => {
+      const content = `## 本周完成
+{{本周完成}}
+
+## 遇到的问题
+{{遇到的问题}}`;
+
+      const events: RawEvent[] = [
+        createEvent('只有成果事件', 'achievement', new Date('2026-07-10')),
+      ];
+
+      const sectionTypeMap = {
+        '本周完成': 'achievement' as SectionType,
+        '遇到的问题': 'risk' as SectionType,
+      };
+
+      const result = renderTemplate(content, { events, sectionTypeMap });
+
+      // 本周完成 should have the event
+      expect(result).toContain('- 只有成果事件');
+
+      // 遇到的问题 should have empty list items
+      expect(result).toContain('## 遇到的问题\n- \n- \n- ');
+      expect(result).not.toContain('{{遇到的问题}}');
+    });
+  });
 });

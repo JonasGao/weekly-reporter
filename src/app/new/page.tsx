@@ -49,13 +49,13 @@ export default function NewReportPage() {
       const data = await response.json()
       setOfficialTemplates(data.official || [])
       setUserTemplates(data.user || [])
-      
-      // 默认选择第一个官方模板
+
+      // 默认选择第一个官方模板并渲染
       if (data.official?.length > 0) {
         const firstOfficial = data.official[0]
         setSelectedTemplateId(firstOfficial.id)
-        setContent(firstOfficial.content)
-        setEditorKey(k => k + 1)
+        // 调用渲染 API 以填充事件
+        await handleTemplateChange(firstOfficial.id, baseDate)
       }
     } catch (error) {
       toast.error('加载模板失败')

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { templates, TemplateConfig } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { templates, TemplateConfig, rawEvents } from '@/lib/db/schema'
+import { eq, between } from 'drizzle-orm'
 import { renderTemplate } from '@/lib/template/render'
 import { extractViewConfig } from '@/lib/template/view-config'
 import { OFFICIAL_TEMPLATES } from '@/lib/official-templates'
+import { startOfWeek, endOfWeek } from 'date-fns'
 
 export async function GET(
   request: Request,
@@ -75,8 +76,23 @@ export async function GET(
 
     const viewConfig = extractViewConfig(templateConfig, viewType)
 
+    // Query pending events within the week range
+    const db = getDb()
+    const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 })
+    const weekEnd = endOfWeek(baseDate, { weekStartsOn: 1 })
+
+    const pendingEvents = await db.select()
+      .from(rawEvents)
+      .where(
+        between(rawEvents.eventTime, weekStart, weekEnd)
+      )
+
+    // Filter events with status 'pending'
+    const eventsToProcess = pendingEvents.filter(e => e.status === 'pending')
+
     const renderedContent = renderTemplate(templateContent, {
       date: baseDate,
+      events: eventsToProcess,
       enabledSections: viewConfig.enabledSections,
       sectionTypeMap: templateConfig.sectionTypeMap,
     })
