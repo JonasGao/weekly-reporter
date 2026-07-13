@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { ReportCard } from './ReportCard'
 import { SearchBar } from './SearchBar'
 import { Button } from '@/components/ui/button'
-import { Plus, FileText, GitBranch } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { Report } from '@/lib/db/schema'
@@ -92,18 +92,6 @@ export function ReportList() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">周报编辑器</h1>
         <div className="flex items-center gap-2">
-          <Link href="/collect">
-            <Button variant="outline">
-              <GitBranch className="h-4 w-4 mr-2" />
-              采集源
-            </Button>
-          </Link>
-          <Link href="/templates">
-            <Button variant="outline">
-              <FileText className="h-4 w-4 mr-2" />
-              模板管理
-            </Button>
-          </Link>
           <Link href="/new">
             <Button>
               <Plus className="h-4 w-4 mr-2" />
