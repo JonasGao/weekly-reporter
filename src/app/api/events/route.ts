@@ -11,6 +11,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const weekStart = searchParams.get('weekStart')
     const weekEnd = searchParams.get('weekEnd')
+    const dateParam = searchParams.get('date')
     const tagsParam = searchParams.get('tags')
     const sourceParam = searchParams.get('source')
     const status = searchParams.get('status') || undefined
@@ -28,6 +29,16 @@ export async function GET(request: Request) {
       const end = new Date(weekEnd)
       end.setHours(23, 59, 59, 999)
       conditions.push(between(rawEvents.eventTime, start, end))
+    }
+
+    if (dateParam) {
+      const dateObj = new Date(dateParam + 'T00:00:00')
+      if (!isNaN(dateObj.getTime())) {
+        const dayStart = new Date(dateObj)
+        const dayEnd = new Date(dateObj)
+        dayEnd.setHours(23, 59, 59, 999)
+        conditions.push(between(rawEvents.eventTime, dayStart, dayEnd))
+      }
     }
 
     if (tagsParam) {

@@ -6,8 +6,9 @@ import { TimelineView } from '@/components/TimelineView'
 import { TagFilterPanel } from '@/components/TagFilterPanel'
 import { SourceFilterPanel, type SourceFilter } from '@/components/SourceFilterPanel'
 import { StatusFilterPanel, type StatusFilter } from '@/components/StatusFilterPanel'
+import { ActivityHeatmap, type HeatmapData } from '@/components/ActivityHeatmap'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Calendar, X } from 'lucide-react'
 import type { RawEvent } from '@/lib/db/schema'
 
 interface TagStat {
@@ -19,6 +20,8 @@ interface TagStat {
 export default function TimelinePage() {
   const [events, setEvents] = useState<RawEvent[]>([])
   const [tagStats, setTagStats] = useState<TagStat[]>([])
+  const [heatmapData, setHeatmapData] = useState<HeatmapData[]>([])
+  const [selectedHeatmapDate, setSelectedHeatmapDate] = useState<string | null>(null)
   const [selectedTags, setSelectedTags] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('selectedTags')
@@ -53,6 +56,9 @@ export default function TimelinePage() {
       if (selectedStatus !== 'all') {
         params.set('status', selectedStatus)
       }
+      if (selectedHeatmapDate) {
+        params.set('date', selectedHeatmapDate)
+      }
       if (cursor) {
         params.set('cursorId', String(cursor.id))
         params.set('cursorTime', String(cursor.eventTime))
@@ -75,7 +81,7 @@ export default function TimelinePage() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [selectedTags, selectedSources, selectedStatus])
+  }, [selectedTags, selectedSources, selectedStatus, selectedHeatmapDate])
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasMore || nextCursor === null) return
@@ -90,7 +96,7 @@ export default function TimelinePage() {
     setNextCursor(null)
     setHasMore(true)
     loadEvents()
-  }, [selectedTags, selectedSources, selectedStatus])
+  }, [selectedTags, selectedSources, selectedStatus, selectedHeatmapDate])
 
   // 滚动到底部自动加载更多
   useEffect(() => {
@@ -120,6 +126,20 @@ export default function TimelinePage() {
 
   useEffect(() => {
     loadTagStats()
+  }, [])
+
+  // Load heatmap data (independent of timeline filters)
+  useEffect(() => {
+    const loadHeatmap = async () => {
+      try {
+        const res = await fetch('/api/events/heatmap')
+        const json = await res.json()
+        setHeatmapData(json.data || [])
+      } catch (error) {
+        console.error('Failed to load heatmap data:', error)
+      }
+    }
+    loadHeatmap()
   }, [])
 
   // 持久化筛选条件到 sessionStorage
@@ -222,6 +242,25 @@ export default function TimelinePage() {
         </div>
 
         <div className="space-y-4">
+          <ActivityHeatmap
+            data={heatmapData}
+            selectedDate={selectedHeatmapDate}
+            onDateSelect={setSelectedHeatmapDate}
+          />
+          {selectedHeatmapDate && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted text-sm">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>{selectedHeatmapDate}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 ml-auto"
+                onClick={() => setSelectedHeatmapDate(null)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
           <StatusFilterPanel
             selectedStatus={selectedStatus}
             onStatusSelect={handleStatusSelect}
