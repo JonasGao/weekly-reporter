@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Edit2, Trash2, Star, GitBranch, FileText } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { RawEvent } from '@/lib/db/schema'
 
 interface EventCardProps {
@@ -123,6 +124,16 @@ export function EventCard({ event, onEdit, onDelete, onTagClick }: EventCardProp
                   <span>{event.metadata.sourceName}</span>
                 </>
               )}
+              <span className="text-muted-foreground/50">·</span>
+              <Badge
+                variant={event.status === 'pending' ? 'default' : 'secondary'}
+                className={cn(
+                  'text-xs px-1.5 py-0',
+                  event.status === 'pending' && 'bg-green-500 hover:bg-green-600'
+                )}
+              >
+                {event.status === 'pending' ? '待处理' : '已处理'}
+              </Badge>
             </div>
           </div>
         </div>

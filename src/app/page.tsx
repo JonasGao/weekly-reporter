@@ -5,6 +5,7 @@ import { QuickInputBar } from '@/components/QuickInputBar'
 import { TimelineView } from '@/components/TimelineView'
 import { TagFilterPanel } from '@/components/TagFilterPanel'
 import { SourceFilterPanel, type SourceFilter } from '@/components/SourceFilterPanel'
+import { StatusFilterPanel, type StatusFilter } from '@/components/StatusFilterPanel'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import type { RawEvent } from '@/lib/db/schema'
@@ -32,6 +33,7 @@ export default function TimelinePage() {
     }
     return []
   })
+  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all')
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -47,6 +49,9 @@ export default function TimelinePage() {
       }
       if (selectedSources.length > 0 && selectedSources.length < 2) {
         params.set('source', selectedSources[0])
+      }
+      if (selectedStatus !== 'all') {
+        params.set('status', selectedStatus)
       }
       if (cursor) {
         params.set('cursorId', String(cursor.id))
@@ -70,7 +75,7 @@ export default function TimelinePage() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [selectedTags, selectedSources])
+  }, [selectedTags, selectedSources, selectedStatus])
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasMore || nextCursor === null) return
@@ -85,7 +90,7 @@ export default function TimelinePage() {
     setNextCursor(null)
     setHasMore(true)
     loadEvents()
-  }, [selectedTags, selectedSources])
+  }, [selectedTags, selectedSources, selectedStatus])
 
   // 滚动到底部自动加载更多
   useEffect(() => {
@@ -167,6 +172,10 @@ export default function TimelinePage() {
     )
   }
 
+  const handleStatusSelect = (status: StatusFilter) => {
+    setSelectedStatus(status)
+  }
+
   const handleClearFilters = () => {
     setSelectedTags([])
     setSelectedSources([])
@@ -213,6 +222,10 @@ export default function TimelinePage() {
         </div>
 
         <div className="space-y-4">
+          <StatusFilterPanel
+            selectedStatus={selectedStatus}
+            onStatusSelect={handleStatusSelect}
+          />
           <SourceFilterPanel
             selectedSources={selectedSources}
             onSourceSelect={handleSourceSelect}
