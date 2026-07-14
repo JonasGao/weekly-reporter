@@ -13,12 +13,15 @@ export async function GET(request: Request) {
     const weekEnd = searchParams.get('weekEnd')
     const tagsParam = searchParams.get('tags')
     const sourceParam = searchParams.get('source')
-    const status = searchParams.get('status') || 'pending'
+    const status = searchParams.get('status') || undefined
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
     const cursorId = searchParams.get('cursorId') ? parseInt(searchParams.get('cursorId')!) : null
     const cursorTime = searchParams.get('cursorTime') ? parseInt(searchParams.get('cursorTime')!) : null
 
-    const conditions = [eq(rawEvents.status, status)]
+    const conditions: ReturnType<typeof eq>[] = []
+    if (status) {
+      conditions.push(eq(rawEvents.status, status))
+    }
 
     if (weekStart && weekEnd) {
       const start = new Date(weekStart)
@@ -53,9 +56,13 @@ export async function GET(request: Request) {
       )
     }
 
-    const events = await db.select()
+    let query = db.select()
       .from(rawEvents)
-      .where(sql.join(conditions, sql` AND `))
+      .$dynamic()
+    if (conditions.length > 0) {
+      query = query.where(sql.join(conditions, sql` AND `))
+    }
+    const events = await query
       .orderBy(desc(rawEvents.eventTime))
       .limit(limit + 1)
 
