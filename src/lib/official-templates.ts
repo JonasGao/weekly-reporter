@@ -30,7 +30,7 @@ export const OFFICIAL_TEMPLATES: OfficialTemplate[] = [
     config: {
       sectionTypeMap: {
         '本周完成': 'achievement',
-        '进行中': 'plan',
+        '进行中': 'routine',
         '遇到的问题': 'risk',
         '下周计划': 'plan',
       },

@@ -378,7 +378,7 @@ describe('renderTemplate', () => {
       const content = '## 本周完成\n{{本周完成}}\n## 进行中\n{{进行中}}\n## 下周计划\n{{下周计划}}';
       const sectionTypeMap = {
         '本周完成': 'achievement' as SectionType,
-        '进行中': 'plan' as SectionType,
+        '进行中': 'routine' as SectionType,
         '下周计划': 'plan' as SectionType,
       };
       const result = renderTemplate(content, {
@@ -474,14 +474,14 @@ describe('renderTemplate', () => {
       const events: RawEvent[] = [
         createEvent('完成了用户认证模块', 'achievement', new Date('2026-07-10')),
         createEvent('优化了数据库查询性能', 'achievement', new Date('2026-07-09')),
-        createEvent('正在开发支付功能', 'plan', new Date('2026-07-11')),
+        createEvent('正在开发支付功能', 'routine', new Date('2026-07-11')),
         createEvent('服务器响应时间过长', 'risk', new Date('2026-07-08')),
         createEvent('准备技术分享会', 'plan', new Date('2026-07-12')),
       ];
 
       const sectionTypeMap = {
         '本周完成': 'achievement' as SectionType,
-        '进行中': 'plan' as SectionType,
+        '进行中': 'routine' as SectionType,
         '遇到的问题': 'risk' as SectionType,
         '下周计划': 'plan' as SectionType,
       };
