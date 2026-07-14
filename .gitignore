@@ -46,6 +46,9 @@ src/lib/build-info.ts
 data/
 *.db
 
+# CodeGraph local index/runtime files
+.codegraph/
+
 # XDG data directories (for development)
 .local/
 
