@@ -125,15 +125,9 @@ export function EventCard({ event, onEdit, onDelete, onTagClick }: EventCardProp
                 </>
               )}
               <span className="text-muted-foreground/50">·</span>
-              <Badge
-                variant={event.status === 'pending' ? 'default' : 'secondary'}
-                className={cn(
-                  'text-xs px-1.5 py-0',
-                  event.status === 'pending' && 'bg-green-500 hover:bg-green-600'
-                )}
-              >
+              <span className="text-xs text-muted-foreground">
                 {event.status === 'pending' ? '待处理' : '已处理'}
-              </Badge>
+              </span>
             </div>
           </div>
         </div>
