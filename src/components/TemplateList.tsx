@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { TemplateTabs } from '@/components/TemplateTabs'
 import { CloneTemplateDialog } from '@/components/CloneTemplateDialog'
+import { ViewTemplateDialog } from '@/components/ViewTemplateDialog'
 import type { OfficialTemplate } from '@/lib/official-templates'
 import type { Template } from '@/lib/db/schema'
 
@@ -18,7 +19,9 @@ export function TemplateList({ onSelect }: TemplateListProps) {
   const [userTemplates, setUserTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTemplateForSaveAs, setSelectedTemplateForSaveAs] = useState<OfficialTemplate | Template | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [selectedTemplateForView, setSelectedTemplateForView] = useState<OfficialTemplate | null>(null)
+  const [saveAsDialogOpen, setSaveAsDialogOpen] = useState(false)
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchTemplates()
@@ -59,12 +62,21 @@ export function TemplateList({ onSelect }: TemplateListProps) {
   }
 
   function handleSaveAs(templateId: string) {
-    const template = officialTemplates.find(t => t.id === templateId) 
+    const template = officialTemplates.find(t => t.id === templateId)
       || userTemplates.find(t => `user-${t.id}` === templateId)
-    
+
     if (template) {
       setSelectedTemplateForSaveAs(template)
-      setDialogOpen(true)
+      setSaveAsDialogOpen(true)
+    }
+  }
+
+  function handleView(templateId: string) {
+    const template = officialTemplates.find(t => t.id === templateId)
+
+    if (template) {
+      setSelectedTemplateForView(template)
+      setViewDialogOpen(true)
     }
   }
 
@@ -118,14 +130,21 @@ export function TemplateList({ onSelect }: TemplateListProps) {
         userTemplates={userTemplates}
         onCloneOfficial={handleClone}
         onSaveAsOfficial={handleSaveAs}
+        onViewOfficial={handleView}
         onDeleteUser={handleDelete}
       />
       
       <CloneTemplateDialog
         template={selectedTemplateForSaveAs}
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        open={saveAsDialogOpen}
+        onClose={() => setSaveAsDialogOpen(false)}
         onClone={handleCloneWithEdit}
+      />
+
+      <ViewTemplateDialog
+        template={selectedTemplateForView}
+        open={viewDialogOpen}
+        onClose={() => setViewDialogOpen(false)}
       />
     </>
   )

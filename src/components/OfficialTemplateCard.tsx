@@ -7,9 +7,10 @@ interface OfficialTemplateCardProps {
   template: OfficialTemplate
   onClone: (templateId: string) => void
   onSaveAs: (templateId: string) => void
+  onView: (templateId: string) => void
 }
 
-export function OfficialTemplateCard({ template, onClone, onSaveAs }: OfficialTemplateCardProps) {
+export function OfficialTemplateCard({ template, onClone, onSaveAs, onView }: OfficialTemplateCardProps) {
   return (
     <div className="border rounded-lg p-4 space-y-2">
       <div className="flex items-start justify-between">
@@ -23,18 +24,25 @@ export function OfficialTemplateCard({ template, onClone, onSaveAs }: OfficialTe
           )}
         </div>
       </div>
-      
+
       <div className="flex gap-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onView(template.id)}
+        >
+          查看详情
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => onClone(template.id)}
         >
           快速克隆
         </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => onSaveAs(template.id)}
         >
           另存为

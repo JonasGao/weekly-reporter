@@ -14,6 +14,7 @@ interface TemplateTabsProps {
   userTemplates: Template[]
   onCloneOfficial: (templateId: string) => void
   onSaveAsOfficial: (templateId: string) => void
+  onViewOfficial: (templateId: string) => void
   onDeleteUser: (id: number) => void
 }
 
@@ -22,6 +23,7 @@ export function TemplateTabs({
   userTemplates,
   onCloneOfficial,
   onSaveAsOfficial,
+  onViewOfficial,
   onDeleteUser,
 }: TemplateTabsProps) {
   return (
@@ -43,6 +45,7 @@ export function TemplateTabs({
               template={template}
               onClone={onCloneOfficial}
               onSaveAs={onSaveAsOfficial}
+              onView={onViewOfficial}
             />
           ))
         )}
