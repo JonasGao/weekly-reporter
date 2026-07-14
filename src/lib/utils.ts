@@ -50,3 +50,52 @@ export function getSectionStatus(content: string): Record<string, 'empty' | 'sho
 
   return status
 }
+
+/**
+ * 归一化 git remote URL 为 owner/repo 格式
+ * 支持格式：
+ * - https://github.com/owner/repo.git
+ * - git@github.com:owner/repo.git
+ * - ssh://git@github.com/owner/repo.git
+ * - https://gitlab.com/owner/repo
+ * - 自托管服务：git.company.com/team/project
+ */
+export function normalizeRepoName(urlOrPath: string): string {
+  if (!urlOrPath || urlOrPath.trim() === '') {
+    return ''
+  }
+
+  let normalized = urlOrPath.trim()
+
+  // 去掉尾部斜杠
+  normalized = normalized.replace(/\/+$/, '')
+
+  // 去掉 .git 后缀
+  normalized = normalized.replace(/\.git$/, '')
+
+  // 处理 SSH 格式：git@host:owner/repo -> owner/repo
+  const sshMatch = normalized.match(/^(?:[^@]+@)?[^:]+:(.+)$/)
+  if (sshMatch) {
+    normalized = sshMatch[1]
+  } else {
+    // 处理 URL 格式：protocol://[user@]host/owner/repo -> owner/repo
+    normalized = normalized.replace(/^(?:https?|ssh|git):\/\//, '')
+    normalized = normalized.replace(/^[^@/]+@/, '')
+    // 去掉 host 部分
+    const slashIndex = normalized.indexOf('/')
+    if (slashIndex !== -1) {
+      normalized = normalized.substring(slashIndex + 1)
+    }
+  }
+
+  // 如果包含路径，返回完整的 owner/repo
+  const parts = normalized.split('/')
+  if (parts.length >= 2) {
+    const owner = parts[parts.length - 2]
+    const repo = parts[parts.length - 1]
+    return `${owner}/${repo}`
+  }
+
+  // 如果无法解析为 owner/repo，返回原始值（可能是纯目录名）
+  return parts[parts.length - 1] || normalized
+}

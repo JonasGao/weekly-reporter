@@ -38,6 +38,19 @@ function isTrivialEvent(content: string): boolean {
   return TRIVIAL_KEYWORDS.some((kw) => lowerContent.includes(kw));
 }
 
+/**
+ * 判断事件是否为 git 来源
+ */
+function isGitEvent(event: RawEvent): boolean {
+  const gitSources = ['git-local', 'github', 'gitlab'];
+  return gitSources.includes(event.source);
+}
+
+/**
+ * 按仓库分组渲染事件
+ * git 事件按仓库分组为嵌套列表，非 git 事件为普通列表项
+ * 所有顶层项按时间排序（仓库组取最近 commit 时间）
+ */
 function filterAndFormatEvents(
   events: RawEvent[],
   type: SectionType,
@@ -49,16 +62,82 @@ function filterAndFormatEvents(
     filtered = filtered.filter((e) => !isTrivialEvent(e.content));
   }
 
-  if (config?.autoSort !== false) {
-    filtered.sort((a, b) => b.eventTime.getTime() - a.eventTime.getTime());
-  }
-
-  if (config?.maxItems) {
-    filtered = filtered.slice(0, config.maxItems);
-  }
-
   if (filtered.length === 0) return EMPTY_LIST_ITEMS;
-  return filtered.map((e) => `- ${e.content}`).join('\n');
+
+  // 分离 git 事件（有 repo 信息）和非 git 事件（无 repo 信息或非 git 源）
+  const gitEvents = filtered.filter((e) => isGitEvent(e) && e.metadata?.repo);
+  const nonGitEvents = filtered.filter((e) => !isGitEvent(e) || !e.metadata?.repo);
+
+  // 按仓库分组 git 事件
+  const repoGroups = new Map<string, RawEvent[]>();
+  for (const event of gitEvents) {
+    const repo = event.metadata?.repo || 'unknown';
+    if (!repoGroups.has(repo)) {
+      repoGroups.set(repo, []);
+    }
+    repoGroups.get(repo)!.push(event);
+  }
+
+  // 对每个仓库组内的 commit 按时间倒序排序
+  for (const [, groupEvents] of repoGroups) {
+    groupEvents.sort((a, b) => b.eventTime.getTime() - a.eventTime.getTime());
+  }
+
+  // 构建顶层项列表（仓库组 + 非 git 事件）
+  interface TopLevelItem {
+    type: 'repo' | 'event';
+    time: number;
+    repo?: string;
+    events?: RawEvent[];
+    event?: RawEvent;
+  }
+
+  const topLevelItems: TopLevelItem[] = [];
+
+  // 添加仓库组（取最近 commit 时间）
+  for (const [repo, groupEvents] of repoGroups) {
+    const mostRecentTime = Math.max(...groupEvents.map((e) => e.eventTime.getTime()));
+    topLevelItems.push({
+      type: 'repo',
+      time: mostRecentTime,
+      repo,
+      events: groupEvents,
+    });
+  }
+
+  // 添加非 git 事件
+  for (const event of nonGitEvents) {
+    topLevelItems.push({
+      type: 'event',
+      time: event.eventTime.getTime(),
+      event,
+    });
+  }
+
+  // 按时间倒序排序所有顶层项
+  topLevelItems.sort((a, b) => b.time - a.time);
+
+  // 应用 maxItems 限制
+  if (config?.maxItems) {
+    topLevelItems.splice(config.maxItems);
+  }
+
+  // 渲染为 markdown
+  const lines: string[] = [];
+  for (const item of topLevelItems) {
+    if (item.type === 'repo' && item.repo && item.events) {
+      // 仓库组：嵌套列表
+      lines.push(`- **${item.repo}**`);
+      for (const event of item.events) {
+        lines.push(`  - ${event.content}`);
+      }
+    } else if (item.type === 'event' && item.event) {
+      // 非 git 事件：普通列表项
+      lines.push(`- ${item.event.content}`);
+    }
+  }
+
+  return lines.length > 0 ? lines.join('\n') : EMPTY_LIST_ITEMS;
 }
 
 function removeSection(content: string, sectionTitle: string): string {

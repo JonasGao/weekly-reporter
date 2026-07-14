@@ -1,8 +1,42 @@
 import type { GitAdapter, GitCommit, FetchCommitsOptions, RawEventData } from '../types'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { normalizeRepoName } from '@/lib/utils'
 
 const execFileAsync = promisify(execFile)
+
+/**
+ * 尝试获取本地 git 仓库的远程 URL
+ * 如果没有 remote，返回 null
+ */
+export async function getRemoteUrl(repoPath: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], {
+      cwd: repoPath,
+      maxBuffer: 1024 * 1024,
+    })
+    return stdout.trim() || null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 获取本地 git 仓库的规范化仓库名称
+ * 优先使用远程 URL，失败则使用目录 basename
+ */
+export async function getNormalizedRepoName(repoPath: string): Promise<string> {
+  const remoteUrl = await getRemoteUrl(repoPath)
+  if (remoteUrl) {
+    const normalized = normalizeRepoName(remoteUrl)
+    if (normalized) {
+      return normalized
+    }
+  }
+  // 回退到目录 basename
+  const { basename } = await import('path')
+  return basename(repoPath)
+}
 
 export const localGitAdapter: GitAdapter = {
   platform: 'git-local',

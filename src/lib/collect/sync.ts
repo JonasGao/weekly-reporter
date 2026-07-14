@@ -5,6 +5,8 @@ import type { CollectSource } from '@/lib/db/schema'
 import { getAdapter } from './adapters'
 import type { FetchCommitsOptions } from './types'
 import { basename } from 'path'
+import { getNormalizedRepoName } from './adapters/local-git-adapter'
+import { normalizeRepoName } from '@/lib/utils'
 
 export interface SyncResult {
   sourceId: number
@@ -61,10 +63,16 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
     // Get branches to sync - default to single empty branch for backward compatibility
     const branches = source.config.branches?.length ? source.config.branches : ['']
 
-    // 构建仓库显示名：本地取路径 basename，远程取 owner/repo
-    const repoName = source.config.repo
-      ? `${source.config.owner}/${source.config.repo}`
-      : basename(source.config.owner)
+    // 构建仓库显示名：本地取远程 URL 归一化（失败则 basename），远程取 owner/repo 归一化
+    let repoName: string
+    if (source.type === 'git-local') {
+      repoName = await getNormalizedRepoName(source.config.owner)
+    } else if (source.config.repo) {
+      // 远程源（GitHub/GitLab）归一化
+      repoName = normalizeRepoName(`${source.config.owner}/${source.config.repo}`)
+    } else {
+      repoName = basename(source.config.owner)
+    }
 
     let allCommits: Awaited<ReturnType<typeof adapter.fetchCommits>> = []
 
