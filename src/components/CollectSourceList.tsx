@@ -108,9 +108,10 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     return fetchSourcesRef.current(targetPage)
   }, [])
 
+  // Re-fetch whenever any filter/page changes
   useEffect(() => {
-    stableFetchSources()
-  }, [stableFetchSources])
+    fetchSources()
+  }, [fetchSources])
 
   useEffect(() => {
     if (onRefresh) {
