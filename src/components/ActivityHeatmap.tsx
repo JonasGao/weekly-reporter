@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export interface HeatmapData {
   date: string
@@ -47,14 +47,37 @@ const heatmapColors = [
   'var(--color-heatmap-4)',
 ]
 
+const CELL_SIZE = 10
+const GAP = 2
+const LABEL_COL_WIDTH = 18
+
 export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHeatmapProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width)
+      }
+    })
+    ro.observe(el)
+    setContainerWidth(el.clientWidth)
+    return () => ro.disconnect()
+  }, [])
+
   const { weeks, monthLabels } = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const currentMonday = getMonday(today)
 
+    const maxWeeks = Math.floor((containerWidth - LABEL_COL_WIDTH + GAP) / (CELL_SIZE + GAP))
+    const weeksToShow = Math.max(4, Math.min(52, maxWeeks))
+
     const startDate = new Date(currentMonday)
-    startDate.setDate(startDate.getDate() - 52 * 7)
+    startDate.setDate(startDate.getDate() - (weeksToShow - 1) * 7)
 
     const countMap = new Map<string, number>()
     for (const entry of data) {
@@ -66,16 +89,14 @@ export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHe
     while (current <= today) {
       const week: Array<{ date: string; count: number }> = []
       for (let day = 0; day < 7; day++) {
-        if (current <= today) {
-          const dateStr = formatDate(current)
-          week.push({ date: dateStr, count: countMap.get(dateStr) || 0 })
-        }
+        const dateStr = formatDate(current)
+        const isFuture = current > today
+        week.push({ date: dateStr, count: isFuture ? 0 : (countMap.get(dateStr) || 0) })
         current.setDate(current.getDate() + 1)
       }
-      if (week.length > 0) weeks.push(week)
+      weeks.push(week)
     }
 
-    // Month labels: position at the first week of each month
     const labels: Array<{ month: number; pct: number }> = []
     let lastMonth = -1
     weeks.forEach((week, idx) => {
@@ -91,7 +112,7 @@ export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHe
     })
 
     return { weeks, monthLabels: labels }
-  }, [data])
+  }, [data, containerWidth])
 
   const numWeeks = weeks.length
 
@@ -100,63 +121,70 @@ export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHe
       {numWeeks === 0 ? (
         <div className="text-xs text-muted-foreground py-4 text-center">暂无数据</div>
       ) : (
-        <div className="flex gap-1.5">
-          {/* Weekday labels */}
-          <div className="flex flex-col shrink-0 text-[10px] leading-none text-muted-foreground" style={{ gap: '2px', paddingTop: '18px' }}>
-            {WEEKDAYS.map((day, i) => (
-              <div key={i} className="w-4 text-right pr-1" style={{ height: '10px' }}>
-                {i % 2 === 0 ? day : ''}
-              </div>
+        <div ref={containerRef}>
+          {/* Month labels */}
+          <div className="relative h-4 text-[10px] text-muted-foreground mb-0.5" style={{ marginLeft: `${LABEL_COL_WIDTH}px` }}>
+            {monthLabels.map(({ month, pct }) => (
+              <span
+                key={month}
+                className="absolute top-0"
+                style={{ left: `${pct}%` }}
+              >
+                {month}月
+              </span>
             ))}
           </div>
 
-          {/* Grid area — single row, fills parent width */}
-          <div className="flex-1 min-w-0">
-            {/* Month labels */}
-            <div className="relative h-4 text-[10px] text-muted-foreground mb-0.5">
-              {monthLabels.map(({ month, pct }) => (
-                <span
-                  key={month}
-                  className="absolute top-0"
-                  style={{ left: `${pct}%` }}
-                >
-                  {month}月
-                </span>
-              ))}
-            </div>
+          {/* Single grid: col 0 = weekday labels, col 1..N = weeks */}
+          <div
+            className="grid gap-[2px]"
+            style={{
+              gridTemplateRows: 'repeat(7, 1fr)',
+              gridAutoFlow: 'column',
+              gridTemplateColumns: `${LABEL_COL_WIDTH}px repeat(${numWeeks}, ${CELL_SIZE}px)`,
+            }}
+          >
+            {/* Weekday labels in first column */}
+            {WEEKDAYS.map((day, i) => (
+              <div
+                key={day}
+                className="text-[10px] leading-none text-muted-foreground text-right pr-1"
+                style={{
+                  gridRow: i + 1,
+                  gridColumn: 1,
+                  height: `${CELL_SIZE}px`,
+                  lineHeight: `${CELL_SIZE}px`,
+                }}
+              >
+                {i % 2 === 0 ? day : ''}
+              </div>
+            ))}
 
-            {/* Weeks grid: column-major, each week is a column of 7 day-cells */}
-            <div
-              className="grid gap-[2px]"
-              style={{
-                gridTemplateRows: 'repeat(7, 1fr)',
-                gridAutoFlow: 'column',
-                gridTemplateColumns: `repeat(${numWeeks}, 1fr)`,
-              }}
-            >
-              {weeks.flatMap((week, weekIdx) =>
-                week.map(({ date, count }) => {
-                  const level = getLevel(count)
-                  const isSelected = date === selectedDate
-                  return (
-                    <div
-                      key={date}
-                      data-count={count}
-                      data-level={level}
-                      data-selected={isSelected ? 'true' : undefined}
-                      title={`${count} 条事件 · ${date}`}
-                      className="aspect-square rounded-[2px] cursor-pointer transition-colors min-w-0"
-                      style={{
-                        backgroundColor: heatmapColors[level],
-                        outline: isSelected ? '1.5px solid var(--foreground)' : 'none',
-                        outlineOffset: '-1px',
-                      }}
-                      onClick={() => onDateSelect(date === selectedDate ? null : date)}
-                    />
-                  )
-                })
-              )}
-            </div>
+            {/* Day cells */}
+            {weeks.flatMap((week) =>
+              week.map(({ date, count }) => {
+                const level = getLevel(count)
+                const isSelected = date === selectedDate
+                return (
+                  <div
+                    key={date}
+                    data-count={count}
+                    data-level={level}
+                    data-selected={isSelected ? 'true' : undefined}
+                    title={`${count} 条事件 · ${date}`}
+                    className="rounded-[2px] cursor-pointer transition-colors"
+                    style={{
+                      width: `${CELL_SIZE}px`,
+                      height: `${CELL_SIZE}px`,
+                      backgroundColor: heatmapColors[level],
+                      outline: isSelected ? '1.5px solid var(--foreground)' : 'none',
+                      outlineOffset: '-1px',
+                    }}
+                    onClick={() => onDateSelect(date === selectedDate ? null : date)}
+                  />
+                )
+              })
+            )}
           </div>
         </div>
       )}
