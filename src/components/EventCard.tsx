@@ -124,10 +124,6 @@ export function EventCard({ event, onEdit, onDelete, onTagClick }: EventCardProp
                   <span>{event.metadata.sourceName}</span>
                 </>
               )}
-              <span className="text-muted-foreground/50">·</span>
-              <span className="text-xs text-muted-foreground">
-                {event.status === 'pending' ? '待处理' : '已处理'}
-              </span>
             </div>
           </div>
         </div>

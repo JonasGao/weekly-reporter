@@ -14,15 +14,11 @@ export async function GET(request: Request) {
     const dateParam = searchParams.get('date')
     const tagsParam = searchParams.get('tags')
     const sourceParam = searchParams.get('source')
-    const status = searchParams.get('status') || undefined
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
     const cursorId = searchParams.get('cursorId') ? parseInt(searchParams.get('cursorId')!) : null
     const cursorTime = searchParams.get('cursorTime') ? parseInt(searchParams.get('cursorTime')!) : null
 
     const conditions: ReturnType<typeof eq>[] = []
-    if (status) {
-      conditions.push(eq(rawEvents.status, status))
-    }
 
     if (weekStart && weekEnd) {
       const start = new Date(weekStart)
@@ -127,7 +123,6 @@ export async function POST(request: Request) {
       eventTime: eventTime ? new Date(eventTime) : now,
       source: 'manual',
       sectionType,
-      status: 'pending',
       isImportant: false,
       createdAt: now,
       updatedAt: now,

@@ -76,19 +76,16 @@ export async function GET(
 
     const viewConfig = extractViewConfig(templateConfig, viewType)
 
-    // Query pending events within the week range
+    // Query events within the week range
     const db = getDb()
     const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 })
     const weekEnd = endOfWeek(baseDate, { weekStartsOn: 1 })
 
-    const pendingEvents = await db.select()
+    const eventsToProcess = await db.select()
       .from(rawEvents)
       .where(
         between(rawEvents.eventTime, weekStart, weekEnd)
       )
-
-    // Filter events with status 'pending'
-    const eventsToProcess = pendingEvents.filter(e => e.status === 'pending')
 
     const renderedContent = renderTemplate(templateContent, {
       date: baseDate,

@@ -235,51 +235,6 @@ describe('/api/templates/[id]/render', () => {
       expect(data.templateId).toBe('official-personal-review')
     })
 
-    it('should filter only pending events', async () => {
-      const mockEvents = [
-        {
-          id: 1,
-          eventTime: new Date('2026-07-10T10:00:00'),
-          source: 'manual',
-          content: '待处理事件',
-          status: 'pending',
-          tags: ['成果'],
-          sectionType: 'achievement',
-          isImportant: false,
-          metadata: {},
-          category: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 2,
-          eventTime: new Date('2026-07-09T10:00:00'),
-          source: 'manual',
-          content: '已处理事件',
-          status: 'processed',
-          tags: ['成果'],
-          sectionType: 'achievement',
-          isImportant: false,
-          metadata: {},
-          category: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ]
-
-      const { getDb } = await import('@/lib/db')
-      const db = getDb() as any
-      db._whereResult.then.mockImplementation((resolve: (value: any) => void) => resolve(mockEvents))
-
-      const request = new Request('http://localhost/api/templates/official-minimal/render?date=2026-07-13')
-      const response = await GET(request, { params: Promise.resolve({ id: 'official-minimal' }) })
-      const data = await response.json()
-
-      expect(response.status).toBe(200)
-      expect(data.content).toContain('待处理事件')
-      expect(data.content).not.toContain('已处理事件')
-    })
-
     it('should return empty list items when no events', async () => {
       const { getDb } = await import('@/lib/db')
       const db = getDb() as any

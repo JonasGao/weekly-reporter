@@ -136,42 +136,6 @@ describe('/api/events', () => {
       expect(db.where).toHaveBeenCalled()
     })
 
-    it('should filter events by status', async () => {
-      const mockEvents = [
-        {
-          id: 1,
-          eventTime: new Date('2024-01-10T10:00:00'),
-          source: 'github',
-          content: 'Processed event',
-          status: 'processed',
-          tags: [],
-          isImportant: false,
-        },
-      ]
-
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce(mockEvents)
-
-      const request = new Request('http://localhost/api/events?status=processed')
-      const response = await GET(request)
-
-      expect(response.status).toBe(200)
-      expect(db.where).toHaveBeenCalled()
-    })
-
-    it('should not add status condition when not specified', async () => {
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([])
-
-      const request = new Request('http://localhost/api/events')
-      await GET(request)
-
-      // No filters = no WHERE clause
-      expect(db.where).not.toHaveBeenCalled()
-    })
-
     it('should filter events by tags', async () => {
       const mockEvents = [
         {

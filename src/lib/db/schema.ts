@@ -120,7 +120,6 @@ export const rawEvents = sqliteTable('raw_events', {
   metadata: text('metadata', { mode: 'json' }).$type<RawEventMetadata>(),
   category: text('category'),
   sectionType: text('section_type').default('routine').notNull().$type<SectionType>(),
-  status: text('status').default('pending').notNull(),
   tags: text('tags', { mode: 'json' }).$type<string[]>(),
   isImportant: integer('is_important', { mode: 'boolean' }).default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

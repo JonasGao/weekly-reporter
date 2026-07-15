@@ -118,7 +118,6 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
       await db.insert(rawEvents).values(
         newEvents.map(e => ({
           ...e,
-          status: 'pending',
           createdAt: now,
           updatedAt: now,
         }))

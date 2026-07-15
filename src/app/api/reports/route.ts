@@ -50,18 +50,15 @@ export async function POST(request: Request) {
     const { templateId, baseDate, weekStart, weekEnd } = validated
     let finalContent = validated.content || ''
     
-    // Query pending events within the week range
+    // Query events within the week range
     const weekStartDate = new Date(weekStart)
     const weekEndDate = new Date(weekEnd)
-    
-    const pendingEvents = await db.select()
+
+    const eventsToProcess = await db.select()
       .from(rawEvents)
       .where(
         between(rawEvents.eventTime, weekStartDate, weekEndDate)
       )
-    
-    // Filter events with status 'pending'
-    const eventsToProcess = pendingEvents.filter(e => e.status === 'pending')
     
     // Map tags to sectionType for each event
     const processedEvents = await Promise.all(
@@ -125,18 +122,7 @@ export async function POST(request: Request) {
       createdAt: now,
       updatedAt: now,
     }).returning()
-    
-    // Update processed events status to 'processed'
-    if (processedEvents.length > 0) {
-      await Promise.all(
-        processedEvents.map(async (event) => {
-          await db.update(rawEvents)
-            .set({ status: 'processed', updatedAt: now })
-            .where(eq(rawEvents.id, event.id))
-        })
-      )
-    }
-    
+
     return NextResponse.json(result[0], { status: 201 })
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
