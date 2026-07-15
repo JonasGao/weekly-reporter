@@ -18,6 +18,30 @@ export interface SyncResult {
   autoDisabled?: boolean
 }
 
+// 规范化分支配置：兼容旧格式 string[] 和新格式 { name, lastCommitTime }[]
+interface BranchConfig {
+  name: string
+  lastCommitTime: string | null
+}
+
+function normalizeBranches(branches: unknown): BranchConfig[] {
+  if (!Array.isArray(branches) || branches.length === 0) {
+    return [{ name: '', lastCommitTime: null }]
+  }
+  return branches.map(b => {
+    if (typeof b === 'string') {
+      return { name: b, lastCommitTime: null }
+    }
+    if (typeof b === 'object' && b !== null && 'name' in b) {
+      return {
+        name: (b as BranchConfig).name,
+        lastCommitTime: (b as BranchConfig).lastCommitTime || null,
+      }
+    }
+    return { name: '', lastCommitTime: null }
+  })
+}
+
 export async function syncSource(sourceId: number, resync?: boolean): Promise<SyncResult> {
   const db = getDb()
   
@@ -60,8 +84,8 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
   }
   
   try {
-    // Get branches to sync - default to single empty branch for backward compatibility
-    const branches = source.config.branches?.length ? source.config.branches : ['']
+    // 规范化分支配置（兼容旧格式）
+    const branches = normalizeBranches(source.config.branches)
 
     // 构建仓库显示名：本地取远程 URL 归一化（失败则 basename），远程取 owner/repo 归一化
     let repoName: string
@@ -75,26 +99,39 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
     }
 
     let allCommits: Awaited<ReturnType<typeof adapter.fetchCommits>> = []
+    // 记录每个分支本次拉取到的最大 committer date
+    const branchMaxCommitterDate: Record<string, Date> = {}
 
-    // Sync each branch
+    // Sync each branch with per-branch cursor
     for (const branch of branches) {
+      // 使用分支自己的 cursor，resync 模式下不传 since
+      const since = resync ? undefined : (branch.lastCommitTime ? new Date(branch.lastCommitTime) : undefined)
+
       const options: FetchCommitsOptions = {
         config: {
           ...source.config,
-          branch: branch || undefined,
+          branch: branch.name || undefined,
         },
-        // resync 模式下不传 since，全量拉取后靠 SHA 去重
-        since: resync ? undefined : (source.lastSyncAt || undefined),
+        since,
         until: new Date(),
       }
 
       const commits = await adapter.fetchCommits(options)
       allCommits = allCommits.concat(commits)
+
+      // 计算该分支本次拉取到的最大 committer date
+      if (commits.length > 0) {
+        const maxDate = commits.reduce((max, c) =>
+          c.committerDate > max ? c.committerDate : max,
+          commits[0].committerDate
+        )
+        branchMaxCommitterDate[branch.name] = maxDate
+      }
     }
 
     const sourceInfo = {
       repo: repoName,
-      branch: branches[0] || '',
+      branch: branches[0]?.name || '',
       sourceId: source.id,
       sourceName: source.name,
     }
@@ -112,7 +149,7 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
     )
 
     const newEvents = events.filter(e => !existingShaSet.has(e.metadata?.sha))
-    
+
     const now = new Date()
     if (newEvents.length > 0) {
       await db.insert(rawEvents).values(
@@ -123,15 +160,25 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
         }))
       )
     }
-    
+
+    // 更新分支 cursor：只更新本次拉到新 commit 的分支
+    const updatedBranches = branches.map(b => {
+      const newCursor = branchMaxCommitterDate[b.name]
+      if (newCursor) {
+        return { name: b.name, lastCommitTime: newCursor.toISOString() }
+      }
+      return { name: b.name, lastCommitTime: b.lastCommitTime }
+    })
+
     await db.update(collectSources)
       .set({
+        config: { ...source.config, branches: updatedBranches },
         lastSyncAt: now,
         lastSyncStatus: 'success',
         updatedAt: now,
       })
       .where(eq(collectSources.id, source.id))
-    
+
     return {
       sourceId: source.id,
       sourceName: source.name,

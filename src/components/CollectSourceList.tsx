@@ -18,7 +18,7 @@ interface CollectSource {
     repo: string
     token: string
     authorEmails: string[]
-    branches?: string[]
+    branches?: Array<string | { name: string; lastCommitTime?: string | null }>
   }
   enabled: boolean
   status: 'enabled' | 'disabled' | 'unavailable' | null
@@ -394,7 +394,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                 </div>
                 <CardDescription className="text-xs truncate">
                   {source.config.owner}/{source.config.repo}
-                  {source.config.branches?.length ? ` (${source.config.branches.join(', ')})` : ''}
+                  {source.config.branches?.length ? ` (${source.config.branches.map(b => typeof b === 'string' ? b : b.name).join(', ')})` : ''}
                 </CardDescription>
               </CardHeader>
               <CardContent className="pb-2">
@@ -415,6 +415,19 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                       {source.lastSyncAt ? relativeTime(source.lastSyncAt) : '未同步'}
                     </span>
                   </div>
+                  {(() => {
+                    const maxCursor = source.config.branches?.reduce((max, b) => {
+                      if (typeof b === 'object' && b.lastCommitTime) {
+                        const t = new Date(b.lastCommitTime).getTime()
+                        return t > max ? t : max
+                      }
+                      return max
+                    }, 0)
+                    if (maxCursor) {
+                      return <p className="text-[10px] text-muted-foreground/70">同步至: {new Date(maxCursor).toLocaleString()}</p>
+                    }
+                    return null
+                  })()}
                 </div>
               </CardContent>
               <CardFooter className="gap-1 pt-2 mt-auto">

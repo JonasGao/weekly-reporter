@@ -78,7 +78,7 @@ export const localGitAdapter: GitAdapter = {
     
     const args = [
       'log',
-      '--pretty=format:%H|%s|%ai|%ae|%an',
+      '--pretty=format:%H|%s|%ai|%ci|%ae|%an',
       '--no-merges',
     ]
     
@@ -104,11 +104,12 @@ export const localGitAdapter: GitAdapter = {
       
       const lines = stdout.trim().split('\n')
       const commits: GitCommit[] = lines.map(line => {
-        const [sha, message, dateStr, email, name] = line.split('|')
+        const [sha, message, authorDateStr, committerDateStr, email, name] = line.split('|')
         return {
           sha,
           message,
-          authorDate: new Date(dateStr),
+          authorDate: new Date(authorDateStr),
+          committerDate: new Date(committerDateStr),
           authorEmail: email,
           authorName: name,
           url: '',

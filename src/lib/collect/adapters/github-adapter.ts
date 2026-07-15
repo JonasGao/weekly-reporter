@@ -59,6 +59,9 @@ export const githubAdapter: GitAdapter = {
           email: string
           name: string
         }
+        committer: {
+          date: string
+        }
       }
       html_url: string
       stats?: {
@@ -67,13 +70,14 @@ export const githubAdapter: GitAdapter = {
         total: number
       }
     }>
-    
+
     return commits
       .filter(c => config.authorEmails.includes(c.commit.author.email))
       .map(c => ({
         sha: c.sha,
         message: c.commit.message,
         authorDate: new Date(c.commit.author.date),
+        committerDate: new Date(c.commit.committer.date),
         authorEmail: c.commit.author.email,
         authorName: c.commit.author.name,
         url: c.html_url,

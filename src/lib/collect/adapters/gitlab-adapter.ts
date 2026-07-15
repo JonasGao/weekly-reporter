@@ -55,17 +55,19 @@ export const gitlabAdapter: GitAdapter = {
       id: string
       message: string
       authored_date: string
+      committed_date: string
       author_email: string
       author_name: string
       web_url: string
     }>
-    
+
     return commits
       .filter(c => config.authorEmails.includes(c.author_email))
       .map(c => ({
         sha: c.id,
         message: c.message,
         authorDate: new Date(c.authored_date),
+        committerDate: new Date(c.committed_date),
         authorEmail: c.author_email,
         authorName: c.author_name,
         url: c.web_url,

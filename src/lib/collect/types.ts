@@ -4,6 +4,7 @@ export interface GitCommit {
   sha: string
   message: string
   authorDate: Date
+  committerDate: Date
   authorEmail: string
   authorName: string
   url: string

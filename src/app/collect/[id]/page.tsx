@@ -44,7 +44,9 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
           owner: data.config.owner,
           repo: data.config.repo || '',
           token: '',
-          branches: Array.isArray(data.config.branches) ? data.config.branches.join(', ') : '',
+          branches: Array.isArray(data.config.branches)
+            ? data.config.branches.map((b: string | { name: string }) => typeof b === 'string' ? b : b.name).join(', ')
+            : '',
           authorEmails: Array.isArray(data.config.authorEmails) ? data.config.authorEmails.join(',') : '',
         },
         enabled: data.enabled,

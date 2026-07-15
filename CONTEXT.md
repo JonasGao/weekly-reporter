@@ -1,5 +1,20 @@
 # Context
 
+## 采集源同步
+
+### 同步游标 (Sync Cursor)
+每个采集源的每个分支独立维护的同步进度标记。值为该分支上次同步拉取到的 commit 中最大的 **committer date**。下次同步时作为 `since` 参数传入 API，保证时间缝隙内被延迟推送的 commit 不被漏掉。
+存储位置：`collect_sources.config.branches[i].lastCommitTime`。
+_Avoid_: lastSyncAt（这是同步操作时间，不是数据游标）
+
+### Committer date vs Author date
+- **Author date**：变更最初撰写的时间。amend/rebase 不改变。用于 `eventTime`（面向用户展示「工作何时发生」）。
+- **Committer date**：commit 写入仓库的时间。amend/rebase 会更新。用于同步游标（面向 API 的数据边界）。
+_Avoid_: 混用二者。UI 展示用 author date，sync cursor 用 committer date。
+
+### 时间缝隙 (Time Gap)
+同步操作发生时间 T 与最后一个 commit 的 committer date T-Δ 之间的间隙。若以 T 作为下次 sync 的 `since`，在 T-Δ 到 T 之间被延迟推送的 commit 会被漏掉。以 committer date 作为 cursor 可消除此缝隙。
+
 ## 模态框交互
 
 ### ESC 键行为
