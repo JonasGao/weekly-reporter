@@ -51,6 +51,24 @@ export function ScanReposDialog({
       setSelectedRepos(new Set())
     }
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showSuggestions) {
+          setShowSuggestions(false)
+          setActiveIndex(-1)
+        } else {
+          onClose()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [open, showSuggestions, onClose])
   
   const [activeIndex, setActiveIndex] = useState(-1)
   
