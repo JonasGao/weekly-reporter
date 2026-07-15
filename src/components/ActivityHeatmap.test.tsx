@@ -106,11 +106,13 @@ describe('ActivityHeatmap', () => {
 
   it('should assign correct color level based on count', () => {
     const data = makeData([
-      ['2026-07-10', 0],  // level 0
-      ['2026-07-11', 1],  // level 1
-      ['2026-07-12', 4],  // level 2
-      ['2026-07-13', 8],  // level 3
-      ['2026-07-14', 15], // level 4
+      ['2026-07-08', 0],   // level 0
+      ['2026-07-09', 1],   // level 1
+      ['2026-07-10', 4],   // level 2
+      ['2026-07-11', 7],   // level 3
+      ['2026-07-12', 12],  // level 4
+      ['2026-07-13', 18],  // level 5
+      ['2026-07-14', 25],  // level 6
     ])
 
     const { container } = render(
@@ -125,5 +127,7 @@ describe('ActivityHeatmap', () => {
     expect(levels).toContain('2')
     expect(levels).toContain('3')
     expect(levels).toContain('4')
+    expect(levels).toContain('5')
+    expect(levels).toContain('6')
   })
 })

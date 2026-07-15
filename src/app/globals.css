@@ -28,6 +28,8 @@
   --color-heatmap-2: var(--color-heatmap-2);
   --color-heatmap-3: var(--color-heatmap-3);
   --color-heatmap-4: var(--color-heatmap-4);
+  --color-heatmap-5: var(--color-heatmap-5);
+  --color-heatmap-6: var(--color-heatmap-6);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -87,11 +89,13 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
   /* Heatmap color scale (GitHub-style green) */
-  --color-heatmap-0: oklch(0.94 0.01 110);
-  --color-heatmap-1: oklch(0.86 0.14 142);
-  --color-heatmap-2: oklch(0.72 0.19 142);
-  --color-heatmap-3: oklch(0.60 0.17 142);
-  --color-heatmap-4: oklch(0.43 0.13 142);
+  --color-heatmap-0: oklch(0.95 0.02 110);
+  --color-heatmap-1: oklch(0.85 0.08 142);
+  --color-heatmap-2: oklch(0.75 0.12 142);
+  --color-heatmap-3: oklch(0.65 0.16 142);
+  --color-heatmap-4: oklch(0.55 0.18 142);
+  --color-heatmap-5: oklch(0.45 0.20 142);
+  --color-heatmap-6: oklch(0.35 0.22 142);
 }
 
 .dark {
@@ -127,11 +131,13 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
   /* Heatmap color scale — dark mode (GitHub-style green) */
-  --color-heatmap-0: oklch(0.22 0.02 142);
-  --color-heatmap-1: oklch(0.33 0.10 142);
-  --color-heatmap-2: oklch(0.45 0.14 142);
-  --color-heatmap-3: oklch(0.60 0.17 142);
-  --color-heatmap-4: oklch(0.76 0.18 142);
+  --color-heatmap-0: oklch(0.25 0.02 142);
+  --color-heatmap-1: oklch(0.33 0.06 142);
+  --color-heatmap-2: oklch(0.42 0.10 142);
+  --color-heatmap-3: oklch(0.50 0.14 142);
+  --color-heatmap-4: oklch(0.58 0.16 142);
+  --color-heatmap-5: oklch(0.67 0.18 142);
+  --color-heatmap-6: oklch(0.75 0.20 142);
 }
 
 :root {
