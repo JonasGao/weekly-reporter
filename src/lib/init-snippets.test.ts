@@ -3,16 +3,16 @@ import { getDb, schema } from './db'
 import { initializeSnippets } from './init-snippets'
 import { eq } from 'drizzle-orm'
 import Database from 'better-sqlite3'
+import { DB_PATH } from './paths'
 
 describe('initializeSnippets', () => {
   beforeAll(async () => {
     // Ensure database is initialized and table exists
     const db = getDb()
-    
+
     // Manually create sentence_snippets table if it doesn't exist
     // This is necessary for tests since migrations might not have run
-    const sqlite = new Database(process.env.XDG_DATA_HOME || 
-      `${process.env.HOME}/.local/share/weekly-reporter/reports.db`)
+    const sqlite = new Database(DB_PATH)
     
     try {
       sqlite.exec(`

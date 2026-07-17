@@ -3,13 +3,13 @@ import { getDb, schema } from './db'
 import { initializeBuiltInTags } from './init-tags'
 import { eq } from 'drizzle-orm'
 import Database from 'better-sqlite3'
+import { DB_PATH } from './paths'
 
 describe('initializeBuiltInTags', () => {
   beforeAll(async () => {
     const db = getDb()
-    
-    const sqlite = new Database(process.env.XDG_DATA_HOME || 
-      `${process.env.HOME}/.local/share/weekly-reporter/reports.db`)
+
+    const sqlite = new Database(DB_PATH)
     
     try {
       sqlite.exec(`
