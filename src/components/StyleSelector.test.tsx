@@ -86,7 +86,9 @@ describe('StyleSelector', () => {
       render(<StyleSelector templateId={1} onChange={mockOnChange} />)
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith('/api/templates/1')
+        expect(mockFetch).toHaveBeenCalledWith('/api/templates/1', {
+          signal: expect.any(Object),
+        })
       })
 
       await waitFor(() => {

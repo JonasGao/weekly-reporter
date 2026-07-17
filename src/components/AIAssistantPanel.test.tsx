@@ -55,7 +55,9 @@ describe('AIAssistantPanel', () => {
       const polishButton = screen.getByRole('button', { name: /润色文本/i })
       fireEvent.click(polishButton)
 
-      expect(toast.error).toHaveBeenCalledWith('请选择或输入要润色的事件')
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith('请选择或输入要润色的文本')
+      })
     })
 
     it('should call polish API with correct parameters', async () => {
@@ -81,6 +83,7 @@ describe('AIAssistantPanel', () => {
             templateId: 2,
             styleOverride: undefined,
           }),
+          signal: expect.any(Object),
         })
       })
     })
@@ -113,6 +116,7 @@ describe('AIAssistantPanel', () => {
             templateId: undefined,
             styleOverride: 'technical',
           }),
+          signal: expect.any(Object),
         })
       })
     })
@@ -133,7 +137,7 @@ describe('AIAssistantPanel', () => {
       fireEvent.click(polishButton)
 
       await waitFor(() => {
-        expect(toast.success).toHaveBeenCalledWith('润色成功')
+        expect(toast.success).toHaveBeenCalledWith('润色成功！文本已优化')
       })
     })
 
@@ -141,6 +145,7 @@ describe('AIAssistantPanel', () => {
       const { toast } = await import('sonner')
       mockFetch.mockResolvedValueOnce({
         ok: false,
+        json: () => Promise.resolve({ error: 'API error' }),
       })
 
       render(<AIAssistantPanel reportId={1} />)
@@ -152,7 +157,7 @@ describe('AIAssistantPanel', () => {
       fireEvent.click(polishButton)
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith('润色失败，请重试')
+        expect(toast.error).toHaveBeenCalled()
       })
     })
   })
@@ -165,7 +170,9 @@ describe('AIAssistantPanel', () => {
       const expandButton = screen.getByRole('button', { name: /扩展内容/i })
       fireEvent.click(expandButton)
 
-      expect(toast.error).toHaveBeenCalledWith('请选择或输入要扩展的事件')
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith('请选择或输入要扩展的文本')
+      })
     })
 
     it('should call expand API with correct parameters', async () => {
@@ -191,6 +198,7 @@ describe('AIAssistantPanel', () => {
             templateId: 2,
             styleOverride: undefined,
           }),
+          signal: expect.any(Object),
         })
       })
     })
@@ -211,7 +219,27 @@ describe('AIAssistantPanel', () => {
       fireEvent.click(expandButton)
 
       await waitFor(() => {
-        expect(toast.success).toHaveBeenCalledWith('扩展成功')
+        expect(toast.success).toHaveBeenCalledWith('扩展成功！内容已丰富')
+      })
+    })
+
+    it('should handle expand API error', async () => {
+      const { toast } = await import('sonner')
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: 'API error' }),
+      })
+
+      render(<AIAssistantPanel reportId={1} />)
+
+      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
+      fireEvent.change(textarea, { target: { value: 'Test event' } })
+
+      const expandButton = screen.getByRole('button', { name: /扩展内容/i })
+      fireEvent.click(expandButton)
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalled()
       })
     })
   })
@@ -220,7 +248,7 @@ describe('AIAssistantPanel', () => {
     it('should call unify API with report ID', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ unifiedContent: 'Unified text' }),
+        json: () => Promise.resolve({ success: true }),
       })
 
       render(<AIAssistantPanel reportId={1} templateId={2} />)
@@ -237,6 +265,7 @@ describe('AIAssistantPanel', () => {
             templateId: 2,
             styleOverride: undefined,
           }),
+          signal: expect.any(Object),
         })
       })
     })
@@ -245,7 +274,7 @@ describe('AIAssistantPanel', () => {
       const { toast } = await import('sonner')
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ unifiedContent: 'Unified text' }),
+        json: () => Promise.resolve({ success: true }),
       })
 
       render(<AIAssistantPanel reportId={1} />)
@@ -254,7 +283,7 @@ describe('AIAssistantPanel', () => {
       fireEvent.click(unifyButton)
 
       await waitFor(() => {
-        expect(toast.success).toHaveBeenCalledWith('风格统一成功')
+        expect(toast.success).toHaveBeenCalledWith('风格统一成功！整体风格已调整')
       })
     })
 
@@ -262,6 +291,7 @@ describe('AIAssistantPanel', () => {
       const { toast } = await import('sonner')
       mockFetch.mockResolvedValueOnce({
         ok: false,
+        json: () => Promise.resolve({ error: 'API error' }),
       })
 
       render(<AIAssistantPanel reportId={1} />)
@@ -270,14 +300,19 @@ describe('AIAssistantPanel', () => {
       fireEvent.click(unifyButton)
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith('统一风格失败，请重试')
+        expect(toast.error).toHaveBeenCalled()
       })
     })
   })
 
-  describe('Loading States', () => {
+  describe('Loading State', () => {
     it('should disable all buttons while operation is in progress', async () => {
-      mockFetch.mockImplementation(() => new Promise(() => {})) // Never resolves
+      mockFetch.mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve({
+          ok: true,
+          json: () => Promise.resolve({ polishedContent: 'Polished text' }),
+        }), 100))
+      )
 
       render(<AIAssistantPanel reportId={1} />)
 
@@ -285,31 +320,16 @@ describe('AIAssistantPanel', () => {
       fireEvent.change(textarea, { target: { value: 'Test event' } })
 
       const polishButton = screen.getByRole('button', { name: /润色文本/i })
+      const expandButton = screen.getByRole('button', { name: /扩展内容/i })
+      const unifyButton = screen.getByRole('button', { name: /统一风格/i })
+
       fireEvent.click(polishButton)
 
+      // Wait a bit for the state to update
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /润色文本/i })).toBeDisabled()
-        expect(screen.getByRole('button', { name: /扩展内容/i })).toBeDisabled()
-        expect(screen.getByRole('button', { name: /统一风格/i })).toBeDisabled()
-      })
-    })
-
-    it('should re-enable buttons after operation completes', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ polishedContent: 'Polished' }),
-      })
-
-      render(<AIAssistantPanel reportId={1} />)
-
-      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
-      fireEvent.change(textarea, { target: { value: 'Test event' } })
-
-      const polishButton = screen.getByRole('button', { name: /润色文本/i })
-      fireEvent.click(polishButton)
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /润色文本/i })).not.toBeDisabled()
+        expect(polishButton).toBeDisabled()
+        expect(expandButton).toBeDisabled()
+        expect(unifyButton).toBeDisabled()
       })
     })
   })

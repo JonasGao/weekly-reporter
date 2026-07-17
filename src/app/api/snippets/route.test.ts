@@ -1,49 +1,37 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { GET, POST } from './route'
 
-// Mock getDb with proper chainable query builder
-vi.mock('@/lib/db', () => {
-  const createMockChain = () => {
-    const mockWhere = vi.fn()
-    const mockFromResult = {
-      where: mockWhere,
-    }
-    const mockFrom = vi.fn().mockReturnValue(mockFromResult)
-    const mockSelect = vi.fn().mockReturnValue({
-      from: mockFrom,
-    })
-    
-    const mockReturning = vi.fn()
-    const mockValuesResult = {
-      returning: mockReturning,
-    }
-    const mockValues = vi.fn().mockReturnValue(mockValuesResult)
-    const mockInsert = vi.fn().mockReturnValue({
-      values: mockValues,
-    })
+// Mock database instance that persists across calls
+const mockDb = {
+  select: vi.fn(),
+  from: vi.fn(),
+  where: vi.fn(),
+  insert: vi.fn(),
+  values: vi.fn(),
+  returning: vi.fn(),
+}
 
-    return {
-      select: mockSelect,
-      from: mockFrom,
-      where: mockWhere,
-      insert: mockInsert,
-      values: mockValues,
-      returning: mockReturning,
-    }
-  }
-
-  return {
-    getDb: vi.fn(() => createMockChain()),
-  }
-})
+// Mock getDb to return the same instance
+vi.mock('@/lib/db', () => ({
+  getDb: vi.fn(() => mockDb),
+}))
 
 describe('/api/snippets', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-  })
 
-  afterEach(() => {
-    vi.restoreAllMocks()
+    // Set up default chain behavior
+    // GET chain: db.select().from().where()
+    const mockFromResult = { where: mockDb.where }
+    mockDb.from.mockReturnValue(mockFromResult)
+    const mockSelectResult = { from: mockDb.from }
+    mockDb.select.mockReturnValue(mockSelectResult)
+
+    // POST chain: db.insert().values().returning()
+    const mockValuesResult = { returning: mockDb.returning }
+    mockDb.values.mockReturnValue(mockValuesResult)
+    const mockInsertResult = { values: mockDb.values }
+    mockDb.insert.mockReturnValue(mockInsertResult)
   })
 
   describe('GET', () => {
@@ -63,10 +51,8 @@ describe('/api/snippets', () => {
         },
       ]
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      // Mock the from() call to resolve with all snippets (no filtering)
-      db.from.mockResolvedValueOnce(mockSnippets)
+      // Mock from() to resolve with all snippets
+      mockDb.from.mockResolvedValueOnce(mockSnippets)
 
       const request = new Request('http://localhost/api/snippets')
       const response = await GET(request)
@@ -88,11 +74,8 @@ describe('/api/snippets', () => {
         },
       ]
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      
-      // Mock the where clause for category filtering
-      db.where.mockResolvedValueOnce(mockSnippets)
+      // Mock where() to resolve with filtered snippets
+      mockDb.where.mockResolvedValueOnce(mockSnippets)
 
       const request = new Request('http://localhost/api/snippets?category=工作进展')
       const response = await GET(request)
@@ -104,9 +87,7 @@ describe('/api/snippets', () => {
     })
 
     it('should handle database error', async () => {
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.from.mockRejectedValueOnce(new Error('Database error'))
+      mockDb.from.mockRejectedValueOnce(new Error('Database error'))
 
       const request = new Request('http://localhost/api/snippets')
       const response = await GET(request)
@@ -127,9 +108,7 @@ describe('/api/snippets', () => {
         isBuiltIn: false,
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.returning.mockResolvedValueOnce([mockSnippet])
+      mockDb.returning.mockResolvedValueOnce([mockSnippet])
 
       const request = new Request('http://localhost/api/snippets', {
         method: 'POST',
@@ -154,9 +133,7 @@ describe('/api/snippets', () => {
         isBuiltIn: false,
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.returning.mockResolvedValueOnce([mockSnippet])
+      mockDb.returning.mockResolvedValueOnce([mockSnippet])
 
       const request = new Request('http://localhost/api/snippets', {
         method: 'POST',
@@ -219,9 +196,7 @@ describe('/api/snippets', () => {
     })
 
     it('should handle database error during creation', async () => {
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.returning.mockRejectedValueOnce(new Error('Database error'))
+      mockDb.returning.mockRejectedValueOnce(new Error('Database error'))
 
       const request = new Request('http://localhost/api/snippets', {
         method: 'POST',
@@ -245,9 +220,7 @@ describe('/api/snippets', () => {
         isBuiltIn: false,
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.returning.mockResolvedValueOnce([mockSnippet])
+      mockDb.returning.mockResolvedValueOnce([mockSnippet])
 
       const request = new Request('http://localhost/api/snippets', {
         method: 'POST',
