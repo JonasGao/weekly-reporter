@@ -70,6 +70,27 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
       error: source.status === 'disabled' ? '采集源已禁用' : '采集源不可用',
     }
   }
+
+  // 检查邮箱配置：没有邮箱时标记为不可用
+  const hasEmails = source.config?.authorEmails && source.config.authorEmails.length > 0
+  if (!hasEmails) {
+    await db.update(collectSources)
+      .set({
+        status: 'unavailable',
+        updatedAt: new Date(),
+      })
+      .where(eq(collectSources.id, source.id))
+
+    return {
+      sourceId: source.id,
+      sourceName: source.name,
+      status: 'failed',
+      commitsCount: 0,
+      eventsCount: 0,
+      error: '未配置邮箱',
+      autoDisabled: true,
+    }
+  }
   
   const adapter = getAdapter(source.type)
   if (!adapter) {

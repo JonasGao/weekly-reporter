@@ -96,8 +96,15 @@ export async function POST(request: Request) {
     }
 
     const now = new Date()
+    // 没有配置邮箱时，状态自动设为 unavailable
+    const hasEmails = validated.config?.authorEmails && validated.config.authorEmails.length > 0
+    const initialStatus = hasEmails
+      ? (validated.enabled === false ? 'disabled' : 'enabled')
+      : 'unavailable'
+
     const result = await db.insert(collectSources).values({
       ...validated,
+      status: initialStatus,
       createdAt: now,
       updatedAt: now,
     }).returning()

@@ -93,9 +93,16 @@ export async function PUT(
       }
     }
 
+    // 检查邮箱配置：如果没有邮箱，状态自动设为 unavailable
+    const hasEmails = validated.config?.authorEmails && validated.config.authorEmails.length > 0
+    const newStatus = hasEmails
+      ? (validated.enabled === false ? 'disabled' : 'enabled')
+      : 'unavailable'
+
     const result = await db.update(collectSources)
       .set({
         ...validated,
+        status: newStatus,
         updatedAt: new Date(),
       })
       .where(eq(collectSources.id, sourceId))
