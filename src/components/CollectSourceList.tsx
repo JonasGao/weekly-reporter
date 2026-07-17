@@ -126,6 +126,21 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
+  function getSourceTypeLabel(type: string): string {
+    switch (type) {
+      case 'git-remote-github':
+        return 'GitHub'
+      case 'git-remote-gitlab':
+        return 'GitLab'
+      case 'git-remote-gitee':
+        return 'Gitee'
+      case 'git-local':
+        return '本地'
+      default:
+        return type
+    }
+  }
+
   function relativeTime(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime()
     const mins = Math.floor(diff / 60000)
@@ -398,6 +413,9 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                   {source.config.owner}/{source.config.repo}
                   {source.config.branches?.length ? ` (${source.config.branches.map(b => typeof b === 'string' ? b : b.name).join(', ')})` : ''}
                 </CardDescription>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-1 w-fit">
+                  {getSourceTypeLabel(source.type)}
+                </Badge>
                 {source.config.aliases && source.config.aliases.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {source.config.aliases.map((alias, idx) => (
