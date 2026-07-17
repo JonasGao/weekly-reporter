@@ -17,6 +17,12 @@ const createMockChain = () => {
   const mockValuesResult = { returning: mockReturning }
   const mockValues = vi.fn().mockReturnValue(mockValuesResult)
   const mockInsert = vi.fn().mockReturnValue({ values: mockValues })
+  const mockFindMany = vi.fn().mockResolvedValue([])
+  const mockQuery = {
+    collectSources: {
+      findMany: mockFindMany,
+    },
+  }
 
   return {
     select: mockSelect,
@@ -28,6 +34,7 @@ const createMockChain = () => {
     insert: mockInsert,
     values: mockValues,
     returning: mockReturning,
+    query: mockQuery,
   }
 }
 

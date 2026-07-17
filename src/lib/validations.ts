@@ -47,6 +47,7 @@ export type CloneTemplateInput = z.infer<typeof cloneTemplateSchema>
 export const collectSourceSchema = z.object({
   type: z.enum(['git-remote-github', 'git-remote-gitlab', 'git-remote-gitee', 'git-local']),
   name: z.string().min(1, '采集源名称不能为空').max(100),
+  aliases: z.array(z.string().min(1).max(100)).max(20).optional(),
   config: z.object({
     baseUrl: z.string().optional(),
     owner: z.string().min(1, '路径或 owner 不能为空'),

@@ -54,28 +54,45 @@ export async function PUT(
     const db = getDb()
     const { id } = await params
     const sourceId = parseInt(id)
-    
+
     if (isNaN(sourceId)) {
       return NextResponse.json(
         { error: '无效的采集源ID', code: 'INVALID_ID' },
         { status: 400 }
       )
     }
-    
+
     const body = await request.json()
     const validated = collectSourceSchema.parse(body)
-    
+
     const existing = await db.query.collectSources.findFirst({
       where: eq(collectSources.id, sourceId),
     })
-    
+
     if (!existing) {
       return NextResponse.json(
         { error: '采集源不存在', code: 'NOT_FOUND' },
         { status: 404 }
       )
     }
-    
+
+    // Check alias uniqueness across all sources (excluding current source's own aliases)
+    if (validated.aliases && validated.aliases.length > 0) {
+      const allSources = await db.query.collectSources.findMany()
+      const existingAliases = new Set(
+        allSources
+          .filter(s => s.id !== sourceId) // exclude current source
+          .flatMap(s => (s.config.aliases as string[]) || [])
+      )
+      const duplicates = validated.aliases.filter(a => existingAliases.has(a))
+      if (duplicates.length > 0) {
+        return NextResponse.json(
+          { error: `别名已被使用: ${duplicates.join(', ')}`, code: 'DUPLICATE_ALIAS' },
+          { status: 400 }
+        )
+      }
+    }
+
     const result = await db.update(collectSources)
       .set({
         ...validated,
@@ -83,7 +100,7 @@ export async function PUT(
       })
       .where(eq(collectSources.id, sourceId))
       .returning()
-    
+
     return NextResponse.json({
       ...result[0],
       config: {

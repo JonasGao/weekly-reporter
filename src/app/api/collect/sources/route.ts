@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { desc, isNull } from 'drizzle-orm'
+import { desc, isNull, or, sql } from 'drizzle-orm'
 import { like, and, eq } from 'drizzle-orm'
 import { collectSources } from '@/lib/db/schema'
 import { collectSourceSchema } from '@/lib/validations'
@@ -19,7 +19,13 @@ export async function GET(request: Request) {
 
     const conditions = []
     if (name) {
-      conditions.push(like(collectSources.name, `%${name}%`))
+      // Search in both name and aliases
+      conditions.push(
+        or(
+          like(collectSources.name, `%${name}%`),
+          sql`EXISTS (SELECT 1 FROM json_each(${collectSources.config}, '$.aliases') WHERE json_each.value LIKE ${`%${name}%`})`
+        )
+      )
     }
     if (syncStatus === 'success' || syncStatus === 'failure') {
       conditions.push(eq(collectSources.lastSyncStatus, syncStatus))
@@ -67,16 +73,31 @@ export async function POST(request: Request) {
   try {
     const db = getDb()
     const body = await request.json()
-    
+
     const validated = collectSourceSchema.parse(body)
-    
+
+    // Check alias uniqueness across all sources
+    if (validated.aliases && validated.aliases.length > 0) {
+      const allSources = await db.query.collectSources.findMany()
+      const existingAliases = new Set(
+        allSources.flatMap(s => (s.config.aliases as string[]) || [])
+      )
+      const duplicates = validated.aliases.filter(a => existingAliases.has(a))
+      if (duplicates.length > 0) {
+        return NextResponse.json(
+          { error: `别名已被使用: ${duplicates.join(', ')}`, code: 'DUPLICATE_ALIAS' },
+          { status: 400 }
+        )
+      }
+    }
+
     const now = new Date()
     const result = await db.insert(collectSources).values({
       ...validated,
       createdAt: now,
       updatedAt: now,
     }).returning()
-    
+
     return NextResponse.json({
       ...result[0],
       config: {

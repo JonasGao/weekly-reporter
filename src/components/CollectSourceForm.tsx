@@ -9,10 +9,12 @@ import { toast } from 'sonner'
 import { UserCircle } from 'lucide-react'
 import { AuthorEmailPicker } from './AuthorEmailPicker'
 import { AutoCompleteInput } from './AutoCompleteInput'
+import { TagInput } from './TagInput'
 
 export interface FormData {
   type: 'git-remote-github' | 'git-remote-gitlab' | 'git-remote-gitee' | 'git-local'
   name: string
+  aliases: string[]
   config: {
     baseUrl: string
     owner: string
@@ -34,6 +36,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
     initialData || {
       type: 'git-remote-github',
       name: '',
+      aliases: [],
       config: {
         baseUrl: '',
         owner: '',
@@ -120,6 +123,10 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
     }))
   }
 
+  function handleAliasesChange(aliases: string[]) {
+    setFormData(prev => ({ ...prev, aliases }))
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -127,6 +134,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
     const submitData = {
       type: formData.type,
       name: formData.name,
+      aliases: formData.aliases,
       config: isLocal(formData.type)
         ? {
           owner: formData.config.owner,
@@ -189,6 +197,18 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="aliases">别名</Label>
+            <TagInput
+              value={formData.aliases}
+              onChange={handleAliasesChange}
+              placeholder="例如：后端服务, API平台"
+            />
+            <p className="text-xs text-muted-foreground">
+              帮助 AI 识别这个项目，别名会显示在事件中
+            </p>
           </div>
 
           <div className="space-y-2">

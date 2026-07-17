@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { desc, eq, between, sql } from 'drizzle-orm'
-import { rawEvents } from '@/lib/db/schema'
+import { rawEvents, collectSources } from '@/lib/db/schema'
 import { parseTags } from '@/lib/tags/parser'
 import { mapTagsToSectionType } from '@/lib/tags/mapper'
 
@@ -73,8 +73,27 @@ export async function GET(request: Request) {
       .orderBy(desc(rawEvents.eventTime))
       .limit(limit + 1)
 
+    // Fetch all sources to get aliases
+    const allSources = await db.query.collectSources.findMany()
+    const sourceAliasesMap = new Map(
+      allSources.map(s => [s.id, (s.config.aliases as string[]) || []])
+    )
+
+    // Append aliases to events
+    const eventsWithAliases = events.map(event => {
+      const sourceId = event.metadata?.sourceId
+      const aliases = sourceId ? sourceAliasesMap.get(sourceId) || [] : []
+      return {
+        ...event,
+        metadata: {
+          ...event.metadata,
+          aliases,
+        },
+      }
+    })
+
     const hasMore = events.length > limit
-    const page = events.slice(0, limit)
+    const page = eventsWithAliases.slice(0, limit)
     const last = page[page.length - 1]
     const nextCursor = last ? { id: last.id, eventTime: last.eventTime.getTime() } : null
 

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { RefreshCw, Trash2, Edit, Plus, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -19,6 +20,7 @@ interface CollectSource {
     token: string
     authorEmails: string[]
     branches?: Array<string | { name: string; lastCommitTime?: string | null }>
+    aliases?: string[]
   }
   enabled: boolean
   status: 'enabled' | 'disabled' | 'unavailable' | null
@@ -396,6 +398,15 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                   {source.config.owner}/{source.config.repo}
                   {source.config.branches?.length ? ` (${source.config.branches.map(b => typeof b === 'string' ? b : b.name).join(', ')})` : ''}
                 </CardDescription>
+                {source.config.aliases && source.config.aliases.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {source.config.aliases.map((alias, idx) => (
+                      <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0">
+                        {alias}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="pb-2">
                 <div className="text-xs text-muted-foreground space-y-1">

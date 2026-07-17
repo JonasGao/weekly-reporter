@@ -385,7 +385,15 @@ export function EventCard({ event, onEdit, onDelete, onTagClick }: EventCardProp
               {event.metadata?.sourceName && (
                 <>
                   <span className="text-muted-foreground/50">·</span>
-                  <span>{event.metadata.sourceName}</span>
+                  <span
+                    title={
+                      event.metadata?.aliases && event.metadata.aliases.length > 0
+                        ? `别名: ${event.metadata.aliases.join(', ')}`
+                        : undefined
+                    }
+                  >
+                    {event.metadata.sourceName}
+                  </span>
                 </>
               )}
             </div>
