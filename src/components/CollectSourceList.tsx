@@ -411,7 +411,12 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                 </div>
                 <CardDescription className="text-xs truncate">
                   {source.config.owner}/{source.config.repo}
-                  {source.config.branches?.length ? ` (${source.config.branches.map(b => typeof b === 'string' ? b : b.name).join(', ')})` : ''}
+                  {(() => {
+                    const branchNames = source.config.branches
+                      ?.map(b => typeof b === 'string' ? b : b.name)
+                      .filter(Boolean) || []
+                    return branchNames.length > 0 ? ` (${branchNames.join(', ')})` : ''
+                  })()}
                 </CardDescription>
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-1 w-fit">
                   {getSourceTypeLabel(source.type)}
