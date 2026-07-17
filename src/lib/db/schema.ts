@@ -83,6 +83,7 @@ export interface CollectSourceConfig {
   token?: string
   authorEmails: string[]
   branches?: Array<string | { name: string; lastCommitTime?: string | null }>
+  aliases?: string[]
 }
 
 export type CollectSourceStatus = 'enabled' | 'disabled' | 'unavailable'
@@ -110,6 +111,7 @@ export interface RawEventMetadata {
   branch?: string
   sourceId?: number
   sourceName?: string
+  aliases?: string[]
 }
 
 export const rawEvents = sqliteTable('raw_events', {
