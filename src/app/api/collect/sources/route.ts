@@ -12,12 +12,16 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
     const name = searchParams.get('name') || ''
+    const type = searchParams.get('type') || ''
     const syncStatus = searchParams.get('syncStatus') || ''
     const sourceStatus = searchParams.get('sourceStatus') || ''
 
     const offset = (page - 1) * pageSize
 
     const conditions = []
+    if (type) {
+      conditions.push(eq(collectSources.type, type))
+    }
     if (name) {
       // Search in both name and aliases
       conditions.push(

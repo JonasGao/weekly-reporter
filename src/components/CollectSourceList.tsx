@@ -59,6 +59,12 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     }
     return ''
   })
+  const [typeFilter, setTypeFilter] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('sourceType') || ''
+    }
+    return ''
+  })
   const [syncingIds, setSyncingIds] = useState<Set<number>>(new Set())
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set())
   const pageSize = 12
@@ -80,6 +86,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       setLoading(true)
       const params = new URLSearchParams({ page: String(p), pageSize: String(pageSize) })
       if (searchTerm) params.set('name', searchTerm)
+      if (typeFilter) params.set('type', typeFilter)
       if (syncStatusFilter) params.set('syncStatus', syncStatusFilter)
       if (sourceStatusFilter) params.set('sourceStatus', sourceStatusFilter)
       const res = await fetch(`/api/collect/sources?${params}`)
@@ -98,7 +105,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     } finally {
       setLoading(false)
     }
-  }, [page, searchTerm, syncStatusFilter, sourceStatusFilter])
+  }, [page, searchTerm, syncStatusFilter, sourceStatusFilter, typeFilter])
 
   const fetchSourcesRef = useRef(fetchSources)
 
@@ -280,6 +287,39 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             </button>
           )}
         </div>
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="类型筛选">
+          {[
+            { value: '', label: '全部' },
+            { value: 'git-remote-github', label: 'GitHub' },
+            { value: 'git-remote-gitlab', label: 'GitLab' },
+            { value: 'git-remote-gitee', label: 'Gitee' },
+            { value: 'git-local', label: '本地' },
+          ].map(option => (
+            <label
+              key={option.value}
+              className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md cursor-pointer transition-colors ${
+                typeFilter === option.value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <input
+                type="radio"
+                name="sourceType"
+                value={option.value}
+                checked={typeFilter === option.value}
+                onChange={e => {
+                  const val = e.target.value
+                  setTypeFilter(val)
+                  sessionStorage.setItem('sourceType', val)
+                  setPage(prev => prev !== 1 ? 1 : prev)
+                }}
+                className="sr-only"
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
         <div className="flex items-center gap-1" role="radiogroup" aria-label="同步状态筛选">
           {[
             { value: '', label: '全部' },
@@ -344,7 +384,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             </label>
           ))}
         </div>
-        {(searchTerm || syncStatusFilter || sourceStatusFilter) && (
+        {(searchTerm || typeFilter || syncStatusFilter || sourceStatusFilter) && (
           <span className="text-xs text-muted-foreground">
             找到 {total} 个结果
           </span>
@@ -352,7 +392,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       </div>
 
       {total === 0 && !loading ? (
-        !searchTerm && !syncStatusFilter ? (
+        !searchTerm && !typeFilter && !syncStatusFilter && !sourceStatusFilter ? (
           <Card>
             <CardContent className="py-8 text-center">
               <p className="text-muted-foreground mb-4">暂无采集源</p>
@@ -366,12 +406,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
           </Card>
         ) : (
           <div className="text-center py-12 text-muted-foreground text-sm">
-            {searchTerm && syncStatusFilter
-              ? <>未找到匹配「{searchTerm}」且状态为「{syncStatusFilter === 'success' ? '成功' : syncStatusFilter === 'failure' ? '失败' : '未同步'}」的采集源</>
-              : searchTerm
-              ? <>未找到匹配「{searchTerm}」的采集源</>
-              : <>未找到状态为「{syncStatusFilter === 'success' ? '成功' : syncStatusFilter === 'failure' ? '失败' : '未同步'}」的采集源</>
-            }
+            没有找到
           </div>
         )
       ) : (
