@@ -142,3 +142,20 @@ export const sentenceSnippets = sqliteTable('sentence_snippets', {
 
 export type SentenceSnippet = typeof sentenceSnippets.$inferSelect
 export type NewSentenceSnippet = typeof sentenceSnippets.$inferInsert
+
+export type AIProtocol = 'openai' | 'anthropic'
+
+export const aiConfig = sqliteTable('ai_config', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  protocol: text('protocol').notNull().default('openai').$type<AIProtocol>(),
+  apiUrl: text('api_url').notNull(),
+  apiKey: text('api_key').notNull(),
+  model: text('model').notNull(),
+  modelListCache: text('model_list_cache', { mode: 'json' }).$type<string[]>(),
+  modelListCachedAt: integer('model_list_cached_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
+export type AIConfig = typeof aiConfig.$inferSelect
+export type NewAIConfig = typeof aiConfig.$inferInsert

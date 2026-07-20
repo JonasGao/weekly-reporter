@@ -15,6 +15,20 @@ _Avoid_: 混用二者。UI 展示用 author date，sync cursor 用 committer dat
 ### 时间缝隙 (Time Gap)
 同步操作发生时间 T 与最后一个 commit 的 committer date T-Δ 之间的间隙。若以 T 作为下次 sync 的 `since`，在 T-Δ 到 T 之间被延迟推送的 commit 会被漏掉。以 committer date 作为 cursor 可消除此缝隙。
 
+## AI 集成
+
+### 协议格式 (Protocol Format)
+AI 服务使用的通信协议。两种：**OpenAI-compatible**（chat completions 格式，Qwen/DeepSeek 等兼容）和 **Anthropic**（messages 格式）。决定底层 SDK 选择和请求构造方式。
+_Avoid_: provider（这是品牌概念，这里指的是协议格式）
+
+### AI 配置 (AI Configuration)
+全局唯一的 AI 服务连接配置，存储在数据库中。包含：协议格式、API URL、API Key、当前模型名。单用户应用，不做加密。环境变量不参与配置——完全由数据库驱动。
+_Avoid_: AI settings, AI params, .env 配置
+
+### 模型列表拉取 (Model List Fetching)
+OpenAI 协议下通过 `GET /models` 端点自动获取可用模型列表供用户选择。拉取失败时回退为手动输入。Anthropic 协议无此端点，始终手动输入模型名。
+_Avoid_: model discovery, model enumeration
+
 ## 模态框交互
 
 ### ESC 键行为

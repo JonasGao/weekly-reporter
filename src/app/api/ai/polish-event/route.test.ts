@@ -2,23 +2,33 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { POST } from './route'
 import { getStyleFromTemplate } from '@/lib/ai/style-helpers'
 import { getAIStyle } from '@/lib/ai/styles'
+import * as ai from '@/lib/ai'
+import { AIConfigError } from '@/lib/ai/provider'
 
-// Mock dependencies
 vi.mock('@/lib/ai/style-helpers', () => ({
-  getStyleFromTemplate: vi.fn(),
+  getStyleFromTemplate: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
 }))
 
 vi.mock('@/lib/ai/styles', () => ({
-  getAIStyle: vi.fn(),
+  getAIStyle: vi.fn<(...args: unknown[]) => unknown>(),
 }))
 
-vi.mock('@/lib/ai/openai', () => ({
-  callOpenAI: vi.fn(),
+vi.mock('@/lib/ai', () => ({
+  polishEvent: vi.fn<(...args: unknown[]) => Promise<string>>(),
 }))
+
+const mockStyleConfig = {
+  systemPrompt: 'Test prompt',
+  temperature: 0.7,
+  label: '测试风格',
+  scoreWeights: { structure: 0.25, content: 0.3, value: 0.45 },
+}
 
 describe('/api/ai/polish-event', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    ;(getAIStyle as ReturnType<typeof vi.fn>).mockReturnValue(mockStyleConfig)
+    ;(ai.polishEvent as ReturnType<typeof vi.fn>).mockResolvedValue('润色后的内容')
   })
 
   describe('Input Validation', () => {
@@ -70,12 +80,7 @@ describe('/api/ai/polish-event', () => {
 
   describe('Style Configuration', () => {
     it('should use style from template when templateId is provided', async () => {
-      const mockStyleConfig = {
-        systemPrompt: 'Test prompt',
-        temperature: 0.7,
-        label: '测试风格',
-      }
-      ;(getStyleFromTemplate as any).mockResolvedValueOnce(mockStyleConfig)
+      ;(getStyleFromTemplate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockStyleConfig)
 
       const request = new Request('http://localhost/api/ai/polish-event', {
         method: 'POST',
@@ -95,12 +100,8 @@ describe('/api/ai/polish-event', () => {
     })
 
     it('should use styleOverride when provided', async () => {
-      const mockStyleConfig = {
-        systemPrompt: 'Technical prompt',
-        temperature: 0.5,
-        label: '技术研发',
-      }
-      ;(getAIStyle as any).mockReturnValue(mockStyleConfig)
+      const techStyle = { ...mockStyleConfig, label: '技术研发' }
+      ;(getAIStyle as ReturnType<typeof vi.fn>).mockReturnValue(techStyle)
 
       const request = new Request('http://localhost/api/ai/polish-event', {
         method: 'POST',
@@ -120,12 +121,8 @@ describe('/api/ai/polish-event', () => {
     })
 
     it('should prioritize styleOverride over templateId', async () => {
-      const mockStyleConfig = {
-        systemPrompt: 'Concise prompt',
-        temperature: 0.3,
-        label: '极简干练',
-      }
-      ;(getAIStyle as any).mockReturnValue(mockStyleConfig)
+      const conciseStyle = { ...mockStyleConfig, label: '极简干练' }
+      ;(getAIStyle as ReturnType<typeof vi.fn>).mockReturnValue(conciseStyle)
 
       const request = new Request('http://localhost/api/ai/polish-event', {
         method: 'POST',
@@ -147,13 +144,6 @@ describe('/api/ai/polish-event', () => {
     })
 
     it('should use default style when no style is specified', async () => {
-      const mockStyleConfig = {
-        systemPrompt: 'Default prompt',
-        temperature: 0.8,
-        label: '正式汇报',
-      }
-      ;(getAIStyle as any).mockReturnValue(mockStyleConfig)
-
       const request = new Request('http://localhost/api/ai/polish-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,19 +157,12 @@ describe('/api/ai/polish-event', () => {
 
       expect(response.status).toBe(200)
       expect(getAIStyle).toHaveBeenCalledWith()
-      expect(data.style).toBe('正式汇报')
+      expect(data.style).toBe('测试风格')
     })
   })
 
   describe('Polish Operation', () => {
     it('should return polished content successfully', async () => {
-      const mockStyleConfig = {
-        systemPrompt: 'Test prompt',
-        temperature: 0.7,
-        label: '测试风格',
-      }
-      ;(getAIStyle as any).mockReturnValue(mockStyleConfig)
-
       const request = new Request('http://localhost/api/ai/polish-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -197,16 +180,9 @@ describe('/api/ai/polish-event', () => {
       expect(data.message).toBe('事件润色成功')
     })
 
-    it('should handle polish errors gracefully', async () => {
-      const mockStyleConfig = {
-        systemPrompt: 'Test prompt',
-        temperature: 0.7,
-        label: '测试风格',
-      }
-      ;(getAIStyle as any).mockReturnValue(mockStyleConfig)
+    it('should return AI_NOT_CONFIGURED when AI is not configured', async () => {
+      ;(ai.polishEvent as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new AIConfigError('AI_API_KEY 未配置'))
 
-      // The current implementation has a placeholder that always succeeds
-      // In the future, when OpenAI integration is added, we should test error cases
       const request = new Request('http://localhost/api/ai/polish-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -218,8 +194,8 @@ describe('/api/ai/polish-event', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      expect(response.status).toBe(200)
-      expect(data.polishedContent).toContain('Test content')
+      expect(response.status).toBe(400)
+      expect(data.code).toBe('AI_NOT_CONFIGURED')
     })
   })
 
@@ -240,7 +216,7 @@ describe('/api/ai/polish-event', () => {
     })
 
     it('should handle style fetch errors', async () => {
-      ;(getStyleFromTemplate as any).mockRejectedValueOnce(new Error('Database error'))
+      ;(getStyleFromTemplate as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Database error'))
 
       const request = new Request('http://localhost/api/ai/polish-event', {
         method: 'POST',

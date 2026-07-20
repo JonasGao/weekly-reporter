@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Clock, FileText, Tag, FileStack, Cloud, BookOpen } from 'lucide-react'
 import { ThemeSwitcher } from './ThemeSwitcher'
-import { FontSettingsButton } from './FontSettings'
+import { SettingsButton } from './Settings'
 
 const NAV_ITEMS = [
   { href: '/', label: '时间线', icon: Clock },
@@ -42,7 +42,7 @@ export function Navigation() {
           })}
 
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-            <FontSettingsButton />
+            <SettingsButton />
             <ThemeSwitcher />
             <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground max-[720px]:hidden">
               <BookOpen className="h-4 w-4" />

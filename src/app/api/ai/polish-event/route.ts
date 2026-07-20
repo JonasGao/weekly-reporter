@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getStyleFromTemplate } from '@/lib/ai/style-helpers'
 import { getAIStyle } from '@/lib/ai/styles'
+import { polishEvent } from '@/lib/ai'
+import { AIConfigError } from '@/lib/ai/provider'
 import type { AIStyle } from '@/lib/db/schema'
 
 interface PolishEventRequest {
@@ -9,25 +11,10 @@ interface PolishEventRequest {
   styleOverride?: AIStyle
 }
 
-/**
- * Placeholder function for OpenAI polish API call
- * Will be replaced with real OpenAI integration later
- */
-async function callOpenAIForPolish(
-  content: string,
-  systemPrompt: string,
-  temperature: number
-): Promise<string> {
-  // TODO: Implement real OpenAI API call
-  // For now, return a placeholder response
-  return `[润色后] ${content}`
-}
-
 export async function POST(request: Request) {
   try {
     const body: PolishEventRequest = await request.json()
-    
-    // Validate required fields
+
     if (!body.eventContent || typeof body.eventContent !== 'string') {
       return NextResponse.json(
         { error: '事件内容不能为空', code: 'INVALID_INPUT' },
@@ -35,19 +22,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get style configuration
-    // Priority: styleOverride (explicit user choice) > templateId > default
     let styleConfig
     if (body.styleOverride) {
       styleConfig = getAIStyle(body.styleOverride)
     } else if (body.templateId) {
       styleConfig = await getStyleFromTemplate(body.templateId)
     } else {
-      styleConfig = getAIStyle() // Default style
+      styleConfig = getAIStyle()
     }
 
-    // Call OpenAI API for polishing
-    const polishedContent = await callOpenAIForPolish(
+    const polishedContent = await polishEvent(
       body.eventContent,
       styleConfig.systemPrompt,
       styleConfig.temperature
@@ -60,6 +44,12 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('POST /api/ai/polish-event error:', error)
+    if (error instanceof AIConfigError) {
+      return NextResponse.json(
+        { error: error.message, code: 'AI_NOT_CONFIGURED' },
+        { status: 400 }
+      )
+    }
     return NextResponse.json(
       { error: '事件润色失败', code: 'POLISH_ERROR', details: String(error) },
       { status: 500 }

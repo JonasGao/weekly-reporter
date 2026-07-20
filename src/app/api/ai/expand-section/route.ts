@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getStyleFromTemplate } from '@/lib/ai/style-helpers'
 import { getAIStyle } from '@/lib/ai/styles'
+import { expandSection } from '@/lib/ai'
+import { AIConfigError } from '@/lib/ai/provider'
 import type { AIStyle } from '@/lib/db/schema'
 
 interface ExpandSectionRequest {
@@ -11,43 +13,10 @@ interface ExpandSectionRequest {
   styleOverride?: AIStyle
 }
 
-interface ExpandedItem {
-  content: string
-  source: 'existing' | 'generated'
-}
-
-/**
- * Placeholder function for OpenAI expand API call
- * Will be replaced with real OpenAI integration later
- */
-async function callOpenAIForExpand(
-  sectionTitle: string,
-  existingItems: string[],
-  events: string[],
-  systemPrompt: string,
-  temperature: number
-): Promise<ExpandedItem[]> {
-  // TODO: Implement real OpenAI API call
-  // For now, return placeholder items
-  const results: ExpandedItem[] = existingItems.map(item => ({
-    content: item,
-    source: 'existing' as const,
-  }))
-  
-  // Add a placeholder generated item
-  results.push({
-    content: `[AI生成] 基于 ${events.length} 个事件的新条目`,
-    source: 'generated' as const,
-  })
-  
-  return results
-}
-
 export async function POST(request: Request) {
   try {
     const body: ExpandSectionRequest = await request.json()
-    
-    // Validate required fields
+
     if (!body.sectionTitle || typeof body.sectionTitle !== 'string') {
       return NextResponse.json(
         { error: '章节标题不能为空', code: 'INVALID_INPUT' },
@@ -69,18 +38,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get style configuration
     let styleConfig
     if (body.templateId) {
       styleConfig = await getStyleFromTemplate(body.templateId)
     } else if (body.styleOverride) {
       styleConfig = getAIStyle(body.styleOverride)
     } else {
-      styleConfig = getAIStyle() // Default style
+      styleConfig = getAIStyle()
     }
 
-    // Call OpenAI API for expansion
-    const expandedItems = await callOpenAIForExpand(
+    const expandedItems = await expandSection(
       body.sectionTitle,
       body.existingItems,
       body.events,
@@ -88,7 +55,6 @@ export async function POST(request: Request) {
       styleConfig.temperature
     )
 
-    // Count added items
     const addedCount = expandedItems.filter(item => item.source === 'generated').length
 
     return NextResponse.json({
@@ -98,6 +64,12 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('POST /api/ai/expand-section error:', error)
+    if (error instanceof AIConfigError) {
+      return NextResponse.json(
+        { error: error.message, code: 'AI_NOT_CONFIGURED' },
+        { status: 400 }
+      )
+    }
     return NextResponse.json(
       { error: '章节扩展失败', code: 'EXPAND_ERROR', details: String(error) },
       { status: 500 }
