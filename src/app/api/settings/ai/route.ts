@@ -16,7 +16,7 @@ export async function GET() {
       configured: true,
       protocol: config.protocol,
       apiUrl: config.apiUrl,
-      apiKey: config.apiKey ? '••••••••' + (config.apiKey.length > 4 ? config.apiKey.slice(-4) : '****') : '',
+      apiKeyConfigured: !!config.apiKey,
       model: config.model,
       modelListCache: config.modelListCache,
       modelListCachedAt: config.modelListCachedAt,
@@ -84,7 +84,7 @@ export async function PUT(request: Request) {
       configured: true,
       protocol: saved.protocol,
       apiUrl: saved.apiUrl,
-      apiKey: saved.apiKey ? '••••••••' + (saved.apiKey.length > 4 ? saved.apiKey.slice(-4) : '****') : '',
+      apiKeyConfigured: !!saved.apiKey,
       model: saved.model,
     })
   } catch (error) {

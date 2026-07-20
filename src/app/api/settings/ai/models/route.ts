@@ -81,6 +81,12 @@ export async function POST(request: Request) {
 
     const models = await fetchModelList(tempConfig)
 
+    const db = getDb()
+    const existingConfig = await getAIConfig(db)
+    if (existingConfig && existingConfig.apiUrl === apiUrl) {
+      await updateModelListCache(db, models)
+    }
+
     return NextResponse.json({
       models,
       supported: true,

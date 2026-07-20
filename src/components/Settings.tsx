@@ -126,6 +126,7 @@ function AISettingsTab() {
   const [protocol, setProtocol] = useState<'openai' | 'anthropic'>('openai')
   const [apiUrl, setApiUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
+  const [apiKeyConfigured, setApiKeyConfigured] = useState(false)
   const [model, setModel] = useState('')
   const [availableModels, setAvailableModels] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -141,6 +142,7 @@ function AISettingsTab() {
         setProtocol(data.protocol)
         setApiUrl(data.apiUrl)
         setApiKey('')
+        setApiKeyConfigured(data.apiKeyConfigured ?? false)
         setModel(data.model)
         if (data.modelListCache) {
           setAvailableModels(data.modelListCache)
@@ -168,6 +170,7 @@ function AISettingsTab() {
       if (res.ok) {
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
+        await loadConfig()
       }
     } catch (error) {
       console.error('Failed to save AI config:', error)
@@ -177,16 +180,19 @@ function AISettingsTab() {
   }
 
   async function handleFetchModels() {
-    if (!apiUrl || !apiKey) {
-      return
-    }
+    if (!apiUrl) return
     setLoading(true)
     try {
-      const res = await fetch('/api/settings/ai/models', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ protocol, apiUrl, apiKey }),
-      })
+      let res
+      if (apiKey) {
+        res = await fetch('/api/settings/ai/models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ protocol, apiUrl, apiKey }),
+        })
+      } else {
+        res = await fetch('/api/settings/ai/models')
+      }
       const data = await res.json()
       if (data.models && data.models.length > 0) {
         setAvailableModels(data.models)
@@ -278,7 +284,7 @@ function AISettingsTab() {
               variant="outline"
               size="icon"
               onClick={handleFetchModels}
-              disabled={loading || !apiUrl || !apiKey}
+              disabled={loading || !apiUrl || (!apiKey && !apiKeyConfigured)}
               title="刷新模型列表"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
