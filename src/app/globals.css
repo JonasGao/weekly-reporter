@@ -159,3 +159,53 @@
 * {
   @apply border-border outline-ring/50;
 }
+
+/* Report markdown prose styles */
+.prose-report {
+  color: #d4d4d4;
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.prose-report h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 26px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #1c1c1c;
+  color: #fafafa;
+}
+
+.prose-report h2:first-child {
+  margin-top: 0;
+}
+
+.prose-report ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.prose-report li {
+  position: relative;
+  padding-left: 18px;
+  line-height: 2;
+}
+
+.prose-report li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 14px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #737373;
+}
+
+.prose-report p {
+  margin: 0;
+}
+
+.prose-report p + p {
+  margin-top: 1em;
+}

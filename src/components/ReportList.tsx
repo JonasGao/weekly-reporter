@@ -90,7 +90,7 @@ export function ReportList() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">周报编辑器</h1>
+        <h1 className="text-2xl font-bold max-[720px]:text-[24px]">周报编辑器</h1>
         <div className="flex items-center gap-2">
           <Link href="/new">
             <Button>

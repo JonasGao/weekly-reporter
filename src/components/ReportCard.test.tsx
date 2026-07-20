@@ -51,4 +51,22 @@ describe('ReportCard', () => {
 
     expect(onDelete).toHaveBeenCalledWith(1)
   })
+
+  it('should link to the report detail page', () => {
+    const onDelete = vi.fn()
+    render(<ReportCard report={baseReport} onDelete={onDelete} />)
+
+    const links = screen.getAllByRole('link')
+    const detailLink = links.find((l) => l.getAttribute('href') === '/reports/1')
+    expect(detailLink).toBeDefined()
+  })
+
+  it('should have edit button linking to edit page', () => {
+    const onDelete = vi.fn()
+    render(<ReportCard report={baseReport} onDelete={onDelete} />)
+
+    const links = screen.getAllByRole('link')
+    const editLink = links.find((l) => l.getAttribute('href') === '/edit/1')
+    expect(editLink).toBeDefined()
+  })
 })

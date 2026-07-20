@@ -21,7 +21,7 @@ export function Navigation() {
   return (
     <nav className="border-b">
       <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center gap-4">
+        <div className="flex h-16 items-center gap-4 overflow-x-auto scrollbar-none">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href ||
@@ -32,7 +32,7 @@ export function Navigation() {
                 <Button
                   variant={isActive ? 'default' : 'ghost'}
                   size="sm"
-                  className="gap-2 focus-visible:ring-0"
+                  className="gap-2 focus-visible:ring-0 whitespace-nowrap"
                 >
                   <Icon className="h-4 w-4" />
                   {item.label}
@@ -41,10 +41,10 @@ export function Navigation() {
             )
           })}
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 flex-shrink-0">
             <FontSettingsButton />
             <ThemeSwitcher />
-            <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground max-[720px]:hidden">
               <BookOpen className="h-4 w-4" />
               <span>Weekly Reporter</span>
             </div>
