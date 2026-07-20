@@ -303,7 +303,7 @@ function AISettingsTab() {
         />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-2">
         <Button onClick={handleSave} disabled={loading}>
           {loading ? '保存中...' : saved ? '已保存 ✓' : '保存'}
         </Button>
