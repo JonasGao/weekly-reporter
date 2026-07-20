@@ -258,6 +258,29 @@ function AISettingsTab() {
         />
       </div>
 
+      <div className="flex gap-2">
+        <Button onClick={handleSave} disabled={loading}>
+          {loading ? '保存中...' : saved ? '已保存 ✓' : '保存'}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleTest}
+          disabled={testing || !apiUrl || !apiKey || !model}
+        >
+          {testing ? (
+            <>
+              <TestTube className="h-4 w-4 mr-2 animate-pulse" />
+              测试中...
+            </>
+          ) : (
+            <>
+              <TestTube className="h-4 w-4 mr-2" />
+              测试连接
+            </>
+          )}
+        </Button>
+      </div>
+
       <div className="space-y-2">
         <Label>模型</Label>
         <div className="flex gap-2">
@@ -307,29 +330,6 @@ function AISettingsTab() {
           placeholder="或手动输入模型名称"
           className="mt-2"
         />
-      </div>
-
-      <div className="flex gap-2 pt-2">
-        <Button onClick={handleSave} disabled={loading}>
-          {loading ? '保存中...' : saved ? '已保存 ✓' : '保存'}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={handleTest}
-          disabled={testing || !apiUrl || !apiKey || !model}
-        >
-          {testing ? (
-            <>
-              <TestTube className="h-4 w-4 mr-2 animate-pulse" />
-              测试中...
-            </>
-          ) : (
-            <>
-              <TestTube className="h-4 w-4 mr-2" />
-              测试连接
-            </>
-          )}
-        </Button>
       </div>
 
       {testResult && (
