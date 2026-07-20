@@ -177,9 +177,16 @@ function AISettingsTab() {
   }
 
   async function handleFetchModels() {
+    if (!apiUrl || !apiKey) {
+      return
+    }
     setLoading(true)
     try {
-      const res = await fetch('/api/settings/ai/models')
+      const res = await fetch('/api/settings/ai/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ protocol, apiUrl, apiKey }),
+      })
       const data = await res.json()
       if (data.models && data.models.length > 0) {
         setAvailableModels(data.models)
@@ -271,7 +278,7 @@ function AISettingsTab() {
               variant="outline"
               size="icon"
               onClick={handleFetchModels}
-              disabled={loading}
+              disabled={loading || !apiUrl || !apiKey}
               title="刷新模型列表"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
