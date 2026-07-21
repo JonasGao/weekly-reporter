@@ -2,11 +2,9 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { RefreshCw, Trash2, Edit, Plus, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Trash2, Edit, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface CollectSource {
@@ -29,6 +27,14 @@ interface CollectSource {
   lastSyncStatus: string | null
   createdAt: string
   updatedAt: string
+}
+
+type SortableColumn = 'name' | 'type' | 'projectScope' | 'lastSyncAt' | 'status'
+
+function getSortIcon(col: SortableColumn, sortBy: string, sortOrder: string) {
+  if (sortBy !== col) return <ArrowUpDown className="h-3 w-3 text-muted-foreground/40" />
+  if (sortOrder === 'asc') return <ArrowUp className="h-3 w-3" />
+  return <ArrowDown className="h-3 w-3" />
 }
 
 export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => void) => void }) {
@@ -66,13 +72,30 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     }
     return ''
   })
+  const [scopeFilter, setScopeFilter] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('sourceScope') || ''
+    }
+    return ''
+  })
+  const [sortBy, setSortBy] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('sourceSortBy') || ''
+    }
+    return ''
+  })
+  const [sortOrder, setSortOrder] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('sourceSortOrder') || 'desc'
+    }
+    return 'desc'
+  })
   const [syncingIds, setSyncingIds] = useState<Set<number>>(new Set())
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkUpdating, setBulkUpdating] = useState(false)
-  const pageSize = 12
+  const pageSize = 20
 
-  // 防抖搜索
   useEffect(() => {
     const timer = setTimeout(() => {
       const trimmed = searchInput.trim()
@@ -92,6 +115,11 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       if (typeFilter) params.set('type', typeFilter)
       if (syncStatusFilter) params.set('syncStatus', syncStatusFilter)
       if (sourceStatusFilter) params.set('sourceStatus', sourceStatusFilter)
+      if (scopeFilter) params.set('projectScope', scopeFilter)
+      if (sortBy) {
+        params.set('sortBy', sortBy)
+        params.set('sortOrder', sortOrder)
+      }
       const res = await fetch(`/api/collect/sources?${params}`)
 
       if (!res.ok) {
@@ -108,7 +136,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     } finally {
       setLoading(false)
     }
-  }, [page, searchTerm, syncStatusFilter, sourceStatusFilter, typeFilter])
+  }, [page, searchTerm, syncStatusFilter, sourceStatusFilter, typeFilter, scopeFilter, sortBy, sortOrder])
 
   const fetchSourcesRef = useRef(fetchSources)
 
@@ -120,7 +148,6 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     return fetchSourcesRef.current(targetPage)
   }, [])
 
-  // Re-fetch whenever any filter/page changes
   useEffect(() => {
     fetchSources()
   }, [fetchSources])
@@ -161,6 +188,30 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     const days = Math.floor(hours / 24)
     if (days < 30) return `${days}天前`
     return new Date(dateStr).toLocaleDateString()
+  }
+
+  function getBranchNames(branches?: Array<string | { name: string; lastCommitTime?: string | null }>): string[] {
+    return branches?.map(b => typeof b === 'string' ? b : b.name).filter(Boolean) || []
+  }
+
+  function getSyncCursor(branches?: Array<string | { name: string; lastCommitTime?: string | null }>): string | null {
+    const maxCursor = branches?.reduce((max, b) => {
+      if (typeof b === 'object' && b.lastCommitTime) {
+        const t = new Date(b.lastCommitTime).getTime()
+        return t > max ? t : max
+      }
+      return max
+    }, 0)
+    if (maxCursor) {
+      return new Date(maxCursor).toLocaleString()
+    }
+    return null
+  }
+
+  function truncateList(items: string[], max = 1): { text: string; full: string } {
+    if (items.length === 0) return { text: '-', full: '' }
+    if (items.length <= max) return { text: items.join(', '), full: items.join(', ') }
+    return { text: `${items[0]} +${items.length - 1}`, full: items.join(', ') }
   }
 
   async function handleSync(sourceId: number) {
@@ -220,7 +271,6 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     if (currentStatus === 'unavailable') return
     const newStatus = currentStatus === 'enabled' ? 'disabled' : 'enabled'
     setTogglingIds(prev => new Set(prev).add(sourceId))
-    // 乐观更新
     setSources(prev => prev.map(s => s.id === sourceId ? { ...s, status: newStatus as any, enabled: newStatus === 'enabled' } : s))
     try {
       const res = await fetch(`/api/collect/sources/${sourceId}`, {
@@ -229,7 +279,6 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
         body: JSON.stringify({ status: newStatus }),
       })
       if (!res.ok) {
-        // 回滚
         setSources(prev => prev.map(s => s.id === sourceId ? { ...s, status: currentStatus as any, enabled: currentStatus === 'enabled' } : s))
         toast.error('更新状态失败')
       }
@@ -252,7 +301,6 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
       if (data.success) {
         toast.success('删除成功')
-        // 如果当前页删完了且不是第一页，回退一页
         if (sources.length === 1 && page > 1) {
           setPage(page - 1)
         } else {
@@ -316,13 +364,47 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     }
   }
 
+  function handleSort(column: SortableColumn) {
+    let newSortBy: string
+    let newSortOrder: string
+    if (sortBy === column) {
+      if (sortOrder === 'asc') {
+        newSortBy = column
+        newSortOrder = 'desc'
+      } else {
+        newSortBy = ''
+        newSortOrder = 'desc'
+      }
+    } else {
+      newSortBy = column
+      newSortOrder = 'asc'
+    }
+    setSortBy(newSortBy)
+    setSortOrder(newSortOrder)
+    sessionStorage.setItem('sourceSortBy', newSortBy)
+    sessionStorage.setItem('sourceSortOrder', newSortOrder)
+    setPage(1)
+  }
+
+  function SortHeader({ column, label }: { column: SortableColumn; label: string }) {
+    return (
+      <button
+        onClick={() => handleSort(column)}
+        className="inline-flex items-center gap-1 hover:text-foreground whitespace-nowrap"
+      >
+        {label}
+        {getSortIcon(column, sortBy, sortOrder)}
+      </button>
+    )
+  }
+
   if (loading && sources.length === 0) {
     return <div className="text-center py-8">加载中...</div>
   }
 
   return (
     <>
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -437,7 +519,38 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             </label>
           ))}
         </div>
-        {(searchTerm || typeFilter || syncStatusFilter || sourceStatusFilter) && (
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="项目范围筛选">
+          {[
+            { value: '', label: '全部' },
+            { value: 'work', label: '工作' },
+            { value: 'personal', label: '个人' },
+          ].map(option => (
+            <label
+              key={option.value}
+              className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md cursor-pointer transition-colors ${
+                scopeFilter === option.value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <input
+                type="radio"
+                name="sourceScope"
+                value={option.value}
+                checked={scopeFilter === option.value}
+                onChange={e => {
+                  const val = e.target.value
+                  setScopeFilter(val)
+                  sessionStorage.setItem('sourceScope', val)
+                  setPage(prev => prev !== 1 ? 1 : prev)
+                }}
+                className="sr-only"
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+        {(searchTerm || typeFilter || syncStatusFilter || sourceStatusFilter || scopeFilter) && (
           <span className="text-xs text-muted-foreground">
             找到 {total} 个结果
           </span>
@@ -445,161 +558,183 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       </div>
 
       {total === 0 && !loading ? (
-        !searchTerm && !typeFilter && !syncStatusFilter && !sourceStatusFilter ? (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <p className="text-muted-foreground mb-4">暂无采集源</p>
-              <Link href="/collect/new">
-                <Button variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  添加采集源
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+        !searchTerm && !typeFilter && !syncStatusFilter && !sourceStatusFilter && !scopeFilter ? (
+          <div className="border rounded-lg py-8 text-center">
+            <p className="text-muted-foreground mb-4">暂无采集源</p>
+            <Link href="/collect/new">
+              <Button variant="outline">
+                添加采集源
+              </Button>
+            </Link>
+          </div>
         ) : (
           <div className="text-center py-12 text-muted-foreground text-sm">
             没有找到
           </div>
         )
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {sources.map(source => {
-            const isSyncing = syncingIds.has(source.id)
-            const isToggling = togglingIds.has(source.id)
-            const isSelected = selectedIds.has(source.id)
-            const sourceStatus = source.status || (source.enabled ? 'enabled' : 'disabled')
-            return (
-            <Card 
-              key={source.id} 
-              size="sm" 
-              className={`flex flex-col ${source.lastSyncStatus === 'failure' ? 'ring-1 ring-red-300 dark:ring-red-800' : ''} ${isSelected ? 'ring-2 ring-primary' : ''}`}
-            >
-              <CardHeader className="pb-1">
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelect(source.id)}
-                      className="rounded border-input h-4 w-4 shrink-0"
-                    />
-                    <CardTitle className="text-sm truncate">{source.name}</CardTitle>
-                  </div>
-                  <button
-                    onClick={() => !isToggling && handleToggle(source.id, sourceStatus)}
-                    disabled={isToggling || sourceStatus === 'unavailable'}
-                    className={`shrink-0 inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full transition-all ${
-                      sourceStatus === 'enabled'
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50 cursor-pointer'
-                        : sourceStatus === 'unavailable'
-                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 cursor-not-allowed'
-                        : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 cursor-pointer'
-                    } ${isToggling ? 'opacity-50 pointer-events-none' : ''}`}
-                    title={sourceStatus === 'enabled' ? '点击禁用' : sourceStatus === 'unavailable' ? '路径不可用，需手动恢复' : '点击启用'}
+        <div className="border rounded-lg overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/30">
+                <th className="sticky left-0 z-10 bg-muted/30 px-3 py-2.5 text-left w-10">
+                  <input
+                    type="checkbox"
+                    checked={sources.length > 0 && selectedIds.size === sources.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-input h-4 w-4"
+                  />
+                </th>
+                <th className="sticky left-10 z-10 bg-muted/30 px-3 py-2.5 text-left min-w-[150px]">
+                  <SortHeader column="name" label="名称" />
+                </th>
+                <th className="px-3 py-2.5 text-left min-w-[90px]">
+                  <SortHeader column="type" label="类型" />
+                </th>
+                <th className="px-3 py-2.5 text-left min-w-[140px]">仓库</th>
+                <th className="px-3 py-2.5 text-left min-w-[120px]">分支</th>
+                <th className="px-3 py-2.5 text-left min-w-[100px]">别名</th>
+                <th className="px-3 py-2.5 text-left min-w-[150px]">邮箱</th>
+                <th className="px-3 py-2.5 text-left min-w-[80px]">
+                  <SortHeader column="projectScope" label="项目范围" />
+                </th>
+                <th className="px-3 py-2.5 text-left min-w-[90px]">
+                  <SortHeader column="status" label="状态" />
+                </th>
+                <th className="px-3 py-2.5 text-left min-w-[80px]">同步</th>
+                <th className="px-3 py-2.5 text-left min-w-[100px]">
+                  <SortHeader column="lastSyncAt" label="最近同步" />
+                </th>
+                <th className="px-3 py-2.5 text-left min-w-[140px]">同步至</th>
+                <th className="px-3 py-2.5 text-left min-w-[120px]">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sources.map(source => {
+                const isSyncing = syncingIds.has(source.id)
+                const isToggling = togglingIds.has(source.id)
+                const isSelected = selectedIds.has(source.id)
+                const sourceStatus = source.status || (source.enabled ? 'enabled' : 'disabled')
+                const branchesTrunc = truncateList(getBranchNames(source.config.branches))
+                const aliasesTrunc = truncateList(source.config.aliases || [])
+                const emailsTrunc = truncateList(source.config.authorEmails || [])
+                const syncCursor = getSyncCursor(source.config.branches)
+                const hasSyncError = source.lastSyncStatus === 'failure'
+
+                return (
+                  <tr
+                    key={source.id}
+                    className={`border-b hover:bg-muted/30 transition-colors ${isSelected ? 'bg-primary/5' : ''} ${hasSyncError ? 'bg-red-50/30 dark:bg-red-950/10' : ''}`}
                   >
-                    {isToggling ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : sourceStatus === 'enabled' ? (
-                      <ToggleRight className="h-3 w-3" />
-                    ) : sourceStatus === 'unavailable' ? (
-                      <AlertTriangle className="h-3 w-3" />
-                    ) : (
-                      <ToggleLeft className="h-3 w-3" />
-                    )}
-                    {sourceStatus === 'enabled' ? '启用' : sourceStatus === 'unavailable' ? '不可用' : '禁用'}
-                  </button>
-                </div>
-                <CardDescription className="text-xs truncate">
-                  {source.config.owner}/{source.config.repo}
-                  {(() => {
-                    const branchNames = source.config.branches
-                      ?.map(b => typeof b === 'string' ? b : b.name)
-                      .filter(Boolean) || []
-                    return branchNames.length > 0 ? ` (${branchNames.join(', ')})` : ''
-                  })()}
-                </CardDescription>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-1 w-fit">
-                  {getSourceTypeLabel(source.type)}
-                </Badge>
-                {source.config.aliases && source.config.aliases.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {source.config.aliases.map((alias, idx) => (
-                      <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0">
-                        {alias}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent className="pb-2">
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p className="truncate">邮箱: {source.config.authorEmails.join(', ') || '-'}</p>
-                  <div className="flex items-center gap-1.5">
-                    {source.lastSyncStatus === 'success' ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
-                    ) : source.lastSyncStatus === 'failure' ? (
-                      <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
-                    ) : (
-                      <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-                    )}
-                    <span className={
-                      source.lastSyncStatus === 'failure' ? 'text-red-600 dark:text-red-400 font-medium' :
-                      source.lastSyncStatus === 'success' ? 'text-green-700 dark:text-green-400' : ''
-                    }>
-                      {source.lastSyncAt ? relativeTime(source.lastSyncAt) : '未同步'}
-                    </span>
-                  </div>
-                  {(() => {
-                    const maxCursor = source.config.branches?.reduce((max, b) => {
-                      if (typeof b === 'object' && b.lastCommitTime) {
-                        const t = new Date(b.lastCommitTime).getTime()
-                        return t > max ? t : max
-                      }
-                      return max
-                    }, 0)
-                    if (maxCursor) {
-                      return <p className="text-[10px] text-muted-foreground/70">同步至: {new Date(maxCursor).toLocaleString()}</p>
-                    }
-                    return null
-                  })()}
-                </div>
-              </CardContent>
-              <CardFooter className="gap-1 pt-2 mt-auto">
-                <div className="flex items-center gap-0.5">
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="h-7 px-2 text-xs"
-                    disabled={isSyncing || source.config.authorEmails.length === 0}
-                    onClick={() => handleSync(source.id)}
-                    title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : undefined}
-                  >
-                    {isSyncing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                    {isSyncing ? '同步中' : '同步'}
-                  </Button>
-                  <button
-                    title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : '重新同步（拉取全部历史，不重复入库）'}
-                    className="h-7 w-5 inline-flex items-center justify-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
-                    disabled={isSyncing || source.config.authorEmails.length === 0}
-                    onClick={() => handleResync(source.id)}
-                  >
-                    ↻
-                  </button>
-                </div>
-                <Link href={`/collect/${source.id}`} className="flex-1">
-                  <Button size="sm" variant="outline" className="h-7 w-full px-2 text-xs">
-                    <Edit className="h-3 w-3 mr-1" />
-                    编辑
-                  </Button>
-                </Link>
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(source.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </CardFooter>
-            </Card>
-            )
-          })}
+                    <td className="sticky left-0 z-[5] bg-inherit px-3 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(source.id)}
+                        className="rounded border-input h-4 w-4"
+                      />
+                    </td>
+                    <td className="sticky left-10 z-[5] bg-inherit px-3 py-2.5 font-medium truncate max-w-[200px]">
+                      {source.name}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                      {getSourceTypeLabel(source.type)}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                      {source.config.owner}/{source.config.repo}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground" title={branchesTrunc.full}>
+                      {branchesTrunc.text}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground" title={aliasesTrunc.full}>
+                      {aliasesTrunc.text}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground truncate max-w-[200px]" title={emailsTrunc.full}>
+                      {emailsTrunc.text}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                      {source.projectScope === 'work' ? '工作项目' : '个人项目'}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <button
+                        onClick={() => !isToggling && handleToggle(source.id, sourceStatus)}
+                        disabled={isToggling || sourceStatus === 'unavailable'}
+                        className={`inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full transition-all ${
+                          sourceStatus === 'enabled'
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50 cursor-pointer'
+                            : sourceStatus === 'unavailable'
+                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 cursor-not-allowed'
+                            : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 cursor-pointer'
+                        } ${isToggling ? 'opacity-50 pointer-events-none' : ''}`}
+                        title={sourceStatus === 'enabled' ? '点击禁用' : sourceStatus === 'unavailable' ? '路径不可用，需手动恢复' : '点击启用'}
+                      >
+                        {isToggling ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : sourceStatus === 'enabled' ? (
+                          <ToggleRight className="h-3 w-3" />
+                        ) : sourceStatus === 'unavailable' ? (
+                          <AlertTriangle className="h-3 w-3" />
+                        ) : (
+                          <ToggleLeft className="h-3 w-3" />
+                        )}
+                        {sourceStatus === 'enabled' ? '启用' : sourceStatus === 'unavailable' ? '不可用' : '禁用'}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-1">
+                        {source.lastSyncStatus === 'success' ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                        ) : source.lastSyncStatus === 'failure' ? (
+                          <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                        ) : (
+                          <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                        )}
+                        <span className={`text-xs whitespace-nowrap ${
+                          source.lastSyncStatus === 'failure' ? 'text-red-600 dark:text-red-400 font-medium' :
+                          source.lastSyncStatus === 'success' ? 'text-green-700 dark:text-green-400' : ''
+                        }`}>
+                          {source.lastSyncAt ? relativeTime(source.lastSyncAt) : '未同步'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {syncCursor || '-'}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-7 px-2 text-xs"
+                          disabled={isSyncing || source.config.authorEmails.length === 0}
+                          onClick={() => handleSync(source.id)}
+                          title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : '同步'}
+                        >
+                          {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                        </Button>
+                        <button
+                          title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : '重新同步（拉取全部历史，不重复入库）'}
+                          className="h-7 w-5 inline-flex items-center justify-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                          disabled={isSyncing || source.config.authorEmails.length === 0}
+                          onClick={() => handleResync(source.id)}
+                        >
+                          ↻
+                        </button>
+                        <Link href={`/collect/${source.id}`}>
+                          <Button size="sm" variant="outline" className="h-7 w-7 p-0">
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </Link>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(source.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 

@@ -1,20 +1,36 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { desc, isNull, or, sql } from 'drizzle-orm'
+import { asc, desc, isNull, or, sql, count } from 'drizzle-orm'
 import { like, and, eq } from 'drizzle-orm'
 import { collectSources } from '@/lib/db/schema'
 import { collectSourceSchema } from '@/lib/validations'
+
+const SORTABLE_COLUMNS = ['name', 'type', 'projectScope', 'lastSyncAt', 'status'] as const
+type SortBy = (typeof SORTABLE_COLUMNS)[number]
+
+const COLUMN_MAP = {
+  name: collectSources.name,
+  type: collectSources.type,
+  projectScope: collectSources.projectScope,
+  lastSyncAt: collectSources.lastSyncAt,
+  status: collectSources.status,
+}
 
 export async function GET(request: Request) {
   try {
     const db = getDb()
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '10')
+    const pageSize = parseInt(searchParams.get('pageSize') || '20')
     const name = searchParams.get('name') || ''
     const type = searchParams.get('type') || ''
     const syncStatus = searchParams.get('syncStatus') || ''
     const sourceStatus = searchParams.get('sourceStatus') || ''
+    const projectScope = searchParams.get('projectScope') || ''
+    const sortByRaw = searchParams.get('sortBy') || ''
+    const sortOrder = searchParams.get('sortOrder') || 'desc'
+
+    const sortBy: SortBy | '' = SORTABLE_COLUMNS.includes(sortByRaw as SortBy) ? (sortByRaw as SortBy) : ''
 
     const offset = (page - 1) * pageSize
 
@@ -23,7 +39,6 @@ export async function GET(request: Request) {
       conditions.push(eq(collectSources.type, type))
     }
     if (name) {
-      // Search in both name and aliases
       conditions.push(
         or(
           like(collectSources.name, `%${name}%`),
@@ -39,18 +54,25 @@ export async function GET(request: Request) {
     if (sourceStatus === 'enabled' || sourceStatus === 'disabled' || sourceStatus === 'unavailable') {
       conditions.push(eq(collectSources.status, sourceStatus))
     }
+    if (projectScope === 'work' || projectScope === 'personal') {
+      conditions.push(eq(collectSources.projectScope, projectScope))
+    }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
+    const orderByCol = sortBy ? COLUMN_MAP[sortBy] : collectSources.lastSyncAt
+    const orderFn = sortOrder === 'asc' ? asc : desc
+    const orderBy = [orderFn(orderByCol)]
+
     const sources = await db.query.collectSources.findMany({
       where: whereClause,
-      orderBy: [desc(collectSources.createdAt)],
+      orderBy,
       limit: pageSize,
       offset,
     })
 
-    const totalResult = await db.select({ id: collectSources.id }).from(collectSources).where(whereClause)
-    const total = totalResult.length
+    const totalResult = await db.select({ count: count() }).from(collectSources).where(whereClause)
+    const total = totalResult[0].count
 
     return NextResponse.json({
       sources: sources.map(s => ({

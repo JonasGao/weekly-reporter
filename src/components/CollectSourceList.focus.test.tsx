@@ -7,6 +7,7 @@ const mockSources = Array.from({ length: 5 }, (_, i) => ({
   id: i + 1,
   type: 'git-remote',
   name: `source-${i + 1}`,
+  projectScope: (i % 2 === 0 ? 'work' : 'personal') as const,
   config: {
     owner: 'owner',
     repo: `repo-${i + 1}`,
