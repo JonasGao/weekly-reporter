@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RefreshCw, Trash2, Edit, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { RefreshCw, RotateCcw, Trash2, Edit, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface CollectSource {
@@ -712,14 +712,16 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                         >
                           {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                         </Button>
-                        <button
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 w-7 p-0"
                           title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : '重新同步（拉取全部历史，不重复入库）'}
-                          className="h-7 w-5 inline-flex items-center justify-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
                           disabled={isSyncing || source.config.authorEmails.length === 0}
                           onClick={() => handleResync(source.id)}
                         >
-                          ↻
-                        </button>
+                          <RotateCcw className="h-3 w-3" />
+                        </Button>
                         <Link href={`/collect/${source.id}`}>
                           <Button size="sm" variant="outline" className="h-7 w-7 p-0">
                             <Edit className="h-3 w-3" />
