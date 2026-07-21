@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
+import { CheckCircle, AlertCircle, Loader2, RefreshCw, Clock } from 'lucide-react'
 import type { ScoreStatus } from '@/lib/db/schema'
 
 interface ScoreBadgeProps {
@@ -28,9 +28,26 @@ export function ScoreBadge({ scoreStatus, scoreOverall, scoreError, onRetry }: S
   
   if (scoreStatus === 'pending') {
     return (
-      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span>待评分</span>
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span>待评分</span>
+        </div>
+        {onRetry && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRetry}
+            disabled={retrying}
+            className="h-6 px-2"
+          >
+            {retrying ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3 w-3" />
+            )}
+          </Button>
+        )}
       </div>
     )
   }
