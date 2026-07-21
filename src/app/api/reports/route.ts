@@ -33,6 +33,7 @@ export async function GET(request: Request) {
       pageSize,
     })
   } catch (error) {
+    console.error('[/api/reports] Error:', error)
     return NextResponse.json(
       { error: '获取周报列表失败', code: 'FETCH_ERROR' },
       { status: 500 }
