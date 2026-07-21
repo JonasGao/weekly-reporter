@@ -39,6 +39,7 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
       setInitialData({
         type: data.type,
         name: data.name,
+        projectScope: data.projectScope || 'personal',
         aliases: Array.isArray(data.config.aliases) ? data.config.aliases : [],
         config: {
           baseUrl: data.config.baseUrl || '',

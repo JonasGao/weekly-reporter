@@ -97,6 +97,7 @@ export interface CollectSourceConfig {
 }
 
 export type CollectSourceStatus = 'enabled' | 'disabled' | 'unavailable'
+export type ProjectScope = 'work' | 'personal'
 
 export const collectSources = sqliteTable('collect_sources', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -105,6 +106,7 @@ export const collectSources = sqliteTable('collect_sources', {
   config: text('config', { mode: 'json' }).notNull().$type<CollectSourceConfig>(),
   enabled: integer('enabled', { mode: 'boolean' }).default(true).notNull(),
   status: text('status').$type<CollectSourceStatus>().default('enabled'),
+  projectScope: text('project_scope').notNull().default('personal').$type<ProjectScope>(),
   lastSyncAt: integer('last_sync_at', { mode: 'timestamp' }),
   lastSyncStatus: text('last_sync_status'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

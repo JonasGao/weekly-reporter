@@ -14,6 +14,7 @@ import { TagInput } from './TagInput'
 export interface FormData {
   type: 'git-remote-github' | 'git-remote-gitlab' | 'git-remote-gitee' | 'git-local'
   name: string
+  projectScope: 'work' | 'personal'
   aliases: string[]
   config: {
     baseUrl: string
@@ -36,6 +37,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
     initialData || {
       type: 'git-remote-github',
       name: '',
+      projectScope: 'personal',
       aliases: [],
       config: {
         baseUrl: '',
@@ -134,6 +136,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
     const submitData = {
       type: formData.type,
       name: formData.name,
+      projectScope: formData.projectScope,
       aliases: formData.aliases,
       config: isLocal(formData.type)
         ? {
@@ -197,6 +200,37 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>项目范围</Label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="projectScope"
+                  value="work"
+                  checked={formData.projectScope === 'work'}
+                  onChange={() => handleChange('projectScope', 'work')}
+                  className="rounded border-input"
+                />
+                <span className="text-sm">工作项目</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="projectScope"
+                  value="personal"
+                  checked={formData.projectScope === 'personal'}
+                  onChange={() => handleChange('projectScope', 'personal')}
+                  className="rounded border-input"
+                />
+                <span className="text-sm">个人项目</span>
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              工作项目会显示在领导版周报中，个人项目仅在个人版周报中显示
+            </p>
           </div>
 
           <div className="space-y-2">

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { templates, TemplateConfig, rawEvents } from '@/lib/db/schema'
-import { eq, between } from 'drizzle-orm'
+import { templates, TemplateConfig, rawEvents, collectSources } from '@/lib/db/schema'
+import { eq, between, sql, or, and, isNull } from 'drizzle-orm'
 import { renderTemplate } from '@/lib/template/render'
 import { extractViewConfig } from '@/lib/template/view-config'
 import { OFFICIAL_TEMPLATES } from '@/lib/official-templates'
@@ -81,11 +81,33 @@ export async function GET(
     const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 })
     const weekEnd = endOfWeek(baseDate, { weekStartsOn: 1 })
 
-    const eventsToProcess = await db.select()
-      .from(rawEvents)
-      .where(
-        between(rawEvents.eventTime, weekStart, weekEnd)
-      )
+    // Build query for events
+    let eventsToProcess
+    
+    if (viewType === 'leadership') {
+      // For leadership view, filter at SQL level: manual events OR events from work projects
+      // Use raw SQL for JSON path extraction in SQLite
+      eventsToProcess = await db
+        .select()
+        .from(rawEvents)
+        .where(
+          and(
+            between(rawEvents.eventTime, weekStart, weekEnd),
+            sql`(
+              json_extract(${rawEvents.metadata}, '$.sourceId') IS NULL
+              OR json_extract(${rawEvents.metadata}, '$.sourceId') IN (
+                SELECT id FROM ${collectSources} WHERE ${collectSources.projectScope} = 'work'
+              )
+            )`
+          )
+        )
+    } else {
+      // Personal view: show all events
+      eventsToProcess = await db
+        .select()
+        .from(rawEvents)
+        .where(between(rawEvents.eventTime, weekStart, weekEnd))
+    }
 
     const renderedContent = renderTemplate(templateContent, {
       date: baseDate,

@@ -65,6 +65,30 @@ _Avoid_: rating（混淆为星级评分）
 ### 评分建议 (Score Suggestions)
 AI 基于评分结果给出的改进建议列表。存储位置：`reports.suggestions` 字段。
 
+## 周报视图
+
+### 项目范围 (Project Scope)
+采集源的项目分类属性，用于区分工作项目和个人项目。影响周报不同视图的内容筛选：
+- **工作项目 (work)**：领导版和个人版周报均显示
+- **个人项目 (personal)**：仅个人版周报显示
+
+存储位置：`collect_sources.projectScope` 字段。
+默认值：`personal`（新建采集源默认为个人项目）。
+_Avoid_: visibility（混淆为公开/私密概念）、category（过于宽泛）
+
+### 视图类型 (View Type)
+周报渲染的目标视图，决定内容筛选和展示策略：
+- **领导版 (leadership)**：仅显示工作项目事件和手动录入内容，精简结构，正式风格
+- **个人版 (personal)**：显示全部事件（工作+个人项目），完整结构，详细风格
+
+存储位置：模板的 `config.viewConfigs.leadership` / `config.viewConfigs.personal`。
+_Avoid_: reportType（混淆为周报类型）、audience（这是受众概念）
+
+### 手动事件 (Manual Event)
+用户在周报编辑器中手动添加的事件条目，区别于采集源自动同步的事件。手动事件不受项目范围过滤限制，在领导版和个人版中均显示。
+判断依据：`raw_events.metadata.sourceId` 为空。
+_Avoid_: custom event、user event（语义不够精确）
+
 ## 模态框交互
 
 ### ESC 键行为

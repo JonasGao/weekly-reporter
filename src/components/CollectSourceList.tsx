@@ -13,6 +13,7 @@ interface CollectSource {
   id: number
   type: string
   name: string
+  projectScope: 'work' | 'personal'
   config: {
     baseUrl?: string
     owner: string
@@ -67,6 +68,8 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
   })
   const [syncingIds, setSyncingIds] = useState<Set<number>>(new Set())
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkUpdating, setBulkUpdating] = useState(false)
   const pageSize = 12
 
   // 防抖搜索
@@ -263,6 +266,56 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     }
   }
 
+  function toggleSelect(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === sources.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(sources.map(s => s.id)))
+    }
+  }
+
+  async function handleBulkUpdateScope(newScope: 'work' | 'personal') {
+    if (selectedIds.size === 0) return
+
+    try {
+      setBulkUpdating(true)
+      const res = await fetch('/api/collect/sources/bulk-update-scope', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          projectScope: newScope,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        toast.success(`成功更新 ${data.updatedCount} 个采集源的项目类型`)
+        setSelectedIds(new Set())
+        fetchSources()
+      } else {
+        toast.error(data.error || '更新失败')
+      }
+    } catch (error) {
+      toast.error('更新失败')
+    } finally {
+      setBulkUpdating(false)
+    }
+  }
+
   if (loading && sources.length === 0) {
     return <div className="text-center py-8">加载中...</div>
   }
@@ -414,12 +467,25 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
           {sources.map(source => {
             const isSyncing = syncingIds.has(source.id)
             const isToggling = togglingIds.has(source.id)
+            const isSelected = selectedIds.has(source.id)
             const sourceStatus = source.status || (source.enabled ? 'enabled' : 'disabled')
             return (
-            <Card key={source.id} size="sm" className={`flex flex-col ${source.lastSyncStatus === 'failure' ? 'ring-1 ring-red-300 dark:ring-red-800' : ''}`}>
+            <Card 
+              key={source.id} 
+              size="sm" 
+              className={`flex flex-col ${source.lastSyncStatus === 'failure' ? 'ring-1 ring-red-300 dark:ring-red-800' : ''} ${isSelected ? 'ring-2 ring-primary' : ''}`}
+            >
               <CardHeader className="pb-1">
                 <div className="flex items-center justify-between gap-1">
-                  <CardTitle className="text-sm truncate">{source.name}</CardTitle>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(source.id)}
+                      className="rounded border-input h-4 w-4 shrink-0"
+                    />
+                    <CardTitle className="text-sm truncate">{source.name}</CardTitle>
+                  </div>
                   <button
                     onClick={() => !isToggling && handleToggle(source.id, sourceStatus)}
                     disabled={isToggling || sourceStatus === 'unavailable'}
@@ -583,6 +649,37 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
+          </div>
+        </div>
+      )}
+
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-background border rounded-lg shadow-lg px-4 py-3 flex items-center gap-4 z-50">
+          <span className="text-sm font-medium">
+            已选择 {selectedIds.size} 项
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleBulkUpdateScope('work')}
+              disabled={bulkUpdating}
+              className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              设为工作项目
+            </button>
+            <button
+              onClick={() => handleBulkUpdateScope('personal')}
+              disabled={bulkUpdating}
+              className="px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              设为个人项目
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              disabled={bulkUpdating}
+              className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              取消
+            </button>
           </div>
         </div>
       )}
