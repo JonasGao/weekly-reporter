@@ -1,1 +1,0 @@
-ALTER TABLE `collect_sources` ADD `project_scope` text DEFAULT 'personal' NOT NULL;
