@@ -143,11 +143,11 @@ export const sentenceSnippets = sqliteTable('sentence_snippets', {
 export type SentenceSnippet = typeof sentenceSnippets.$inferSelect
 export type NewSentenceSnippet = typeof sentenceSnippets.$inferInsert
 
-export type AIProtocol = 'openai' | 'anthropic'
+export type AIProtocol = 'openai' | 'openai-compatible' | 'anthropic'
 
 export const aiConfig = sqliteTable('ai_config', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  protocol: text('protocol').notNull().default('openai').$type<AIProtocol>(),
+  protocol: text('protocol').notNull().default('openai-compatible').$type<AIProtocol>(),
   apiUrl: text('api_url').notNull(),
   apiKey: text('api_key').notNull(),
   model: text('model').notNull(),

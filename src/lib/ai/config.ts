@@ -29,7 +29,7 @@ export async function saveAIConfig(db: DB, input: AIConfigInput): Promise<AIConf
     const updated = await db
       .update(aiConfig)
       .set({
-        protocol: input.protocol ?? 'openai',
+        protocol: input.protocol ?? 'openai-compatible',
         apiUrl: input.apiUrl,
         apiKey: input.apiKey,
         model: input.model,
@@ -43,7 +43,7 @@ export async function saveAIConfig(db: DB, input: AIConfigInput): Promise<AIConf
   const created = await db
     .insert(aiConfig)
     .values({
-      protocol: input.protocol ?? 'openai',
+      protocol: input.protocol ?? 'openai-compatible',
       apiUrl: input.apiUrl,
       apiKey: input.apiKey,
       model: input.model,

@@ -123,7 +123,7 @@ function FontSettingsTab() {
 }
 
 function AISettingsTab() {
-  const [protocol, setProtocol] = useState<'openai' | 'anthropic'>('openai')
+  const [protocol, setProtocol] = useState<'openai' | 'openai-compatible' | 'anthropic'>('openai-compatible')
   const [apiUrl, setApiUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [apiKeyConfigured, setApiKeyConfigured] = useState(false)
@@ -225,12 +225,13 @@ function AISettingsTab() {
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>协议格式</Label>
-        <Select value={protocol} onValueChange={(v) => setProtocol(v as 'openai' | 'anthropic')}>
+        <Select value={protocol} onValueChange={(v) => setProtocol(v as 'openai' | 'openai-compatible' | 'anthropic')}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="openai">OpenAI Compatible</SelectItem>
+            <SelectItem value="openai">OpenAI</SelectItem>
+            <SelectItem value="openai-compatible">OpenAI Compatible</SelectItem>
             <SelectItem value="anthropic">Anthropic</SelectItem>
           </SelectContent>
         </Select>

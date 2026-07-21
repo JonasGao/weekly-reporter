@@ -65,7 +65,7 @@ export async function PUT(request: Request) {
       )
     }
 
-    if (protocol && !['openai', 'anthropic'].includes(protocol)) {
+    if (protocol && !['openai', 'openai-compatible', 'anthropic'].includes(protocol)) {
       return NextResponse.json(
         { error: '协议格式无效', code: 'INVALID_INPUT' },
         { status: 400 }
@@ -74,7 +74,7 @@ export async function PUT(request: Request) {
 
     const db = getDb()
     const saved = await saveAIConfig(db, {
-      protocol: (protocol as AIProtocol) ?? 'openai',
+      protocol: (protocol as AIProtocol) ?? 'openai-compatible',
       apiUrl,
       apiKey,
       model,
