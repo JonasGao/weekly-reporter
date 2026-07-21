@@ -23,7 +23,8 @@ export function createModelFromConfig(config: AIConfig): LanguageModel {
     apiKey: config.apiKey,
     baseURL: config.apiUrl,
   })
-  return openai(config.model)
+  // Use chat() for OpenAI-compatible APIs that only support Chat Completions API
+  return openai.chat(config.model)
 }
 
 export async function fetchModelList(config: AIConfig): Promise<string[]> {
