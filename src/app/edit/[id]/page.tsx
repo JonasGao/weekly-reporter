@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -177,11 +176,9 @@ export default function EditReportPage() {
     <main className="h-screen flex flex-col">
       <div className="container mx-auto px-4 py-6 flex-shrink-0">
         <div className="flex items-center gap-4">
-          <Link href="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <h1 className="text-2xl font-bold">编辑周报</h1>
           <ViewSwitcher
             currentView={currentView}
@@ -237,11 +234,9 @@ export default function EditReportPage() {
                 />
               ) : (
                 <div className="flex justify-end gap-4">
-                  <Link href="/">
-                    <Button type="button" variant="outline">
-                      取消
-                    </Button>
-                  </Link>
+                  <Button type="button" variant="outline" onClick={() => router.back()}>
+                    取消
+                  </Button>
                   <ExportDialog content={baseContent} templateId="official-general" />
                   <Button type="button" onClick={() => setShowScorePanel(true)} disabled={saving}>
                     {saving ? '保存中...' : '保存'}
