@@ -208,7 +208,9 @@ function AISettingsTab() {
     setTesting(true)
     setTestResult(null)
     try {
-      await handleSave()
+      if (apiKey) {
+        await handleSave()
+      }
       const res = await fetch('/api/settings/ai/test', { method: 'POST' })
       const data = await res.json()
       setTestResult({ ok: data.ok, error: data.error })
@@ -258,7 +260,7 @@ function AISettingsTab() {
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 relative z-1">
         <Label>模型</Label>
         <div className="flex gap-2">
           <div className="flex-1">
@@ -309,14 +311,14 @@ function AISettingsTab() {
         />
       </div>
 
-      <div className="flex gap-2 relative z-0">
+      <div className="flex gap-2">
         <Button onClick={handleSave} disabled={loading}>
           {loading ? '保存中...' : saved ? '已保存 ✓' : '保存'}
         </Button>
         <Button
           variant="outline"
           onClick={handleTest}
-          disabled={testing || !apiUrl || !apiKey || !model}
+          disabled={testing || !apiUrl || !model || (!apiKey && !apiKeyConfigured)}
         >
           {testing ? (
             <>
