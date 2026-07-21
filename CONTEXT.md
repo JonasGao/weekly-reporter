@@ -29,6 +29,42 @@ _Avoid_: AI settings, AI params, .env 配置
 OpenAI 协议下通过 `GET /models` 端点自动获取可用模型列表供用户选择。拉取失败时回退为手动输入。Anthropic 协议无此端点，始终手动输入模型名。
 _Avoid_: model discovery, model enumeration
 
+## 周报评分
+
+### 评分状态 (Score Status)
+周报评分的生命周期状态，用于跟踪异步评分进度。四种状态：
+- **pending**: 周报已保存，等待评分
+- **scoring**: 正在调用 AI 评分
+- **completed**: 评分完成，分数可用
+- **failed**: 评分失败（AI 服务异常等）
+
+存储位置：`reports.scoreStatus` 字段。
+_Avoid_: scoreState（这是 UI 状态概念，不是数据状态）
+
+### 异步评分 (Async Scoring)
+周报保存后立即触发的后台评分流程。用户无需等待评分完成即可完成保存操作。评分结果持久化到数据库，在周报列表中展示。
+
+**触发时机**：周报创建或更新后立即调用评分 API（不等待响应）。
+**用户体验**：保存时无阻塞，分数稍后出现在列表项中。
+**失败处理**：评分失败时状态标记为 `failed`，支持手动重新评分。
+
+_Avoid_: 同步评分、阻塞式评分
+
+### 评分维度 (Score Dimensions)
+AI 对周报质量的评分维度，包含三个子维度和一个综合分：
+- **结构完整度 (Structure)**: 周报是否包含必要章节（如本周工作、下周计划等）
+- **内容充实度 (Content)**: 各章节内容是否详实具体
+- **价值突出度 (Value)**: 是否突出工作成果和价值
+- **综合评分 (Overall)**: 加权总分
+
+权重配置存储在 AI 风格设置（`AIStyle.scoreWeights`）中。
+存储位置：`reports.score` 字段（JSON 格式）。
+
+_Avoid_: rating（混淆为星级评分）
+
+### 评分建议 (Score Suggestions)
+AI 基于评分结果给出的改进建议列表。存储位置：`reports.suggestions` 字段。
+
 ## 模态框交互
 
 ### ESC 键行为

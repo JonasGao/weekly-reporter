@@ -7,7 +7,18 @@ import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import type { Report } from '@/lib/db/schema'
+import type { Report, ScoreStatus } from '@/lib/db/schema'
+
+interface ScoreUpdate {
+  reportId: number
+  scoreStatus: ScoreStatus
+  scoreStructure?: number | null
+  scoreContent?: number | null
+  scoreValue?: number | null
+  scoreOverall?: number | null
+  suggestions?: string[] | null
+  scoreError?: string | null
+}
 
 export function ReportList() {
   const [reports, setReports] = useState<Report[]>([])
@@ -50,6 +61,41 @@ export function ReportList() {
       cancelled = true
     }
   }, [])
+  
+  useEffect(() => {
+    const eventSource = new EventSource('/api/reports/score-stream')
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const update: ScoreUpdate = JSON.parse(event.data)
+        setReports(prev => prev.map(report => {
+          if (report.id === update.reportId) {
+            return {
+              ...report,
+              scoreStatus: update.scoreStatus,
+              scoreStructure: update.scoreStructure ?? report.scoreStructure,
+              scoreContent: update.scoreContent ?? report.scoreContent,
+              scoreValue: update.scoreValue ?? report.scoreValue,
+              scoreOverall: update.scoreOverall ?? report.scoreOverall,
+              suggestions: update.suggestions ? update.suggestions.join('\n') : report.suggestions,
+              scoreError: update.scoreError ?? report.scoreError,
+            }
+          }
+          return report
+        }))
+      } catch (error) {
+        console.error('[SSE] Failed to parse update:', error)
+      }
+    }
+    
+    eventSource.onerror = (error) => {
+      console.error('[SSE] Connection error:', error)
+    }
+    
+    return () => {
+      eventSource.close()
+    }
+  }, [])
 
   async function handleSearch(query: string) {
     if (!query.trim()) {
@@ -80,6 +126,21 @@ export function ReportList() {
       }
     } catch (error) {
       toast.error('删除失败')
+    }
+  }
+  
+  async function handleRetry(id: number) {
+    try {
+      const response = await fetch(`/api/reports/${id}/rescore`, {
+        method: 'POST',
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        toast.error(error.error || '重新评分失败')
+      }
+    } catch (error) {
+      toast.error('重新评分失败')
     }
   }
 
@@ -114,6 +175,7 @@ export function ReportList() {
               key={report.id}
               report={report}
               onDelete={handleDelete}
+              onRetry={handleRetry}
             />
           ))}
         </div>

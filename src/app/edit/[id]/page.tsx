@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
 import { CheckPanel } from '@/components/CheckPanel'
-import { ScorePanel } from '@/components/ScorePanel'
 import { VariableToolbar } from '@/components/VariableToolbar'
 import { EditorSidebar } from '@/components/EditorSidebar'
 import { ViewSwitcher } from '@/components/ViewSwitcher'
@@ -27,7 +26,6 @@ export default function EditReportPage() {
   const [weekStart, setWeekStart] = useState('')
   const [weekEnd, setWeekEnd] = useState('')
   const [saving, setSaving] = useState(false)
-  const [showScorePanel, setShowScorePanel] = useState(false)
   const [editorKey, setEditorKey] = useState(0)
   const [styleOverride, setStyleOverride] = useState<AIStyle | undefined>()
   const [currentView, setCurrentView] = useState<'leadership' | 'personal'>('personal')
@@ -130,7 +128,7 @@ export default function EditReportPage() {
 
   const getEditorContent = () => content
 
-  async function handleSubmit() {
+  async function handleSave() {
     if (!title.trim() || !content.trim()) {
       toast.error('请填写所有必填项')
       return
@@ -226,23 +224,15 @@ export default function EditReportPage() {
                 </div>
               </div>
 
-              {showScorePanel ? (
-                <ScorePanel
-                  content={content}
-                  onConfirm={handleSubmit}
-                  onCancel={() => setShowScorePanel(false)}
-                />
-              ) : (
-                <div className="flex justify-end gap-4">
-                  <Button type="button" variant="outline" onClick={() => router.back()}>
-                    取消
-                  </Button>
-                  <ExportDialog content={baseContent} templateId="official-general" />
-                  <Button type="button" onClick={() => setShowScorePanel(true)} disabled={saving}>
-                    {saving ? '保存中...' : '保存'}
-                  </Button>
-                </div>
-              )}
+              <div className="flex justify-end gap-4">
+                <Button type="button" variant="outline" onClick={() => router.back()}>
+                  取消
+                </Button>
+                <ExportDialog content={baseContent} templateId="official-general" />
+                <Button type="button" onClick={handleSave} disabled={saving}>
+                  {saving ? '保存中...' : '保存'}
+                </Button>
+              </div>
             </form>
           </div>
         </div>

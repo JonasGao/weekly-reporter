@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
 import { CheckPanel } from '@/components/CheckPanel'
-import { ScorePanel } from '@/components/ScorePanel'
 import { TemplateSelect } from '@/components/TemplateSelect'
 import { VariableToolbar } from '@/components/VariableToolbar'
 import { getWeekRange, formatDate } from '@/lib/utils'
@@ -24,7 +23,6 @@ export default function NewReportPage() {
   const [officialTemplates, setOfficialTemplates] = useState<OfficialTemplate[]>([])
   const [userTemplates, setUserTemplates] = useState<Template[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
-  const [showScorePanel, setShowScorePanel] = useState(false)
   const [content, setContent] = useState('')
   const [editorKey, setEditorKey] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -126,7 +124,7 @@ export default function NewReportPage() {
     }
   }
 
-  async function handleSubmit() {
+  async function handleSave() {
     if (!content.trim()) {
       toast.error('请填写周报内容')
       return
@@ -158,10 +156,6 @@ export default function NewReportPage() {
     } finally {
       setSaving(false)
     }
-  }
-
-  function handleSaveClick() {
-    setShowScorePanel(true)
   }
 
   return (
@@ -221,24 +215,16 @@ export default function NewReportPage() {
           </div>
         </div>
 
-        {showScorePanel ? (
-          <ScorePanel
-            content={content}
-            onConfirm={handleSubmit}
-            onCancel={() => setShowScorePanel(false)}
-          />
-        ) : (
-          <div className="flex justify-end gap-4">
-            <Link href="/">
-              <Button type="button" variant="outline">
-                取消
-              </Button>
-            </Link>
-            <Button type="button" onClick={handleSaveClick} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
+        <div className="flex justify-end gap-4">
+          <Link href="/">
+            <Button type="button" variant="outline">
+              取消
             </Button>
-          </div>
-        )}
+          </Link>
+          <Button type="button" onClick={handleSave} disabled={saving}>
+            {saving ? '保存中...' : '保存'}
+          </Button>
+        </div>
       </form>
     </main>
   )

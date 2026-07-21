@@ -10,6 +10,7 @@ import remarkGfm from 'remark-gfm'
 import { Button } from '@/components/ui/button'
 import { Pencil, Trash2, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
+import { ScoreCard } from '@/components/ScoreCard'
 import type { Report } from '@/lib/db/schema'
 
 export default function ReportDetailPage() {
@@ -136,6 +137,10 @@ export default function ReportDetailPage() {
             删除
           </Button>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <ScoreCard report={report} />
       </div>
 
       <div className="bg-[#141414] border border-[#1c1c1c] rounded-xl p-7 max-[720px]:p-5">

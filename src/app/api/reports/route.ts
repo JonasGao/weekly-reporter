@@ -6,6 +6,7 @@ import { reportSchema } from '@/lib/validations'
 import { renderTemplate } from '@/lib/template/render'
 import { OFFICIAL_TEMPLATES } from '@/lib/official-templates'
 import { mapTagsToSectionType } from '@/lib/tags/mapper'
+import { triggerAsyncScoring } from '@/lib/scoring'
 
 export async function GET(request: Request) {
   try {
@@ -122,6 +123,12 @@ export async function POST(request: Request) {
       createdAt: now,
       updatedAt: now,
     }).returning()
+    
+    if (result[0]) {
+      triggerAsyncScoring(result[0].id).catch(err => {
+        console.error('[reports] Async scoring failed:', err)
+      })
+    }
 
     return NextResponse.json(result[0], { status: 201 })
   } catch (error) {

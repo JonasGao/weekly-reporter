@@ -120,6 +120,13 @@
       "when": 1784534286451,
       "tag": "0016_add-ai-config",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784700000000,
+      "tag": "0017_add_report_scoring",
+      "breakpoints": true
     }
   ]
 }

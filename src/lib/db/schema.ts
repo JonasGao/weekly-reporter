@@ -1,5 +1,7 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
 
+export type ScoreStatus = 'pending' | 'scoring' | 'completed' | 'failed'
+
 export const reports = sqliteTable('reports', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   title: text('title').notNull(),
@@ -7,6 +9,14 @@ export const reports = sqliteTable('reports', {
   weekStart: text('week_start').notNull(),
   weekEnd: text('week_end').notNull(),
   aiStyleOverride: text('ai_style_override').$type<AIStyle>(),
+  scoreStatus: text('score_status').$type<ScoreStatus>().default('pending').notNull(),
+  scoreStructure: integer('score_structure'),
+  scoreContent: integer('score_content'),
+  scoreValue: integer('score_value'),
+  scoreOverall: integer('score_overall'),
+  suggestions: text('suggestions'),
+  scoreError: text('score_error'),
+  scoredAt: integer('scored_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 })

@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import { reports } from '@/lib/db/schema'
 import { reportSchema } from '@/lib/validations'
+import { triggerAsyncScoring } from '@/lib/scoring'
 
 export async function GET(
   request: Request,
@@ -70,13 +71,34 @@ export async function PUT(
       )
     }
     
+    const contentChanged = existing.content !== validated.content
+    
+    const updateData: Record<string, unknown> = {
+      ...validated,
+      updatedAt: new Date(),
+    }
+    
+    if (contentChanged) {
+      updateData.scoreStatus = 'pending'
+      updateData.scoreStructure = null
+      updateData.scoreContent = null
+      updateData.scoreValue = null
+      updateData.scoreOverall = null
+      updateData.suggestions = null
+      updateData.scoreError = null
+      updateData.scoredAt = null
+    }
+    
     const result = await db.update(reports)
-      .set({
-        ...validated,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(reports.id, reportId))
       .returning()
+    
+    if (contentChanged && result[0] && existing.scoreStatus !== 'scoring') {
+      triggerAsyncScoring(result[0].id).catch(err => {
+        console.error('[reports] Async scoring failed:', err)
+      })
+    }
     
     return NextResponse.json(result[0])
   } catch (error) {
