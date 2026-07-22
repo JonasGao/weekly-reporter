@@ -45,7 +45,7 @@ const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Popup>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Popup> & { sideOffset?: number }
 >(({ className, children, sideOffset, ...props }, ref) => (
-  <SelectPrimitive.Portal className="z-[60]">
+  <SelectPrimitive.Portal className="relative z-[60]">
     <SelectPrimitive.Positioner sideOffset={sideOffset ?? 4} alignItemWithTrigger={false}>
       <SelectPrimitive.Popup
         ref={ref}
