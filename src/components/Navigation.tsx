@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Clock, FileText, Tag, FileStack, Cloud, BookOpen } from 'lucide-react'
+import { Clock, FileText, Tag, FileStack, Cloud, BookOpen, MessageSquare } from 'lucide-react'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { SettingsButton } from './Settings'
 
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/reports', label: '周报', icon: FileText },
   { href: '/tags', label: '标签', icon: Tag },
   { href: '/templates', label: '模板', icon: FileStack },
+  { href: '/prompts', label: '提示词', icon: MessageSquare },
   { href: '/collect', label: '采集源', icon: Cloud },
 ]
 
