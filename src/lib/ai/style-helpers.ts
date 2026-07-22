@@ -9,26 +9,19 @@ import { getAIStyle, AIStyleConfig } from './styles'
  */
 export async function getStyleFromReport(reportId: number): Promise<AIStyleConfig> {
   const db = getDb()
-  
-  // Get the report
+
   const report = await db.query.reports.findFirst({
     where: eq(reports.id, reportId),
   })
-  
+
   if (!report) {
-    // Return default style if report not found
     return getAIStyle()
   }
-  
-  // If report has style override, use it
+
   if (report.aiStyleOverride) {
     return getAIStyle(report.aiStyleOverride)
   }
-  
-  // Otherwise, get style from template
-  // Note: This assumes reports have a templateId field
-  // If not, we'll need to adjust this logic
-  // For now, return default style
+
   return getAIStyle()
 }
 
@@ -37,17 +30,14 @@ export async function getStyleFromReport(reportId: number): Promise<AIStyleConfi
  */
 export async function getStyleFromTemplate(templateId: number): Promise<AIStyleConfig> {
   const db = getDb()
-  
-  // Get the template
+
   const template = await db.query.templates.findFirst({
     where: eq(templates.id, templateId),
   })
-  
+
   if (!template) {
-    // Return default style if template not found
     return getAIStyle()
   }
-  
-  // Return the template's style
+
   return getAIStyle(template.aiStyle)
 }

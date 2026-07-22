@@ -24,11 +24,11 @@ export async function POST(request: Request) {
 
     let styleConfig
     if (body.styleOverride) {
-      styleConfig = getAIStyle(body.styleOverride)
+      styleConfig = await getAIStyle(body.styleOverride)
     } else if (body.templateId) {
       styleConfig = await getStyleFromTemplate(body.templateId)
     } else {
-      styleConfig = getAIStyle()
+      styleConfig = await getAIStyle()
     }
 
     const polishedContent = await polishEvent(

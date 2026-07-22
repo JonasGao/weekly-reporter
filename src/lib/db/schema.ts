@@ -25,7 +25,8 @@ export type Report = typeof reports.$inferSelect
 export type NewReport = typeof reports.$inferInsert
 
 export type SectionType = 'achievement' | 'risk' | 'routine' | 'plan'
-export type AIStyle = 'formal' | 'technical' | 'concise' | 'detailed'
+/** @deprecated 改用 string，风格现在是数据库实体，不再硬编码 key */
+export type AIStyle = string
 
 export interface SectionRenderConfig {
   maxItems?: number
@@ -171,3 +172,49 @@ export const aiConfig = sqliteTable('ai_config', {
 
 export type AIConfig = typeof aiConfig.$inferSelect
 export type NewAIConfig = typeof aiConfig.$inferInsert
+
+// --- AI 风格表（CRUD） ---
+
+export type DetailLevel = 'low' | 'medium' | 'high'
+export type ResultOriented = 'low' | 'medium' | 'high'
+
+export interface ScoreWeights {
+  structure: number
+  content: number
+  value: number
+}
+
+export const aiStyles = sqliteTable('ai_styles', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  key: text('key').notNull().unique(),
+  label: text('label').notNull(),
+  systemPrompt: text('system_prompt').notNull(),
+  temperature: text('temperature').notNull().default('0.3'),
+  scoreStructureWeight: integer('score_structure_weight').notNull().default(25),
+  scoreContentWeight: integer('score_content_weight').notNull().default(30),
+  scoreValueWeight: integer('score_value_weight').notNull().default(45),
+  detailLevel: text('detail_level').$type<DetailLevel>(),
+  resultOriented: text('result_oriented').$type<ResultOriented>(),
+  isDefault: integer('is_default', { mode: 'boolean' }).default(false).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
+export type AIStyleRow = typeof aiStyles.$inferSelect
+export type NewAIStyleRow = typeof aiStyles.$inferInsert
+
+// --- 系统提示词表（全局唯一，只可编辑） ---
+
+export type SystemPromptKey = 'check' | 'score'
+
+export const systemPrompts = sqliteTable('system_prompts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  key: text('key').notNull().unique().$type<SystemPromptKey>(),
+  label: text('label').notNull(),
+  promptText: text('prompt_text').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
+export type SystemPromptRow = typeof systemPrompts.$inferSelect
+export type NewSystemPromptRow = typeof systemPrompts.$inferInsert

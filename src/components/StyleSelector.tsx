@@ -8,56 +8,50 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getStyleLabel } from '@/lib/ai/styles'
-import type { AIStyle } from '@/lib/db/schema'
+import type { AIStyleRow } from '@/lib/db/schema'
 
 interface StyleSelectorProps {
-  value?: AIStyle
-  onChange: (style: AIStyle) => void
+  value?: string
+  onChange: (style: string) => void
   templateId?: number
 }
 
-const styleOptions: Array<{ value: AIStyle; label: string; description: string }> = [
-  {
-    value: 'formal',
-    label: '正式汇报',
-    description: '正式严谨，突出成果价值',
-  },
-  {
-    value: 'technical',
-    label: '技术研发',
-    description: '专业准确，保留技术细节',
-  },
-  {
-    value: 'concise',
-    label: '极简干练',
-    description: '短句表达，只保留核心信息',
-  },
-  {
-    value: 'detailed',
-    label: '深度复盘',
-    description: '侧重问题分析与经验沉淀',
-  },
-]
+interface StyleItem {
+  key: string
+  label: string
+  systemPrompt: string
+}
 
 export function StyleSelector({ value, onChange, templateId }: StyleSelectorProps) {
-  const [templateStyle, setTemplateStyle] = useState<AIStyle | null>(null)
+  const [styles, setStyles] = useState<StyleItem[]>([])
+  const [templateStyle, setTemplateStyle] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
 
+  // 加载风格列表
+  useEffect(() => {
+    fetch('/api/prompts/styles')
+      .then(res => res.json())
+      .then(data => {
+        if (data.styles) {
+          setStyles(data.styles.map((s: AIStyleRow) => ({
+            key: s.key,
+            label: s.label,
+            systemPrompt: s.systemPrompt,
+          })))
+        }
+      })
+      .catch(err => console.error('Failed to fetch styles:', err))
+  }, [])
+
   useEffect(() => {
     if (templateId) {
-      // Cancel any pending request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
-
-      // Create new AbortController for this request
       abortControllerRef.current = new AbortController()
-      
       setLoading(true)
-      
-      // Debounce the fetch request to avoid rapid consecutive calls
+
       const timeoutId = setTimeout(() => {
         fetch(`/api/templates/${templateId}`, {
           signal: abortControllerRef.current?.signal,
@@ -68,11 +62,10 @@ export function StyleSelector({ value, onChange, templateId }: StyleSelectorProp
           })
           .then(data => {
             if (data.template?.aiStyle) {
-              setTemplateStyle(data.template.aiStyle as AIStyle)
+              setTemplateStyle(data.template.aiStyle)
             }
           })
           .catch(error => {
-            // Ignore abort errors
             if (error.name !== 'AbortError') {
               console.error('Failed to fetch template style:', error)
             }
@@ -81,7 +74,7 @@ export function StyleSelector({ value, onChange, templateId }: StyleSelectorProp
             setLoading(false)
             abortControllerRef.current = null
           })
-      }, 300) // 300ms debounce delay
+      }, 300)
 
       return () => {
         clearTimeout(timeoutId)
@@ -92,8 +85,9 @@ export function StyleSelector({ value, onChange, templateId }: StyleSelectorProp
     }
   }, [templateId])
 
-  const currentValue = value || templateStyle || 'formal'
-  const currentLabel = getStyleLabel(currentValue)
+  const currentValue = value || templateStyle || (styles[0]?.key ?? 'formal')
+  const currentStyle = styles.find(s => s.key === currentValue)
+  const currentLabel = currentStyle?.label ?? currentValue
 
   return (
     <div className="space-y-2">
@@ -107,19 +101,19 @@ export function StyleSelector({ value, onChange, templateId }: StyleSelectorProp
       </div>
       <Select
         value={currentValue}
-        onValueChange={(val) => onChange(val as AIStyle)}
-        disabled={loading}
+        onValueChange={(val) => onChange(val as string)}
+        disabled={loading || styles.length === 0}
       >
         <SelectTrigger className="w-full">
           <SelectValue placeholder="选择 AI 风格" />
         </SelectTrigger>
         <SelectContent>
-          {styleOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
+          {styles.map((style) => (
+            <SelectItem key={style.key} value={style.key}>
               <div className="flex flex-col gap-0.5">
-                <span className="font-medium">{option.label}</span>
-                <span className="text-xs text-muted-foreground">
-                  {option.description}
+                <span className="font-medium">{style.label}</span>
+                <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                  {style.systemPrompt.slice(0, 40)}...
                 </span>
               </div>
             </SelectItem>

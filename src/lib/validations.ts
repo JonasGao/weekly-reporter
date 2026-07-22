@@ -86,3 +86,30 @@ export const collectSourceSchema = z.object({
 )
 
 export type CollectSourceInput = z.infer<typeof collectSourceSchema>
+
+// --- AI 风格校验 ---
+
+const styleKeyRegex = /^[a-z][a-z0-9_-]*$/
+
+export const aiStyleSchema = z.object({
+  key: z.string().min(1, '标识不能为空').max(50).regex(styleKeyRegex, '标识只能包含小写字母、数字、连字符和下划线，且必须以字母开头'),
+  label: z.string().min(1, '名称不能为空').max(50),
+  systemPrompt: z.string().min(1, '提示词不能为空').max(5000),
+  temperature: z.number().min(0).max(2).default(0.3),
+  scoreStructureWeight: z.number().int().min(0).max(100).default(25),
+  scoreContentWeight: z.number().int().min(0).max(100).default(30),
+  scoreValueWeight: z.number().int().min(0).max(100).default(45),
+  detailLevel: z.enum(['low', 'medium', 'high']).optional(),
+  resultOriented: z.enum(['low', 'medium', 'high']).optional(),
+  isDefault: z.boolean().optional(),
+})
+
+export type AIStyleInput = z.infer<typeof aiStyleSchema>
+
+// --- 系统提示词校验 ---
+
+export const systemPromptSchema = z.object({
+  promptText: z.string().min(1, '提示词不能为空').max(10000),
+})
+
+export type SystemPromptInput = z.infer<typeof systemPromptSchema>

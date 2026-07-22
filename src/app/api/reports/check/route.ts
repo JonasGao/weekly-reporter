@@ -19,17 +19,13 @@ export async function POST(request: Request) {
     // Get AI style configuration
     let style
     if (styleOverride) {
-      // Use explicit style override
-      style = getAIStyle(styleOverride)
+      style = await getAIStyle(styleOverride)
     } else if (reportId) {
-      // Get style from report
       style = await getStyleFromReport(reportId)
     } else if (templateId) {
-      // Get style from template
       style = await getStyleFromTemplate(templateId)
     } else {
-      // Use default style
-      style = getAIStyle()
+      style = await getAIStyle()
     }
 
     // Get raw scores from AI

@@ -1,8 +1,67 @@
 import { generateObject } from 'ai'
 import { z } from 'zod'
+import { eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
+import { systemPrompts } from '@/lib/db/schema'
 import { getAIConfig } from './ai/config'
 import { createModelFromConfig, AIConfigError } from './ai/provider'
+
+/** 获取系统提示词模板 */
+async function getSystemPrompt(key: 'check' | 'score'): Promise<string> {
+  const db = getDb()
+  const row = await db.query.systemPrompts.findFirst({
+    where: eq(systemPrompts.key, key),
+  })
+  if (row) return row.promptText
+
+  // 兜底：返回硬编码默认值
+  if (key === 'check') {
+    return `你是一个周报写作助手。用户正在写周报，请分析以下内容并给出改进建议。
+
+内容：
+{{content}}
+
+{{#section}}当前区块：{{section}}{{/section}}
+
+请从以下方面分析：
+1. 是否有具体数据和细节支撑
+2. 是否突出了成果和价值
+3. 表达是否清晰简洁
+4. 是否有更好的表达方式
+
+请给出具体、简洁的建议（每条不超过20字）。
+如果内容很好，返回空数组 []。`
+  }
+  // score
+  return `你是一个周报评分专家。请对以下周报进行评分和建议。
+
+周报内容：
+{{content}}
+
+请从以下维度评分（0-100）：
+1. structure（结构完整度）：各区块是否填写完整
+2. content（内容充实度）：是否有具体细节和数据
+3. value（价值突出度）：是否强调成果和贡献
+
+请给出：
+1. 各维度评分
+2. 具体改进建议（每条不超过30字）
+3. （可选）改写示例`
+}
+
+/** 简单的 Mustache 风格模板替换：{{var}} 或 {{#var}}...{{/var}} */
+function renderPromptTemplate(template: string, vars: Record<string, string>): string {
+  let result = template
+  // 先处理条件块 {{#var}}...{{/var}}
+  result = result.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, key, content) => {
+    return vars[key] ? content : ''
+  })
+  // 再处理简单变量 {{var}}
+  result = result.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    return vars[key] ?? `{{${key}}}`
+  })
+  return result
+}
 
 export interface CheckRequest {
   content: string
@@ -42,21 +101,11 @@ async function getModel() {
 }
 
 export async function checkContent(request: CheckRequest): Promise<CheckResponse> {
-  const prompt = `你是一个周报写作助手。用户正在写周报，请分析以下内容并给出改进建议。
-
-内容：
-${request.content}
-
-${request.section ? `当前区块：${request.section}` : ''}
-
-请从以下方面分析：
-1. 是否有具体数据和细节支撑
-2. 是否突出了成果和价值
-3. 表达是否清晰简洁
-4. 是否有更好的表达方式
-
-请给出具体、简洁的建议（每条不超过20字）。
-如果内容很好，返回空数组 []。`
+  const template = await getSystemPrompt('check')
+  const prompt = renderPromptTemplate(template, {
+    content: request.content,
+    section: request.section || '',
+  })
 
   try {
     const model = await getModel()
@@ -80,20 +129,10 @@ ${request.section ? `当前区块：${request.section}` : ''}
 }
 
 export async function scoreReport(request: ScoreRequest): Promise<ScoreResponse> {
-  const prompt = `你是一个周报评分专家。请对以下周报进行评分和建议。
-
-周报内容：
-${request.content}
-
-请从以下维度评分（0-100）：
-1. structure（结构完整度）：各区块是否填写完整
-2. content（内容充实度）：是否有具体细节和数据
-3. value（价值突出度）：是否强调成果和贡献
-
-请给出：
-1. 各维度评分
-2. 具体改进建议（每条不超过30字）
-3. （可选）改写示例`
+  const template = await getSystemPrompt('score')
+  const prompt = renderPromptTemplate(template, {
+    content: request.content,
+  })
 
   try {
     const model = await getModel()

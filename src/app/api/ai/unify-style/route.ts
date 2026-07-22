@@ -26,9 +26,9 @@ export async function POST(request: Request) {
     if (body.templateId) {
       styleConfig = await getStyleFromTemplate(body.templateId)
     } else if (body.styleOverride) {
-      styleConfig = getAIStyle(body.styleOverride)
+      styleConfig = await getAIStyle(body.styleOverride)
     } else {
-      styleConfig = getAIStyle()
+      styleConfig = await getAIStyle()
     }
 
     const { unifiedContent, changesCount } = await unifyStyle(
