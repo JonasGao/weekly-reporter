@@ -160,6 +160,23 @@
   @apply border-border outline-ring/50;
 }
 
+/* Solid equivalents of the translucent table row tints.
+   Sticky cells must be opaque, or scrolled columns show through them. */
+@utility bg-muted-30-solid {
+  background-color: color-mix(in oklch, var(--muted) 30%, var(--background));
+}
+
+@utility bg-primary-5-solid {
+  background-color: color-mix(in oklch, var(--primary) 5%, var(--background));
+}
+
+@utility bg-error-row-solid {
+  background-color: color-mix(in oklch, var(--color-red-50) 30%, var(--background));
+  &:is(.dark *) {
+    background-color: color-mix(in oklch, var(--color-red-950) 10%, var(--background));
+  }
+}
+
 /* Report markdown prose styles */
 .prose-report {
   color: #d4d4d4;

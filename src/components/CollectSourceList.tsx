@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RefreshCw, RotateCcw, Trash2, Edit, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { RefreshCw, RotateCcw, Trash2, Edit, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Briefcase, User } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface CollectSource {
@@ -577,7 +577,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/30">
-                <th className="sticky left-0 z-10 bg-muted/30 px-3 py-2.5 text-left w-10">
+                <th className="sticky left-0 z-10 bg-muted-30-solid px-3 py-2.5 text-left w-10">
                   <input
                     type="checkbox"
                     checked={sources.length > 0 && selectedIds.size === sources.length}
@@ -585,7 +585,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                     className="rounded border-input h-4 w-4"
                   />
                 </th>
-                <th className="sticky left-10 z-10 bg-muted/30 px-3 py-2.5 text-left min-w-[150px]">
+                <th className="sticky left-10 z-10 bg-muted-30-solid px-3 py-2.5 text-left min-w-[150px]">
                   <SortHeader column="name" label="名称" />
                 </th>
                 <th className="px-3 py-2.5 text-left min-w-[90px]">
@@ -624,9 +624,11 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                 return (
                   <tr
                     key={source.id}
-                    className={`border-b hover:bg-muted/30 transition-colors ${isSelected ? 'bg-primary/5' : ''} ${hasSyncError ? 'bg-red-50/30 dark:bg-red-950/10' : ''}`}
+                    data-selected={isSelected || undefined}
+                    data-error={hasSyncError || undefined}
+                    className={`group border-b hover:bg-muted/30 transition-colors ${isSelected ? 'bg-primary/5' : ''} ${hasSyncError ? 'bg-red-50/30 dark:bg-red-950/10' : ''}`}
                   >
-                    <td className="sticky left-0 z-[5] bg-inherit px-3 py-2.5">
+                    <td className="sticky left-0 z-[5] bg-background transition-colors px-3 py-2.5 group-hover:bg-muted-30-solid group-data-[selected]:bg-primary-5-solid group-data-[error]:bg-error-row-solid">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -634,7 +636,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                         className="rounded border-input h-4 w-4"
                       />
                     </td>
-                    <td className="sticky left-10 z-[5] bg-inherit px-3 py-2.5 font-medium truncate max-w-[200px]">
+                    <td className="sticky left-10 z-[5] bg-background transition-colors px-3 py-2.5 font-medium truncate max-w-[200px] group-hover:bg-muted-30-solid group-data-[selected]:bg-primary-5-solid group-data-[error]:bg-error-row-solid">
                       {source.name}
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
@@ -652,8 +654,18 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                     <td className="px-3 py-2.5 text-muted-foreground truncate max-w-[200px]" title={emailsTrunc.full}>
                       {emailsTrunc.text}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                      {source.projectScope === 'work' ? '工作项目' : '个人项目'}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {source.projectScope === 'work' ? (
+                        <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                          <Briefcase className="h-3 w-3" />
+                          工作项目
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                          <User className="h-3 w-3" />
+                          个人项目
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5">
                       <button
@@ -681,21 +693,21 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                       </button>
                     </td>
                     <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-1">
-                        {source.lastSyncStatus === 'success' ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
-                        ) : source.lastSyncStatus === 'failure' ? (
-                          <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
-                        ) : (
-                          <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-                        )}
-                        <span className={`text-xs whitespace-nowrap ${
-                          source.lastSyncStatus === 'failure' ? 'text-red-600 dark:text-red-400 font-medium' :
-                          source.lastSyncStatus === 'success' ? 'text-green-700 dark:text-green-400' : ''
-                        }`}>
-                          {source.lastSyncAt ? relativeTime(source.lastSyncAt) : '未同步'}
-                        </span>
-                      </div>
+                      {source.lastSyncStatus === 'success' ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                      ) : source.lastSyncStatus === 'failure' ? (
+                        <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                      ) : (
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className={`text-xs whitespace-nowrap ${
+                        source.lastSyncStatus === 'failure' ? 'text-red-600 dark:text-red-400 font-medium' :
+                        source.lastSyncStatus === 'success' ? 'text-green-700 dark:text-green-400' : ''
+                      }`}>
+                        {source.lastSyncAt ? relativeTime(source.lastSyncAt) : '未同步'}
+                      </span>
                     </td>
                     <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
                       {syncCursor || '-'}
