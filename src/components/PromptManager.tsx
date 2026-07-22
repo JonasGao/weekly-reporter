@@ -278,11 +278,10 @@ function StyleTab() {
 
       {/* 新建/编辑对话框 */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? '编辑风格' : '新建风格'}</DialogTitle>
           </DialogHeader>
-          <div className="overflow-y-auto max-h-[70vh] pr-2">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -441,7 +440,6 @@ function StyleTab() {
               <Button type="submit">{editing ? '保存' : '创建'}</Button>
             </div>
           </form>
-          </div>
         </DialogContent>
       </Dialog>
     </div>
