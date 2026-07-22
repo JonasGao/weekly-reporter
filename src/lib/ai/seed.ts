@@ -2,6 +2,33 @@ import { getDb } from '../db'
 import { aiStyles, systemPrompts } from '../db/schema'
 import { sql } from 'drizzle-orm'
 
+const CREATE_AI_STYLES = `
+CREATE TABLE IF NOT EXISTS ai_styles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  key TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  system_prompt TEXT NOT NULL,
+  temperature TEXT NOT NULL DEFAULT '0.3',
+  score_structure_weight INTEGER NOT NULL DEFAULT 25,
+  score_content_weight INTEGER NOT NULL DEFAULT 30,
+  score_value_weight INTEGER NOT NULL DEFAULT 45,
+  detail_level TEXT,
+  result_oriented TEXT,
+  is_default INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)`
+
+const CREATE_SYSTEM_PROMPTS = `
+CREATE TABLE IF NOT EXISTS system_prompts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  key TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  prompt_text TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)`
+
 const BUILTIN_STYLES = [
   {
     key: 'formal',
@@ -87,36 +114,53 @@ const BUILTIN_SYSTEM_PROMPTS = [
 
 let seeded = false
 
-/** 确保默认数据已插入（幂等，只在表为空时执行） */
+/** 确保表和默认数据存在（幂等） */
 export async function ensureSeed(): Promise<void> {
   if (seeded) return
 
   const db = getDb()
   const now = new Date()
 
+  // 先确保表存在（不依赖 migrate，直接建表）
+  await ensureTables(db)
+
   // Seed AI styles if empty
-  const styleCount = await db.select({ count: sql<number>`count(*)` }).from(aiStyles)
-  if ((styleCount[0]?.count ?? 0) === 0) {
-    for (const style of BUILTIN_STYLES) {
-      await db.insert(aiStyles).values({
-        ...style,
-        createdAt: now,
-        updatedAt: now,
-      })
+  try {
+    const styleCount = await db.select({ count: sql<number>`count(*)` }).from(aiStyles)
+    if ((styleCount[0]?.count ?? 0) === 0) {
+      for (const style of BUILTIN_STYLES) {
+        await db.insert(aiStyles).values({ ...style, createdAt: now, updatedAt: now })
+      }
     }
+  } catch (e) {
+    console.error('[seed] Failed to seed ai_styles:', e instanceof Error ? e.message : e)
   }
 
   // Seed system prompts if empty
-  const promptCount = await db.select({ count: sql<number>`count(*)` }).from(systemPrompts)
-  if ((promptCount[0]?.count ?? 0) === 0) {
-    for (const prompt of BUILTIN_SYSTEM_PROMPTS) {
-      await db.insert(systemPrompts).values({
-        ...prompt,
-        createdAt: now,
-        updatedAt: now,
-      })
+  try {
+    const promptCount = await db.select({ count: sql<number>`count(*)` }).from(systemPrompts)
+    if ((promptCount[0]?.count ?? 0) === 0) {
+      for (const prompt of BUILTIN_SYSTEM_PROMPTS) {
+        await db.insert(systemPrompts).values({ ...prompt, createdAt: now, updatedAt: now })
+      }
     }
+  } catch (e) {
+    console.error('[seed] Failed to seed system_prompts:', e instanceof Error ? e.message : e)
   }
 
   seeded = true
+}
+
+/** 直接用 better-sqlite3 建表，绕过 migration 链路 */
+function ensureTables(db: ReturnType<typeof getDb>): void {
+  try {
+    // drizzle better-sqlite3 实例包含原始 better-sqlite3 Database 引用
+    const dbAny = db as unknown as { $client: { exec(sql: string): void } }
+    if (dbAny.$client) {
+      dbAny.$client.exec(CREATE_AI_STYLES)
+      dbAny.$client.exec(CREATE_SYSTEM_PROMPTS)
+    }
+  } catch (e) {
+    console.error('[seed] Failed to ensure tables:', e instanceof Error ? e.message : e)
+  }
 }

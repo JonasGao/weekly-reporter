@@ -15,12 +15,4 @@ INSERT INTO `__new_ai_config`("id", "protocol", "api_url", "api_key", "model", "
 DROP TABLE `ai_config`;--> statement-breakpoint
 ALTER TABLE `__new_ai_config` RENAME TO `ai_config`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;--> statement-breakpoint
-ALTER TABLE `collect_sources` ADD `project_scope` text DEFAULT 'personal' NOT NULL;--> statement-breakpoint
-ALTER TABLE `reports` ADD `score_status` text DEFAULT 'pending' NOT NULL;--> statement-breakpoint
-ALTER TABLE `reports` ADD `score_structure` integer;--> statement-breakpoint
-ALTER TABLE `reports` ADD `score_content` integer;--> statement-breakpoint
-ALTER TABLE `reports` ADD `score_value` integer;--> statement-breakpoint
-ALTER TABLE `reports` ADD `score_overall` integer;--> statement-breakpoint
-ALTER TABLE `reports` ADD `suggestions` text;--> statement-breakpoint
-ALTER TABLE `reports` ADD `score_error` text;--> statement-breakpoint
-ALTER TABLE `reports` ADD `scored_at` integer;
+ALTER TABLE `collect_sources` ADD `project_scope` text DEFAULT 'personal' NOT NULL;
