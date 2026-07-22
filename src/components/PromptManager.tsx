@@ -278,7 +278,7 @@ function StyleTab() {
 
       {/* 新建/编辑对话框 */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? '编辑风格' : '新建风格'}</DialogTitle>
           </DialogHeader>
