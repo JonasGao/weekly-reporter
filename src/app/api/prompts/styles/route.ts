@@ -4,11 +4,12 @@ import { aiStyleSchema } from '@/lib/validations'
 import { ensureSeed } from '@/lib/ai/seed'
 
 export async function GET() {
-  await ensureSeed()
   try {
+    await ensureSeed()
     const styles = await listAIStyles()
     return NextResponse.json({ styles })
   } catch (error) {
+    console.error('GET /api/prompts/styles error:', error)
     return NextResponse.json(
       { error: '获取风格列表失败', code: 'FETCH_ERROR' },
       { status: 500 },

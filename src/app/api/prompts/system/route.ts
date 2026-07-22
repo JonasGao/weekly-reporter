@@ -2,15 +2,18 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { systemPrompts } from '@/lib/db/schema'
 import { systemPromptSchema } from '@/lib/validations'
+import { ensureSeed } from '@/lib/ai/seed'
 import { eq } from 'drizzle-orm'
 
 export async function GET() {
   try {
+    await ensureSeed()
     const db = getDb()
     const prompts = await db.select().from(systemPrompts).orderBy(systemPrompts.key)
 
     return NextResponse.json({ prompts })
   } catch (error) {
+    console.error('GET /api/prompts/system error:', error)
     return NextResponse.json(
       { error: '获取系统提示词失败', code: 'FETCH_ERROR' },
       { status: 500 },
