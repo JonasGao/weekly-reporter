@@ -184,7 +184,7 @@ export async function polishEvent(
   const { object } = await generateObject({
     model,
     schema: z.object({ polishedContent: z.string() }),
-    prompt: `${systemPrompt}\n\n请润色以下内容：\n${content}`,
+    prompt: `${systemPrompt}\n\n请润色以下内容。保持原意不变，仅优化表达方式、补充数据感、调整句式。直接返回润色后文本，不要添加任何解释。\n\n${content}`,
     temperature,
   })
   return object.polishedContent
@@ -203,7 +203,7 @@ export async function expandSection(
     schema: z.object({
       newItems: z.array(z.string()),
     }),
-    prompt: `${systemPrompt}\n\n章节标题：${sectionTitle}\n\n已有条目：\n${existingItems.join('\n')}\n\n可用事件素材：\n${events.join('\n')}\n\n请基于事件素材生成新的条目来补充这个章节。`,
+    prompt: `${systemPrompt}\n\n章节标题：${sectionTitle}\n\n已有条目：\n${existingItems.join('\n')}\n\n可用事件素材：\n${events.join('\n')}\n\n请基于事件素材生成新的条目来补充这个章节。每条与已有条目不重复，格式与已有条目保持一致。仅输出新条目内容，不要扩写或修改已有条目。`,
     temperature,
   })
 
@@ -231,7 +231,7 @@ export async function unifyStyle(
       unifiedContent: z.string(),
       changesCount: z.number(),
     }),
-    prompt: `${systemPrompt}\n\n请统一以下内容的写作风格：\n${content}`,
+    prompt: `${systemPrompt}\n\n请统一以下内容的写作风格。主要调整句式、用词和详略程度，保持内容信息量不变。\n\n${content}`,
     temperature,
   })
 
