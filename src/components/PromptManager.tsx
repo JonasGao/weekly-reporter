@@ -278,7 +278,7 @@ function StyleTab() {
 
       {/* 新建/编辑对话框 */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? '编辑风格' : '新建风格'}</DialogTitle>
           </DialogHeader>
@@ -325,7 +325,7 @@ function StyleTab() {
                 value={form.systemPrompt}
                 onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
                 required
-                rows={4}
+                rows={8}
                 maxLength={5000}
                 className="font-mono text-sm"
               />
@@ -580,7 +580,7 @@ function SystemPromptTab() {
             <Textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              rows={14}
+              rows={22}
               maxLength={10000}
               className="font-mono text-sm"
             />
@@ -629,7 +629,7 @@ function SystemPromptTab() {
             <Textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              rows={12}
+              rows={20}
               maxLength={10000}
               className="font-mono text-sm"
             />
