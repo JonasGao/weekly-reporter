@@ -325,9 +325,8 @@ function StyleTab() {
                 value={form.systemPrompt}
                 onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
                 required
-                rows={8}
                 maxLength={5000}
-                className="font-mono text-sm"
+                className="font-mono text-sm min-h-[200px]"
               />
             </div>
 
@@ -580,9 +579,8 @@ function SystemPromptTab() {
             <Textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              rows={22}
               maxLength={10000}
-              className="font-mono text-sm"
+              className="font-mono text-sm min-h-[400px]"
             />
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={cancelEdit}>取消</Button>
@@ -629,9 +627,8 @@ function SystemPromptTab() {
             <Textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              rows={20}
               maxLength={10000}
-              className="font-mono text-sm"
+              className="font-mono text-sm min-h-[350px]"
             />
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={cancelEdit}>取消</Button>
