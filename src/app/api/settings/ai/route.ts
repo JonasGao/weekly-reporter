@@ -51,14 +51,26 @@ export async function PUT(request: Request) {
       )
     }
 
-    if (!apiKey || typeof apiKey !== 'string') {
+    const db = getDb()
+    const existingConfig = await getAIConfig(db)
+
+    // If apiKey is empty but a key was previously configured, reuse the existing key.
+    // This allows users to change just the model without re-entering the API key.
+    const effectiveApiKey =
+      apiKey && typeof apiKey === 'string' ? apiKey : existingConfig?.apiKey
+
+    if (!effectiveApiKey || typeof effectiveApiKey !== 'string') {
       return NextResponse.json(
         { error: 'API Key 不能为空', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
 
-    if (!model || typeof model !== 'string') {
+    // If model is empty but one was previously configured, reuse the existing model.
+    const effectiveModel =
+      model && typeof model === 'string' ? model : existingConfig?.model
+
+    if (!effectiveModel || typeof effectiveModel !== 'string') {
       return NextResponse.json(
         { error: '模型名称不能为空', code: 'INVALID_INPUT' },
         { status: 400 }
@@ -72,12 +84,11 @@ export async function PUT(request: Request) {
       )
     }
 
-    const db = getDb()
     const saved = await saveAIConfig(db, {
       protocol: (protocol as AIProtocol) ?? 'openai-compatible',
       apiUrl,
-      apiKey,
-      model,
+      apiKey: effectiveApiKey,
+      model: effectiveModel,
     })
 
     return NextResponse.json({

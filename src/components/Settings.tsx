@@ -133,6 +133,7 @@ function AISettingsTab() {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const loadConfig = useCallback(async () => {
     try {
@@ -161,6 +162,7 @@ function AISettingsTab() {
   async function handleSave() {
     setLoading(true)
     setSaved(false)
+    setSaveError(null)
     try {
       const res = await fetch('/api/settings/ai', {
         method: 'PUT',
@@ -171,9 +173,13 @@ function AISettingsTab() {
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
         await loadConfig()
+      } else {
+        const data = await res.json().catch(() => ({ error: '保存失败' }))
+        setSaveError(data.error ?? '保存失败')
       }
     } catch (error) {
       console.error('Failed to save AI config:', error)
+      setSaveError('网络错误，请检查连接')
     } finally {
       setLoading(false)
     }
@@ -334,6 +340,12 @@ function AISettingsTab() {
           )}
         </Button>
       </div>
+
+      {saveError && (
+        <div className="text-sm text-red-600">
+          ✗ 保存失败: {saveError}
+        </div>
+      )}
 
       {testResult && (
         <div className={`text-sm ${testResult.ok ? 'text-green-600' : 'text-red-600'}`}>
