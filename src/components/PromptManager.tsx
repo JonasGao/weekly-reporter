@@ -291,7 +291,7 @@ function StyleTab() {
                     id="skey"
                     value={form.key}
                     onChange={(e) => setForm({ ...form, key: e.target.value })}
-                    pattern="^[a-z][a-z0-9_-]*$"
+                    pattern="^[a-z][a-z0-9_\-]*$"
                     required
                     className="font-mono text-sm flex-1"
                   />
