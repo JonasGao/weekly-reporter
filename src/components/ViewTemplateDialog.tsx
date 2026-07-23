@@ -49,7 +49,7 @@ export function ViewTemplateDialog({
 
           <div className="space-y-2">
             <div className="text-sm font-medium">模板内容</div>
-            <div className="border rounded-md p-4 max-h-[60vh] overflow-y-auto">
+            <div className="max-h-[60vh] overflow-y-auto">
               <MilkdownEditor value={template.content} onChange={() => {}} readOnly />
             </div>
           </div>
