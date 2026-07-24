@@ -10,6 +10,7 @@ import { UserCircle } from 'lucide-react'
 import { AuthorEmailPicker } from './AuthorEmailPicker'
 import { AutoCompleteInput } from './AutoCompleteInput'
 import { TagInput } from './TagInput'
+import { checkRepoPath } from '@/app/collect/actions'
 
 export interface FormData {
   type: 'git-remote-github' | 'git-remote-gitlab' | 'git-remote-gitee' | 'git-local'
@@ -24,6 +25,10 @@ export interface FormData {
     authorEmails: string
     branches: string
   }
+  /** git-local：主路径之外的额外采集路径（同仓库的 worktree/clone） */
+  extraPaths: string[]
+  /** git-local：已有的采集路径条目（用于编辑时保留各路径的游标），由详情页注入 */
+  existingPaths?: Array<{ path: string; lastBranch?: string | null; lastCommitTime?: string | null }>
   enabled: boolean
 }
 
@@ -47,9 +52,30 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
         authorEmails: '',
         branches: '',
       },
+      extraPaths: [],
       enabled: true,
     }
   )
+
+  // 同源提示：主路径/额外路径与「其他」已有源同仓库时的警告
+  const [ownerWarning, setOwnerWarning] = useState<string | null>(null)
+  const [pathWarnings, setPathWarnings] = useState<Record<number, string>>({})
+
+  async function checkSameRepo(path: string, onResult: (warning: string | null) => void) {
+    const trimmed = path.trim()
+    if (!trimmed || !isLocal(formData.type)) {
+      onResult(null)
+      return
+    }
+    try {
+      const result = await checkRepoPath(trimmed, sourceId)
+      onResult(result.matchedSourceName
+        ? `该路径与采集源「${result.matchedSourceName}」同仓库，建议通过扫描并入该源`
+        : null)
+    } catch {
+      onResult(null)
+    }
+  }
 
   // 邮箱自动补全 — 从当前仓库获取
   const [knownEmails, setKnownEmails] = useState<string[]>([])
@@ -85,19 +111,15 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
     return () => clearTimeout(timer)
   }, [formData.type, formData.config.owner, formData.config.repo, formData.config.token, formData.config.baseUrl, formData.config.branches])
 
-  // 根据当前表单值获取仓库分支（防抖）
+  // 根据当前表单值获取仓库分支（防抖，仅远端类型需要——git-local 跟随签出分支）
   useEffect(() => {
+    if (isLocal(formData.type)) return
     const params = new URLSearchParams({ type: formData.type })
-    if (isLocal(formData.type)) {
-      if (!formData.config.owner) return
-      params.set('path', formData.config.owner)
-    } else {
-      if (!formData.config.owner || !formData.config.repo || !formData.config.token) return
-      params.set('owner', formData.config.owner)
-      params.set('repo', formData.config.repo)
-      params.set('token', formData.config.token)
-      if (formData.config.baseUrl) params.set('baseUrl', formData.config.baseUrl)
-    }
+    if (!formData.config.owner || !formData.config.repo || !formData.config.token) return
+    params.set('owner', formData.config.owner)
+    params.set('repo', formData.config.repo)
+    params.set('token', formData.config.token)
+    if (formData.config.baseUrl) params.set('baseUrl', formData.config.baseUrl)
 
     const timer = setTimeout(() => {
       fetch(`/api/collect/sources/branches?${params}`)
@@ -129,6 +151,54 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
     setFormData(prev => ({ ...prev, aliases }))
   }
 
+  function handleExtraPathChange(index: number, value: string) {
+    setFormData(prev => ({
+      ...prev,
+      extraPaths: prev.extraPaths.map((p, i) => (i === index ? value : p)),
+    }))
+  }
+
+  function handleAddExtraPath() {
+    setFormData(prev => ({ ...prev, extraPaths: [...prev.extraPaths, ''] }))
+  }
+
+  function handleRemoveExtraPath(index: number) {
+    setFormData(prev => ({
+      ...prev,
+      extraPaths: prev.extraPaths.filter((_, i) => i !== index),
+    }))
+    setPathWarnings(prev => {
+      const next = { ...prev }
+      delete next[index]
+      return next
+    })
+  }
+
+  function handleExtraPathBlur(index: number) {
+    checkSameRepo(formData.extraPaths[index] || '', warning => {
+      setPathWarnings(prev => {
+        const next = { ...prev }
+        if (warning) next[index] = warning
+        else delete next[index]
+        return next
+      })
+    })
+  }
+
+  /** git-local：由 owner + extraPaths 构造 paths 配置，保留已有路径的游标 */
+  function buildPathsConfig() {
+    const allPaths = [formData.config.owner.trim(), ...formData.extraPaths.map(p => p.trim())].filter(Boolean)
+    const prevByPath = new Map((formData.existingPaths || []).map(p => [p.path, p]))
+    return [...new Set(allPaths)].map(p => {
+      const prev = prevByPath.get(p)
+      return {
+        path: p,
+        lastBranch: prev?.lastBranch ?? null,
+        lastCommitTime: prev?.lastCommitTime ?? null,
+      }
+    })
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -142,7 +212,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
         ? {
           owner: formData.config.owner,
           authorEmails: formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean),
-          branches: formData.config.branches.split(',').map(b => b.trim()).filter(Boolean) || undefined,
+          paths: buildPathsConfig(),
         }
         : {
           baseUrl: formData.config.baseUrl || undefined,
@@ -283,11 +353,43 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
               type="text"
               value={formData.config.owner}
               onChange={e => handleConfigChange('owner', e.target.value)}
+              onBlur={() => isLocal(formData.type) && checkSameRepo(formData.config.owner, setOwnerWarning)}
               placeholder={isLocal(formData.type) ? '例如：/home/user/projects/backend' : '例如：my-org'}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               required
             />
+            {ownerWarning && <p className="text-xs text-amber-600">{ownerWarning}</p>}
           </div>
+
+          {isLocal(formData.type) && (
+            <div className="space-y-2">
+              <Label>额外采集路径（同仓库的 worktree / clone，可选）</Label>
+              {formData.extraPaths.map((p, i) => (
+                <div key={i} className="space-y-1">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={p}
+                      onChange={e => handleExtraPathChange(i, e.target.value)}
+                      onBlur={() => handleExtraPathBlur(i)}
+                      placeholder="例如：/home/user/projects/backend-worktree"
+                      className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => handleRemoveExtraPath(i)}>
+                      删除
+                    </Button>
+                  </div>
+                  {pathWarnings[i] && <p className="text-xs text-amber-600">{pathWarnings[i]}</p>}
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={handleAddExtraPath}>
+                添加路径
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                每个路径采集其当前签出的分支；建议使用「扫描仓库」自动并入同仓库路径
+              </p>
+            </div>
+          )}
 
           {isRemote(formData.type) && (
             <div className="space-y-2">
@@ -304,15 +406,17 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="branches">分支（可选，多个用逗号分隔，默认主分支）</Label>
-            <AutoCompleteInput
-              value={formData.config.branches}
-              onChange={v => handleConfigChange('branches', v)}
-              suggestions={knownBranches}
-              placeholder="例如：main, develop"
-            />
-          </div>
+          {isRemote(formData.type) && (
+            <div className="space-y-2">
+              <Label htmlFor="branches">分支（可选，多个用逗号分隔，默认主分支）</Label>
+              <AutoCompleteInput
+                value={formData.config.branches}
+                onChange={v => handleConfigChange('branches', v)}
+                suggestions={knownBranches}
+                placeholder="例如：main, develop"
+              />
+            </div>
+          )}
 
           {isRemote(formData.type) && (
             <div className="space-y-2">

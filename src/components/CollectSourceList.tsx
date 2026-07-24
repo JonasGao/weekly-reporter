@@ -19,6 +19,7 @@ interface CollectSource {
     token: string
     authorEmails: string[]
     branches?: Array<string | { name: string; lastCommitTime?: string | null }>
+    paths?: Array<{ path: string; lastBranch?: string | null; lastCommitTime?: string | null }>
     aliases?: string[]
   }
   enabled: boolean
@@ -190,12 +191,26 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     return new Date(dateStr).toLocaleDateString()
   }
 
-  function getBranchNames(branches?: Array<string | { name: string; lastCommitTime?: string | null }>): string[] {
-    return branches?.map(b => typeof b === 'string' ? b : b.name).filter(Boolean) || []
+  function getBranchNames(config: CollectSource['config']): string[] {
+    // git-local paths 模型：显示各路径最近采集的分支
+    if (Array.isArray(config.paths) && config.paths.length > 0) {
+      return config.paths.map(p => p.lastBranch || '-')
+    }
+    return config.branches?.map(b => typeof b === 'string' ? b : b.name).filter(Boolean) || []
   }
 
-  function getSyncCursor(branches?: Array<string | { name: string; lastCommitTime?: string | null }>): string | null {
-    const maxCursor = branches?.reduce((max, b) => {
+  function getSyncCursor(config: CollectSource['config']): string | null {
+    if (Array.isArray(config.paths) && config.paths.length > 0) {
+      const maxCursor = config.paths.reduce((max, p) => {
+        if (p.lastCommitTime) {
+          const t = new Date(p.lastCommitTime).getTime()
+          return t > max ? t : max
+        }
+        return max
+      }, 0)
+      return maxCursor ? new Date(maxCursor).toLocaleString() : null
+    }
+    const maxCursor = config.branches?.reduce((max, b) => {
       if (typeof b === 'object' && b.lastCommitTime) {
         const t = new Date(b.lastCommitTime).getTime()
         return t > max ? t : max
@@ -226,6 +241,9 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
       if (data.result?.status === 'success') {
         toast.success(`${data.result.eventsCount} 条事件已同步`)
+        if (data.result.warnings?.length) {
+          toast.warning(data.result.warnings.join('\n'))
+        }
       } else if (data.result?.autoDisabled) {
         toast.error('路径不存在，已自动标记为不可用')
       } else {
@@ -253,6 +271,9 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
       if (data.result?.status === 'success') {
         toast.success(`重新同步完成，新增 ${data.result.eventsCount} 条事件`)
+        if (data.result.warnings?.length) {
+          toast.warning(data.result.warnings.join('\n'))
+        }
       } else if (data.result?.autoDisabled) {
         toast.error('路径不存在，已自动标记为不可用')
       } else {
@@ -615,10 +636,10 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                 const isToggling = togglingIds.has(source.id)
                 const isSelected = selectedIds.has(source.id)
                 const sourceStatus = source.status || (source.enabled ? 'enabled' : 'disabled')
-                const branchesTrunc = truncateList(getBranchNames(source.config.branches))
+                const branchesTrunc = truncateList(getBranchNames(source.config))
                 const aliasesTrunc = truncateList(source.config.aliases || [])
                 const emailsTrunc = truncateList(source.config.authorEmails || [])
-                const syncCursor = getSyncCursor(source.config.branches)
+                const syncCursor = getSyncCursor(source.config)
                 const hasSyncError = source.lastSyncStatus === 'failure'
 
                 return (
@@ -643,7 +664,9 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                       {getSourceTypeLabel(source.type)}
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-                      {source.config.owner}/{source.config.repo}
+                      {source.type === 'git-local'
+                        ? `${source.config.owner}${source.config.paths && source.config.paths.length > 1 ? `（+${source.config.paths.length - 1} 路径）` : ''}`
+                        : `${source.config.owner}/${source.config.repo}`}
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground" title={branchesTrunc.full}>
                       {branchesTrunc.text}

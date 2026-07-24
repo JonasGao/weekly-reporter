@@ -59,6 +59,11 @@ export const collectSourceSchema = z.object({
       z.string(),
       z.object({ name: z.string(), lastCommitTime: z.string().nullable().optional() })
     ])).optional(),
+    paths: z.array(z.object({
+      path: z.string().min(1),
+      lastBranch: z.string().nullable().optional(),
+      lastCommitTime: z.string().nullable().optional(),
+    })).optional(),
   }),
   enabled: z.boolean().optional(),
 }).refine(

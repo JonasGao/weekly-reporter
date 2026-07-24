@@ -38,6 +38,21 @@ export async function getNormalizedRepoName(repoPath: string): Promise<string> {
   return basename(repoPath)
 }
 
+/**
+ * 获取仓库当前签出的分支名；detached HEAD 或非仓库时返回空字符串
+ */
+export async function getCurrentBranch(repoPath: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('git', ['branch', '--show-current'], {
+      cwd: repoPath,
+      maxBuffer: 1024 * 1024,
+    })
+    return stdout.trim()
+  } catch {
+    return ''
+  }
+}
+
 export const localGitAdapter: GitAdapter = {
   platform: 'git-local',
   
