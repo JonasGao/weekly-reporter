@@ -385,6 +385,39 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     }
   }
 
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return
+    if (!confirm(`确定要删除选中的 ${selectedIds.size} 个采集源吗？`)) return
+
+    try {
+      setBulkUpdating(true)
+      const res = await fetch('/api/collect/sources/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        toast.success(`成功删除 ${data.deletedCount} 个采集源`)
+        if (selectedIds.size >= sources.length && page > 1) {
+          setSelectedIds(new Set())
+          setPage(page - 1)
+        } else {
+          setSelectedIds(new Set())
+          fetchSources()
+        }
+      } else {
+        toast.error(data.error || '删除失败')
+      }
+    } catch {
+      toast.error('删除失败')
+    } finally {
+      setBulkUpdating(false)
+    }
+  }
+
   function handleSort(column: SortableColumn) {
     let newSortBy: string
     let newSortOrder: string
@@ -844,6 +877,13 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
               className="px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               设为个人项目
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkUpdating}
+              className="px-3 py-1.5 text-sm bg-destructive/10 text-destructive rounded-md hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              删除
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
