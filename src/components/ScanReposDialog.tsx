@@ -270,7 +270,7 @@ export function ScanReposDialog({
                   <p className="text-xs text-destructive">{fetchError}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  输入路径会自动显示子目录补全，支持模糊搜索（如 /home/god/git）
+                  输入路径会自动显示子目录补全，支持模糊搜索和 ~ 开头（如 ~/git）
                 </p>
               </div>
             </CardContent>

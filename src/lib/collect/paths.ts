@@ -1,4 +1,5 @@
 import type { CollectSourceConfig, CollectSourcePath } from '@/lib/db/schema'
+import { isAbsolute, resolve } from 'path'
 
 export type PathEntry = Required<Pick<CollectSourcePath, 'path'>> & {
   lastBranch: string | null
@@ -57,4 +58,23 @@ export function maxBranchCursor(branches: CollectSourceConfig['branches']): stri
  */
 export function shouldResetCursor(entry: PathEntry, currentBranch: string): boolean {
   return entry.lastBranch !== null && entry.lastBranch !== currentBranch
+}
+
+/**
+ * 路径展开：把用户输入的目录路径解释为绝对路径。规则（见 CONTEXT.md「路径展开」）：
+ * - `~` 或 `~/` 开头 → 展开为 $HOME（不支持 ~user 形式，按相对路径处理）
+ * - 相对路径 → 解析到 $HOME 下
+ * - 绝对路径 → 原样使用
+ * 返回值经 resolve 规范化，但保留用户输入的结尾斜杠——
+ * 调用方（如目录补全）用它区分「列出该目录内容」。
+ */
+export function expandInputPath(input: string): string {
+  const home = process.env.HOME || '/home'
+  const trimmed = input.trim()
+  const expanded =
+    trimmed === '~' ? home
+    : trimmed.startsWith('~/') ? resolve(home, trimmed.slice(2))
+    : isAbsolute(trimmed) ? resolve(trimmed)
+    : resolve(home, trimmed)
+  return trimmed.endsWith('/') && expanded !== '/' ? expanded + '/' : expanded
 }

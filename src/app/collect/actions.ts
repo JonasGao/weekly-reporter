@@ -6,7 +6,7 @@ import { getDb } from '@/lib/db'
 import { collectSources } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { getRepoIdentity, planScanAdditions, sourcePaths } from '@/lib/collect/repo-identity'
-import { toPaths } from '@/lib/collect/paths'
+import { toPaths, expandInputPath } from '@/lib/collect/paths'
 
 const ALLOWED_BASE_DIRS = [
   process.env.HOME || '/home',
@@ -67,7 +67,7 @@ export async function scanRepos(
   maxDepth: number = 3
 ): Promise<{ repos: FoundRepo[]; error?: string }> {
   try {
-    const resolvedPath = resolve(basePath)
+    const resolvedPath = expandInputPath(basePath)
 
     if (!isPathAllowed(resolvedPath)) {
       return { repos: [], error: '不允许访问此目录' }
@@ -225,7 +225,7 @@ export async function checkRepoPath(
   path: string,
   excludeSourceId?: number
 ): Promise<{ identity: string | null; matchedSourceId?: number; matchedSourceName?: string }> {
-  const identity = await getRepoIdentity(path)
+  const identity = await getRepoIdentity(expandInputPath(path))
   if (!identity) return { identity: null }
 
   const db = getDb()

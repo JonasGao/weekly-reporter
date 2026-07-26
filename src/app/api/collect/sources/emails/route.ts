@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { expandInputPath } from '@/lib/collect/paths'
 
 const execFileAsync = promisify(execFile)
 
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
     let authors: AuthorInfo[] = []
 
     if (type === 'git-local' && path) {
-      authors = await getLocalAuthors(path, branch)
+      authors = await getLocalAuthors(expandInputPath(path), branch)
     } else if (type === 'git-remote-github' && owner && repo && token) {
       authors = await getGitHubAuthors(owner, repo, token)
     } else if (type === 'git-remote-gitlab' && owner && repo && token) {

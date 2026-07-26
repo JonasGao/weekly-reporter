@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { expandInputPath } from '@/lib/collect/paths'
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/
 
@@ -87,6 +88,21 @@ export const collectSourceSchema = z.object({
   {
     message: '远程仓库需要提供 token',
     path: ['config', 'token'],
+  }
+).transform(
+  // git-local 的路径是用户直接输入的：统一做路径展开（见 CONTEXT.md「路径展开」），
+  // 并去掉结尾斜杠，保证落库的 owner / paths 与扫描得来的路径形态一致
+  (data) => {
+    if (data.type !== 'git-local') return data
+    const stripSlash = (p: string) => p.replace(/(.)\/+$/, '$1')
+    return {
+      ...data,
+      config: {
+        ...data.config,
+        owner: stripSlash(expandInputPath(data.config.owner)),
+        paths: data.config.paths?.map(p => ({ ...p, path: stripSlash(expandInputPath(p.path)) })),
+      },
+    }
   }
 )
 

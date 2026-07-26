@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { expandInputPath } from '@/lib/collect/paths'
 // Runtime-only fs/path — loaded via eval('require') so NFT static analysis
 // cannot trace the dynamic filesystem operations on user-provided paths.
 // Type-only imports are erased at compile time and do not affect tracing.
@@ -132,71 +133,40 @@ function collectDirs(basePath: string, query: string, maxDepth: number = 3, curr
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const input = searchParams.get('path') || ''
-    const HOME = process.env.HOME || '/home'
+    const raw = searchParams.get('path') || ''
+    // 路径展开后必为绝对路径
+    let input = expandInputPath(raw)
+    // 空输入或裸 ~：视为列出 $HOME 内容（结尾 / 表示「列出该目录内容」）
+    if (raw.trim() === '' || raw.trim() === '~') input += '/'
 
-    // 1. 解析输入：确定 basePath 和 query
+    // 1. 解析输入：最后一个 / 分割为 basePath 和 query
     let basePath: string
     let query: string
     let exists = false
 
-    if (input.startsWith('/')) {
-      // 绝对路径：最后一个 / 分割为 basePath + query
-      const lastSlash = input.lastIndexOf('/')
-      if (lastSlash === 0) {
-        basePath = '/'
-        query = input.slice(1)
-      } else {
-        basePath = input.slice(0, lastSlash) || '/'
-        query = input.slice(lastSlash + 1)
-      }
-
-      const resolvedBase = path.resolve(basePath)
-      if (!isPathAllowed(resolvedBase)) {
-        return NextResponse.json(
-          { error: '不允许访问此目录', code: 'FORBIDDEN' },
-          { status: 403 }
-        )
-      }
-
-      if (fs.existsSync(resolvedBase) && fs.statSync(resolvedBase).isDirectory()) {
-        exists = true
-      }
-    } else if (input.includes('/')) {
-      // 相对路径含 /：在 $HOME 下解析
-      const lastSlash = input.lastIndexOf('/')
-      const basePart = input.slice(0, lastSlash)
-      query = input.slice(lastSlash + 1)
-      basePath = path.resolve(HOME, basePart)
-
-      if (!isPathAllowed(basePath)) {
-        return NextResponse.json(
-          { error: '不允许访问此目录', code: 'FORBIDDEN' },
-          { status: 403 }
-        )
-      }
-
-      if (fs.existsSync(basePath) && fs.statSync(basePath).isDirectory()) {
-        exists = true
-      }
+    const lastSlash = input.lastIndexOf('/')
+    if (lastSlash === 0) {
+      basePath = '/'
+      query = input.slice(1)
     } else {
-      // 无 /：直接在 $HOME 下搜索
-      basePath = HOME
-      query = input
+      basePath = input.slice(0, lastSlash) || '/'
+      query = input.slice(lastSlash + 1)
+    }
 
-      if (!isPathAllowed(HOME)) {
-        return NextResponse.json(
-          { error: '不允许访问此目录', code: 'FORBIDDEN' },
-          { status: 403 }
-        )
-      }
+    const resolvedBase = path.resolve(basePath)
+    if (!isPathAllowed(resolvedBase)) {
+      return NextResponse.json(
+        { error: '不允许访问此目录', code: 'FORBIDDEN' },
+        { status: 403 }
+      )
+    }
 
+    if (fs.existsSync(resolvedBase) && fs.statSync(resolvedBase).isDirectory()) {
       exists = true
     }
 
     // 2. basePath 存在：列出子目录，如有 query 则做模糊过滤
     if (exists) {
-      const resolvedBase = path.resolve(basePath)
       const entries = fs.readdirSync(resolvedBase, { withFileTypes: true })
       const allDirs = entries
         .filter(entry => entry.isDirectory())
@@ -222,7 +192,6 @@ export async function GET(request: Request) {
     }
 
     // 3. basePath 不存在：向上找最近的存在的祖先目录，模糊搜索剩余部分
-    const resolvedBase = path.resolve(basePath)
     const found = findExistingBase(resolvedBase)
     if (!found) {
       return NextResponse.json({ directories: [], path: resolvedBase, exists: false })
