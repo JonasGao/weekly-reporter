@@ -5,6 +5,7 @@ import { eq, between, sql, or, and, isNull } from 'drizzle-orm'
 import { renderTemplate } from '@/lib/template/render'
 import { extractViewConfig } from '@/lib/template/view-config'
 import { OFFICIAL_TEMPLATES } from '@/lib/official-templates'
+import { getSourceScopes } from '@/lib/collect/source-scopes'
 import { startOfWeek, endOfWeek } from 'date-fns'
 
 export async function GET(
@@ -83,7 +84,7 @@ export async function GET(
 
     // Build query for events
     let eventsToProcess
-    
+
     if (viewType === 'leadership') {
       // For leadership view, filter at SQL level: manual events OR events from work projects
       // Use raw SQL for JSON path extraction in SQLite
@@ -114,6 +115,7 @@ export async function GET(
       events: eventsToProcess,
       enabledSections: viewConfig.enabledSections,
       sectionTypeMap: templateConfig.sectionTypeMap,
+      sourceScopes: await getSourceScopes(),
     })
 
     return NextResponse.json({

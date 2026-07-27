@@ -7,6 +7,7 @@ import { renderTemplate } from '@/lib/template/render'
 import { OFFICIAL_TEMPLATES } from '@/lib/official-templates'
 import { mapTagsToSectionType } from '@/lib/tags/mapper'
 import { triggerAsyncScoring } from '@/lib/scoring'
+import { getSourceScopes } from '@/lib/collect/source-scopes'
 
 export async function GET(request: Request) {
   try {
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
         finalContent = renderTemplate(templateContent, {
           date: baseDate ? new Date(baseDate) : new Date(),
           events: processedEvents,
+          sourceScopes: await getSourceScopes(),
         })
       }
     }

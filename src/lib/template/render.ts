@@ -8,7 +8,8 @@ import {
   getMonth,
 } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { RawEvent, SectionType, TemplateConfig, SectionRenderConfig } from '@/lib/db/schema';
+import { RawEvent, ProjectScope, SectionType, TemplateConfig, SectionRenderConfig } from '@/lib/db/schema';
+import { getOriginGroup, ORIGIN_GROUP_RANK } from './origin-group';
 
 export interface RenderOptions {
   date?: Date;
@@ -16,6 +17,8 @@ export interface RenderOptions {
   sectionConfig?: TemplateConfig['sectionConfig'];
   enabledSections?: string[];
   sectionTypeMap?: Record<string, SectionType>;
+  /** 采集源 id → 项目范围，用于来源分组排序 */
+  sourceScopes?: ReadonlyMap<number, ProjectScope>;
 }
 
 const EMPTY_LIST_ITEMS = '- \n- \n- ';
@@ -54,7 +57,8 @@ function isGitEvent(event: RawEvent): boolean {
 function filterAndFormatEvents(
   events: RawEvent[],
   type: SectionType,
-  config?: SectionRenderConfig
+  config?: SectionRenderConfig,
+  sourceScopes?: ReadonlyMap<number, ProjectScope>
 ): string {
   let filtered = events.filter((e) => e.sectionType === type);
 
@@ -86,6 +90,7 @@ function filterAndFormatEvents(
   // 构建顶层项列表（仓库组 + 非 git 事件）
   interface TopLevelItem {
     type: 'repo' | 'event';
+    rank: number;
     time: number;
     repo?: string;
     events?: RawEvent[];
@@ -94,11 +99,15 @@ function filterAndFormatEvents(
 
   const topLevelItems: TopLevelItem[] = [];
 
-  // 添加仓库组（取最近 commit 时间）
+  // 添加仓库组（取最近 commit 时间；来源分组取组内最高优先级）
   for (const [repo, groupEvents] of repoGroups) {
     const mostRecentTime = Math.max(...groupEvents.map((e) => e.eventTime.getTime()));
+    const rank = Math.min(
+      ...groupEvents.map((e) => ORIGIN_GROUP_RANK[getOriginGroup(e, sourceScopes)])
+    );
     topLevelItems.push({
       type: 'repo',
+      rank,
       time: mostRecentTime,
       repo,
       events: groupEvents,
@@ -109,13 +118,14 @@ function filterAndFormatEvents(
   for (const event of nonGitEvents) {
     topLevelItems.push({
       type: 'event',
+      rank: ORIGIN_GROUP_RANK[getOriginGroup(event, sourceScopes)],
       time: event.eventTime.getTime(),
       event,
     });
   }
 
-  // 按时间倒序排序所有顶层项
-  topLevelItems.sort((a, b) => b.time - a.time);
+  // 先按来源分组优先级（手动 > 采集-工作 > 采集-个人 > 其他），组内按时间倒序
+  topLevelItems.sort((a, b) => a.rank - b.rank || b.time - a.time);
 
   // 应用 maxItems 限制
   if (config?.maxItems) {
@@ -215,7 +225,8 @@ export function renderTemplate(content: string, options?: RenderOptions): string
       replacement = filterAndFormatEvents(
         options.events,
         sectionType,
-        options.sectionConfig?.[sectionType]
+        options.sectionConfig?.[sectionType],
+        options.sourceScopes
       );
     } else {
       replacement = EMPTY_LIST_ITEMS;

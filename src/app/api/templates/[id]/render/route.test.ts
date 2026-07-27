@@ -15,7 +15,11 @@ vi.mock('@/lib/db', () => {
       then: vi.fn(),
     }
     const mockWhere = vi.fn().mockReturnValue(mockWhereResult)
-    const mockFromResult = { where: mockWhere }
+    // from() 直接 await 时（如采集源查询无 where 子句）返回空数组
+    const mockFromResult = {
+      where: mockWhere,
+      then: vi.fn().mockImplementation((resolve: (value: any) => void) => resolve([])),
+    }
     const mockFrom = vi.fn().mockReturnValue(mockFromResult)
     const mockSelect = vi.fn().mockReturnValue({ from: mockFrom })
 
