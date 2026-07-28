@@ -2,15 +2,6 @@
 
 ## 采集源
 
-### 仓库身份 (Repo Identity)
-判定两个本地目录是否属于「同一个仓库」的依据：规范化后的 **origin URL**（复用 `normalizeRepoName`，可消化 ssh/https 形式差异）。仅适用于 git-local 采集源；无 origin 的纯本地仓库不参与合并，各自独立成源。
-_Avoid_: 目录名、remote 品牌名（都不能唯一标识仓库）
-
-### 采集路径 (Collection Path)
-git-local 采集源内的一个本地工作目录——可以是主 clone、独立 clone 或 git worktree。每个采集路径独立维护同步游标，同步时采集该路径**当前签出的分支**（用户切换分支后跟着采新分支）。分支发生切换时该路径游标重置为空，重新扫描新分支，重复事件由 sha 去重兜底。
-存储位置：`collect_sources.config.paths[i]`（含 `path`、`lastBranch`、`lastCommitTime`）。
-_Avoid_: branch entry（旧模型按分支名组织，已废弃）
-
 ### 路径展开 (Path Expansion)
 用户输入的本地目录路径在服务端的统一解释规则，对所有接受路径输入的入口一致生效：
 - `~` 或 `~/` 开头 → 展开为 `$HOME`（不支持 `~user` 形式）
@@ -23,15 +14,11 @@ _Avoid_: branch entry（旧模型按分支名组织，已废弃）
 输入框始终保留用户原文，展开只发生在服务端。
 _Avoid_: shell 展开（那是客户端/终端行为，这里特指服务端规则）
 
-### 同源合并 (Same-repo Merge)
-扫描或添加仓库目录时，若其仓库身份与某个已存在的 git-local 采集源相同，则不新建采集源，而是把该目录作为采集路径追加到该源。同一批次中互为同仓库的多个新目录，第一个创建新源，其余并入。被并入的路径继承已有源的作者邮箱配置。
-_Avoid_: duplicate source（同源多源是旧行为，新流程下不再产生）
-
 ## 采集源同步
 
 ### 同步游标 (Sync Cursor)
-同步进度标记。git-local 采集源按**采集路径**独立维护（值为该路径上次同步拉取到的 commit 中最大的 **committer date**）；远端采集源（GitHub/GitLab）按**分支**独立维护。下次同步时作为 `since` 参数传入 API，保证时间缝隙内被延迟推送的 commit 不被漏掉。
-存储位置：git-local 为 `collect_sources.config.paths[i].lastCommitTime`；远端为 `collect_sources.config.branches[i].lastCommitTime`。
+同步进度标记。git-local 采集源和远端采集源（GitHub/GitLab）均按**分支**独立维护游标（值为该分支上次同步拉取到的 commit 中最大的 **committer date**）。下次同步时作为 `since` 参数传入 API，保证时间缝隙内被延迟推送的 commit 不被漏掉。
+存储位置：`collect_sources.config.branches[i].lastCommitTime`。
 _Avoid_: lastSyncAt（这是同步操作时间，不是数据游标）
 
 ### Committer date vs Author date

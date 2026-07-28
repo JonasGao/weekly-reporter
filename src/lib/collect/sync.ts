@@ -1,14 +1,12 @@
 import { getDb } from '@/lib/db'
 import { eq, sql } from 'drizzle-orm'
 import { collectSources, rawEvents } from '@/lib/db/schema'
-import type { CollectSource } from '@/lib/db/schema'
+import type { CollectSource, CollectSourceConfig } from '@/lib/db/schema'
 import { getAdapter } from './adapters'
 import type { FetchCommitsOptions, RawEventData } from './types'
-import { basename, join } from 'path'
-import { existsSync } from 'fs'
-import { getNormalizedRepoName, getCurrentBranch } from './adapters/local-git-adapter'
+import { basename } from 'path'
+import { getNormalizedRepoName } from './adapters/local-git-adapter'
 import { normalizeRepoName } from '@/lib/utils'
-import { normalizePaths, shouldResetCursor, type PathEntry } from './paths'
 
 export interface SyncResult {
   sourceId: number
@@ -69,77 +67,6 @@ async function resolveRepoName(source: CollectSource): Promise<string> {
   return basename(source.config.owner)
 }
 
-/**
- * paths 模型（git-local 新模型）：逐采集路径同步。
- * 每路径采集其当前签出分支，分支切换时重置游标，单路径失败跳过记警告。
- */
-async function syncByPaths(
-  source: CollectSource,
-  adapter: NonNullable<ReturnType<typeof getAdapter>>,
-  paths: PathEntry[],
-  repoName: string,
-  resync?: boolean,
-): Promise<{ events: RawEventData[]; commitsCount: number; updatedPaths: PathEntry[]; warnings: string[]; failedPaths: string[] }> {
-  const events: RawEventData[] = []
-  const warnings: string[] = []
-  const failedPaths: string[] = []
-  const updatedPaths: PathEntry[] = []
-  let commitsCount = 0
-  const until = new Date()
-
-  for (const entry of paths) {
-    try {
-      if (!existsSync(entry.path) || !existsSync(join(entry.path, '.git'))) {
-        throw new Error('路径不存在或不是 Git 仓库')
-      }
-
-      const currentBranch = await getCurrentBranch(entry.path)
-      if (!currentBranch) {
-        throw new Error('无法确定当前签出分支（可能是 detached HEAD）')
-      }
-
-      // 分支切换 → 重置该路径游标，重新扫描新分支（重复事件由 sha 去重兜底）
-      const reset = shouldResetCursor(entry, currentBranch)
-      const since = resync || reset
-        ? undefined
-        : (entry.lastCommitTime ? new Date(entry.lastCommitTime) : undefined)
-
-      const commits = await adapter.fetchCommits({
-        config: { ...source.config, owner: entry.path, branch: currentBranch },
-        since,
-        until,
-      })
-      commitsCount += commits.length
-
-      const sourceInfo = {
-        repo: repoName,
-        branch: currentBranch,
-        sourceId: source.id,
-        sourceName: source.name,
-      }
-      events.push(...commits.map(c => adapter.normalizeCommit(c, source.type, sourceInfo)))
-
-      const maxDate = commits.length > 0
-        ? commits.reduce((max, c) => (c.committerDate > max ? c.committerDate : max), commits[0].committerDate)
-        : null
-
-      updatedPaths.push({
-        path: entry.path,
-        lastBranch: currentBranch,
-        lastCommitTime: maxDate
-          ? maxDate.toISOString()
-          : (reset ? null : entry.lastCommitTime),
-      })
-    } catch (error) {
-      failedPaths.push(entry.path)
-      warnings.push(`路径 ${entry.path} 采集失败：${error instanceof Error ? error.message : '未知错误'}`)
-      updatedPaths.push(entry)
-    }
-  }
-
-  return { events, commitsCount, updatedPaths, warnings, failedPaths }
-}
-
 export async function syncSource(sourceId: number, resync?: boolean): Promise<SyncResult> {
   const db = getDb()
 
@@ -173,55 +100,31 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
     return failedResult(source, source.id, '不支持的采集源类型')
   }
 
-  // git-local 且已是 paths 模型 → 逐路径同步；否则走旧 branches 逻辑
-  const paths = source.type === 'git-local' ? normalizePaths(source.config) : null
+  // 迁移旧 paths 模型：有 paths 无 branches 时，从 paths 提取分支名转为 branches
+  // config 是 JSON 列，旧数据可能仍有 paths 字段，用 unknown 过渡读取
+  const legacyConfig = source.config as CollectSourceConfig & { paths?: Array<{ path: string; lastBranch?: string | null; lastCommitTime?: string | null }> }
+  if (source.type === 'git-local' && Array.isArray(legacyConfig.paths) && legacyConfig.paths.length > 0) {
+    const branchNames = [...new Set(
+      legacyConfig.paths.map(p => p.lastBranch).filter(Boolean) as string[]
+    )]
+    const { paths: _paths, ...restConfig } = legacyConfig
+    const updatedConfig = {
+      ...restConfig,
+      branches: branchNames.length > 0
+        ? branchNames.map(name => ({ name, lastCommitTime: null }))
+        : [],
+    }
+    await db.update(collectSources)
+      .set({ config: updatedConfig, updatedAt: new Date() })
+      .where(eq(collectSources.id, source.id))
+    source.config = updatedConfig
+  }
 
   try {
     const repoName = await resolveRepoName(source)
     const now = new Date()
 
-    if (paths) {
-      const { events, commitsCount, updatedPaths, warnings, failedPaths } =
-        await syncByPaths(source, adapter, paths, repoName, resync)
-
-      // 全部路径失败 → 源标 unavailable
-      if (failedPaths.length === paths.length) {
-        await db.update(collectSources)
-          .set({
-            status: 'unavailable',
-            lastSyncStatus: 'failed',
-            updatedAt: now,
-          })
-          .where(eq(collectSources.id, source.id))
-
-        return {
-          ...failedResult(source, source.id, warnings.join('；'), true),
-          warnings,
-        }
-      }
-
-      const eventsCount = await insertNewEvents(db, source.id, events, now)
-
-      await db.update(collectSources)
-        .set({
-          config: { ...source.config, paths: updatedPaths },
-          lastSyncAt: now,
-          lastSyncStatus: 'success',
-          updatedAt: now,
-        })
-        .where(eq(collectSources.id, source.id))
-
-      return {
-        sourceId: source.id,
-        sourceName: source.name,
-        status: 'success',
-        commitsCount,
-        eventsCount,
-        warnings: warnings.length > 0 ? warnings : undefined,
-      }
-    }
-
-    // ---- 旧 branches 模型（存量 git-local 与全部远端类型） ----
+    // ---- 统一 branches 模型（git-local 与远端类型） ----
     const branches = normalizeBranches(source.config.branches)
 
     let allCommits: Awaited<ReturnType<typeof adapter.fetchCommits>> = []

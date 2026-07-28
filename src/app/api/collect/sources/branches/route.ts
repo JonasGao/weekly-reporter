@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { expandInputPath } from '@/lib/collect/paths'
 
 const execFileAsync = promisify(execFile)
 
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || ''
-    const path = searchParams.get('path') || ''
+    const path = searchParams.get('path') ? expandInputPath(searchParams.get('path')!) : ''
     const owner = searchParams.get('owner') || ''
     const repo = searchParams.get('repo') || ''
     const token = searchParams.get('token') || ''

@@ -17,9 +17,6 @@ interface FoundRepo {
   path: string
   name: string
   alreadyAdded: boolean
-  mergeTargetSourceId?: number
-  mergeTargetSourceName?: string
-  groupKey: string | null
   authorEmails: string[]
 }
 
@@ -205,10 +202,7 @@ export function ScanReposDialog({
       const result = await batchAddSources(selected)
       
       if (result.success) {
-        const parts = []
-        if (result.addedCount > 0) parts.push(`新建 ${result.addedCount} 个采集源`)
-        if (result.mergedCount > 0) parts.push(`并入 ${result.mergedCount} 个采集路径`)
-        toast.success(parts.length > 0 ? parts.join('，') : '没有需要添加的内容')
+        toast.success(result.addedCount > 0 ? `新建 ${result.addedCount} 个采集源` : '没有需要添加的内容')
         onSuccess()
         onClose()
       } else {
@@ -320,9 +314,6 @@ export function ScanReposDialog({
                       <p className="font-medium text-xs truncate leading-tight">
                         {repo.name}
                         {repo.alreadyAdded && <span className="text-muted-foreground font-normal ml-1">(已添加)</span>}
-                        {!repo.alreadyAdded && repo.mergeTargetSourceName && (
-                          <span className="text-muted-foreground font-normal ml-1">(将并入：{repo.mergeTargetSourceName})</span>
-                        )}
                       </p>
                       <p className="text-[11px] text-muted-foreground truncate leading-tight">{repo.path}</p>
                     </div>

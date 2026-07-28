@@ -51,11 +51,6 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
             : '',
           authorEmails: Array.isArray(data.config.authorEmails) ? data.config.authorEmails.join(',') : '',
         },
-        // git-local：主路径之外的采集路径进入额外路径列表；完整条目保留用于游标续传
-        extraPaths: Array.isArray(data.config.paths)
-          ? data.config.paths.map((p: { path: string }) => p.path).filter((p: string) => p !== data.config.owner)
-          : [],
-        existingPaths: Array.isArray(data.config.paths) ? data.config.paths : [],
         enabled: data.enabled,
       })
     } catch (error) {

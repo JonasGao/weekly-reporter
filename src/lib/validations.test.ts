@@ -28,22 +28,6 @@ describe('collectSourceSchema git-local 路径展开', () => {
     expect(result.config.owner).toBe('/')
   })
 
-  it('expands and strips entries in paths', () => {
-    const result = collectSourceSchema.parse(localSource({
-      owner: '~/github/repo',
-      paths: [
-        { path: '~/github/repo/' },
-        { path: 'relative/clone' },
-        { path: '/opt/absolute' },
-      ],
-    }))
-    expect(result.config.paths?.map(p => p.path)).toEqual([
-      `${HOME}/github/repo`,
-      `${HOME}/relative/clone`,
-      '/opt/absolute',
-    ])
-  })
-
   it('leaves remote types untouched', () => {
     const result = collectSourceSchema.parse({
       type: 'git-remote-github',

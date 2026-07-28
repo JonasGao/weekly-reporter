@@ -60,11 +60,6 @@ export const collectSourceSchema = z.object({
       z.string(),
       z.object({ name: z.string(), lastCommitTime: z.string().nullable().optional() })
     ])).optional(),
-    paths: z.array(z.object({
-      path: z.string().min(1),
-      lastBranch: z.string().nullable().optional(),
-      lastCommitTime: z.string().nullable().optional(),
-    })).optional(),
   }),
   enabled: z.boolean().optional(),
 }).refine(
@@ -91,7 +86,7 @@ export const collectSourceSchema = z.object({
   }
 ).transform(
   // git-local 的路径是用户直接输入的：统一做路径展开（见 CONTEXT.md「路径展开」），
-  // 并去掉结尾斜杠，保证落库的 owner / paths 与扫描得来的路径形态一致
+  // 并去掉结尾斜杠，保证落库的 owner 与扫描得来的路径形态一致
   (data) => {
     if (data.type !== 'git-local') return data
     const stripSlash = (p: string) => p.replace(/(.)\/+$/, '$1')
@@ -100,7 +95,6 @@ export const collectSourceSchema = z.object({
       config: {
         ...data.config,
         owner: stripSlash(expandInputPath(data.config.owner)),
-        paths: data.config.paths?.map(p => ({ ...p, path: stripSlash(expandInputPath(p.path)) })),
       },
     }
   }

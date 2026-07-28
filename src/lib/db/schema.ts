@@ -87,12 +87,6 @@ export const templates = sqliteTable('templates', {
 export type Template = typeof templates.$inferSelect
 export type NewTemplate = typeof templates.$inferInsert
 
-export interface CollectSourcePath {
-  path: string
-  lastBranch?: string | null
-  lastCommitTime?: string | null
-}
-
 export interface CollectSourceConfig {
   baseUrl?: string
   owner: string
@@ -100,7 +94,6 @@ export interface CollectSourceConfig {
   token?: string
   authorEmails: string[]
   branches?: Array<string | { name: string; lastCommitTime?: string | null }>
-  paths?: CollectSourcePath[]
   aliases?: string[]
 }
 

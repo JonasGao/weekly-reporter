@@ -19,7 +19,6 @@ interface CollectSource {
     token: string
     authorEmails: string[]
     branches?: Array<string | { name: string; lastCommitTime?: string | null }>
-    paths?: Array<{ path: string; lastBranch?: string | null; lastCommitTime?: string | null }>
     aliases?: string[]
   }
   enabled: boolean
@@ -192,24 +191,10 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
   }
 
   function getBranchNames(config: CollectSource['config']): string[] {
-    // git-local paths 模型：显示各路径最近采集的分支
-    if (Array.isArray(config.paths) && config.paths.length > 0) {
-      return config.paths.map(p => p.lastBranch || '-')
-    }
     return config.branches?.map(b => typeof b === 'string' ? b : b.name).filter(Boolean) || []
   }
 
   function getSyncCursor(config: CollectSource['config']): string | null {
-    if (Array.isArray(config.paths) && config.paths.length > 0) {
-      const maxCursor = config.paths.reduce((max, p) => {
-        if (p.lastCommitTime) {
-          const t = new Date(p.lastCommitTime).getTime()
-          return t > max ? t : max
-        }
-        return max
-      }, 0)
-      return maxCursor ? new Date(maxCursor).toLocaleString() : null
-    }
     const maxCursor = config.branches?.reduce((max, b) => {
       if (typeof b === 'object' && b.lastCommitTime) {
         const t = new Date(b.lastCommitTime).getTime()
@@ -698,7 +683,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
                       {source.type === 'git-local'
-                        ? `${source.config.owner}${source.config.paths && source.config.paths.length > 1 ? `（+${source.config.paths.length - 1} 路径）` : ''}`
+                        ? source.config.owner
                         : `${source.config.owner}/${source.config.repo}`}
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground" title={branchesTrunc.full}>
