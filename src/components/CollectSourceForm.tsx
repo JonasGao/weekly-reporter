@@ -243,7 +243,8 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
         toast.success(sourceId ? '更新成功' : '创建成功')
         router.push('/collect')
       } else {
-        toast.error(data.error || '操作失败')
+        const issueMessage = data.details?.issues?.[0]?.message
+        toast.error(issueMessage ? `${data.error}：${issueMessage}` : data.error || '操作失败')
       }
     } catch {
       toast.error('操作失败')

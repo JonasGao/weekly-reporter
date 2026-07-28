@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { ZodError } from 'zod'
 import { getDb } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import { collectSources } from '@/lib/db/schema'
@@ -117,8 +118,12 @@ export async function PUT(
     })
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
+      const issues = (error as ZodError).issues.map(issue => ({
+        path: issue.path.join('.'),
+        message: issue.message,
+      }))
       return NextResponse.json(
-        { error: '数据验证失败', code: 'VALIDATION_ERROR', details: error },
+        { error: '数据验证失败', code: 'VALIDATION_ERROR', details: { issues } },
         { status: 400 }
       )
     }
