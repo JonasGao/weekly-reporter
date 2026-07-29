@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -161,11 +160,9 @@ export default function NewReportPage() {
   return (
     <main className="container mx-auto py-8 px-4 max-w-5xl">
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
         <h1 className="text-2xl font-bold">新建周报</h1>
       </div>
 
@@ -216,11 +213,9 @@ export default function NewReportPage() {
         </div>
 
         <div className="flex justify-end gap-4">
-          <Link href="/">
-            <Button type="button" variant="outline">
-              取消
-            </Button>
-          </Link>
+          <Button type="button" variant="outline" onClick={() => router.back()}>
+            取消
+          </Button>
           <Button type="button" onClick={handleSave} disabled={saving}>
             {saving ? '保存中...' : '保存'}
           </Button>
