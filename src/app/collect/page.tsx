@@ -29,6 +29,7 @@ export default function CollectPage() {
   async function handleSyncAll() {
     if (!confirm('确定要同步所有已启用的采集源吗？')) return
     setSyncingAll(true)
+    setSyncResults(null) // 清空旧结果，确保卡片只反映最新同步
     try {
       const res = await fetch('/api/collect/git-remote/sync', {
         method: 'POST',
@@ -36,23 +37,21 @@ export default function CollectPage() {
         body: JSON.stringify({}),
       })
 
-      if (!res.ok) {
-        throw new Error(`同步失败: ${res.status} ${res.statusText}`)
-      }
-
       const data = await res.json()
-      const results = data.results || []
 
-      // 仅在有新结果时才显示卡片
+      // 部分源失败时 API 返回 500 但 body 里带完整 results，照常渲染结果卡片
+      const results = data.results || []
       if (results.length > 0) {
         setSyncResults(results)
+      } else if (!res.ok) {
+        throw new Error(data.error || `同步失败: ${res.status} ${res.statusText}`)
       }
 
       if (refreshFnRef.current) {
         refreshFnRef.current()
       }
     } catch (error) {
-      toast.error('同步失败')
+      toast.error(error instanceof Error ? error.message : '同步失败')
     } finally {
       setSyncingAll(false)
     }

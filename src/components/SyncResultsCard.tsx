@@ -94,7 +94,7 @@ interface SyncResultRowProps {
 }
 
 function SyncResultRow({ result, expanded, onToggle }: SyncResultRowProps) {
-  const { status, sourceName, commitsCount, eventsCount, error, warnings } = result
+  const { status, sourceName, commitsCount, eventsCount, error, warnings, branches } = result
 
   if (status === 'failed') {
     const isLongError = error && error.length > 100
@@ -133,6 +133,57 @@ function SyncResultRow({ result, expanded, onToggle }: SyncResultRowProps) {
               )}
             </div>
           )}
+        </div>
+      </div>
+    )
+  }
+
+  // 检查是否有失败的分支需要展示明细
+  const hasFailedBranches = branches && branches.some(b => b.status === 'failed')
+  // 单分支源不展示分支明细
+  const isMultiBranch = branches && branches.length > 1 && branches.some(b => b.name)
+
+  if (hasFailedBranches && isMultiBranch) {
+    return (
+      <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-900/30">
+        <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm">{sourceName}</div>
+          <div className="text-sm text-muted-foreground mt-1">
+            同步成功，但部分分支失败
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {branches.map((branch) => (
+              <div
+                key={branch.name}
+                className={cn(
+                  'flex items-start gap-2 text-xs rounded px-2 py-1.5',
+                  branch.status === 'failed'
+                    ? 'bg-destructive/10 text-destructive'
+                    : 'bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400'
+                )}
+              >
+                {branch.status === 'success' ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                ) : (
+                  <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium">{branch.name}</span>
+                  {branch.status === 'success' ? (
+                    <span className="ml-2 text-muted-foreground">
+                      {branch.commitsCount} commits
+                    </span>
+                  ) : (
+                    <span className="ml-2 break-words">{branch.error}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            commits: {commitsCount}, events: {eventsCount}
+          </div>
         </div>
       </div>
     )

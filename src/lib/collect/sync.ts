@@ -8,6 +8,13 @@ import { basename } from 'path'
 import { getNormalizedRepoName } from './adapters/local-git-adapter'
 import { normalizeRepoName } from '@/lib/utils'
 
+export interface BranchSyncResult {
+  name: string
+  status: 'success' | 'failed'
+  commitsCount: number
+  error?: string
+}
+
 export interface SyncResult {
   sourceId: number
   sourceName: string
@@ -18,6 +25,8 @@ export interface SyncResult {
   autoDisabled?: boolean
   /** 部分采集路径失败时的告警信息（整体仍为 success） */
   warnings?: string[]
+  /** 各分支同步结果明细（多分支源） */
+  branches?: BranchSyncResult[]
 }
 
 // 规范化分支配置：兼容旧格式 string[] 和新格式 { name, lastCommitTime }[]
@@ -130,32 +139,69 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
     let allCommits: Awaited<ReturnType<typeof adapter.fetchCommits>> = []
     // 记录每个分支本次拉取到的最大 committer date
     const branchMaxCommitterDate: Record<string, Date> = {}
+    // 记录每个分支的同步结果
+    const branchResults: BranchSyncResult[] = []
 
-    // Sync each branch with per-branch cursor
+    // Sync each branch with per-branch cursor and error handling
     for (const branch of branches) {
-      // 使用分支自己的 cursor，resync 模式下不传 since
-      const since = resync ? undefined : (branch.lastCommitTime ? new Date(branch.lastCommitTime) : undefined)
+      try {
+        // 使用分支自己的 cursor，resync 模式下不传 since
+        const since = resync ? undefined : (branch.lastCommitTime ? new Date(branch.lastCommitTime) : undefined)
 
-      const options: FetchCommitsOptions = {
-        config: {
-          ...source.config,
-          branch: branch.name || undefined,
-        },
-        since,
-        until: new Date(),
+        const options: FetchCommitsOptions = {
+          config: {
+            ...source.config,
+            branch: branch.name || undefined,
+          },
+          since,
+          until: new Date(),
+        }
+
+        const commits = await adapter.fetchCommits(options)
+        allCommits = allCommits.concat(commits)
+
+        // 计算该分支本次拉取到的最大 committer date
+        if (commits.length > 0) {
+          const maxDate = commits.reduce((max, c) =>
+            c.committerDate > max ? c.committerDate : max,
+            commits[0].committerDate
+          )
+          branchMaxCommitterDate[branch.name] = maxDate
+        }
+
+        branchResults.push({
+          name: branch.name,
+          status: 'success',
+          commitsCount: commits.length,
+        })
+      } catch (branchError) {
+        const errorMessage = branchError instanceof Error ? branchError.message : '未知错误'
+        branchResults.push({
+          name: branch.name,
+          status: 'failed',
+          commitsCount: 0,
+          error: errorMessage,
+        })
       }
+    }
 
-      const commits = await adapter.fetchCommits(options)
-      allCommits = allCommits.concat(commits)
+    // 判断整体状态
+    const failedBranches = branchResults.filter(b => b.status === 'failed')
+    const allBranchesFailed = failedBranches.length === branchResults.length
 
-      // 计算该分支本次拉取到的最大 committer date
-      if (commits.length > 0) {
-        const maxDate = commits.reduce((max, c) =>
-          c.committerDate > max ? c.committerDate : max,
-          commits[0].committerDate
-        )
-        branchMaxCommitterDate[branch.name] = maxDate
-      }
+    if (allBranchesFailed) {
+      // 全部分支失败
+      const firstError = failedBranches[0]?.error || '未知错误'
+      const errorMessage = `全部分支同步失败：${firstError}`
+
+      await db.update(collectSources)
+        .set({
+          lastSyncStatus: 'failed',
+          updatedAt: now,
+        })
+        .where(eq(collectSources.id, source.id))
+
+      return failedResult(source, source.id, errorMessage)
     }
 
     const sourceInfo = {
@@ -192,6 +238,7 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
       status: 'success',
       commitsCount: allCommits.length,
       eventsCount,
+      branches: branchResults,
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '未知错误'
