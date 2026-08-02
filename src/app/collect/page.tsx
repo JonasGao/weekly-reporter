@@ -5,12 +5,15 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { CollectSourceList } from '@/components/CollectSourceList'
 import { ScanReposDialog } from '@/components/ScanReposDialog'
+import { SyncResultsCard } from '@/components/SyncResultsCard'
+import type { SyncResult } from '@/lib/collect/sync'
 import { ArrowLeft, Plus, FolderGit2, RefreshCw, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function CollectPage() {
   const [scanDialogOpen, setScanDialogOpen] = useState(false)
   const [syncingAll, setSyncingAll] = useState(false)
+  const [syncResults, setSyncResults] = useState<SyncResult[] | null>(null)
   const refreshFnRef = useRef<(() => void) | null>(null)
 
   const handleRefreshReady = useCallback((fetchFn: () => void) => {
@@ -32,16 +35,17 @@ export default function CollectPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       })
+
+      if (!res.ok) {
+        throw new Error(`同步失败: ${res.status} ${res.statusText}`)
+      }
+
       const data = await res.json()
-
       const results = data.results || []
-      const successCount = results.filter((r: any) => r.status === 'success').length
-      const failedCount = results.filter((r: any) => r.status === 'failed').length
 
-      if (failedCount === 0) {
-        toast.success(`全部同步完成，共 ${successCount} 个采集源`)
-      } else {
-        toast.error(`同步完成，${successCount} 个成功，${failedCount} 个失败`)
+      // 仅在有新结果时才显示卡片
+      if (results.length > 0) {
+        setSyncResults(results)
       }
 
       if (refreshFnRef.current) {
@@ -82,6 +86,13 @@ export default function CollectPage() {
           </Link>
         </div>
       </div>
+
+      {syncResults && (
+        <SyncResultsCard
+          results={syncResults}
+          onClose={() => setSyncResults(null)}
+        />
+      )}
 
       <CollectSourceList onRefresh={handleRefreshReady} />
       
