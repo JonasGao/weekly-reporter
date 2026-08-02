@@ -90,6 +90,7 @@ export default function CollectPage() {
         <SyncResultsCard
           results={syncResults}
           onClose={() => setSyncResults(null)}
+          onSourceChanged={() => refreshFnRef.current?.()}
         />
       )}
 

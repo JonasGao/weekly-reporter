@@ -17,20 +17,26 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Trash2,
+  Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { SyncResult } from '@/lib/collect/sync'
+import { toast } from 'sonner'
 
 interface SyncResultsCardProps {
   results: SyncResult[]
   onClose: () => void
+  onSourceChanged?: () => void
 }
 
-export function SyncResultsCard({ results, onClose }: SyncResultsCardProps) {
+export function SyncResultsCard({ results, onClose, onSourceChanged }: SyncResultsCardProps) {
   const [expandedErrors, setExpandedErrors] = useState<Set<number>>(new Set())
+  const [deletingBranches, setDeletingBranches] = useState<Set<string>>(new Set())
+  const [localResults, setLocalResults] = useState<SyncResult[]>(results)
 
-  const successCount = results.filter(r => r.status === 'success').length
-  const failedCount = results.filter(r => r.status === 'failed').length
+  const successCount = localResults.filter(r => r.status === 'success').length
+  const failedCount = localResults.filter(r => r.status === 'failed').length
 
   const toggleError = (sourceId: number) => {
     setExpandedErrors(prev => {
@@ -42,6 +48,53 @@ export function SyncResultsCard({ results, onClose }: SyncResultsCardProps) {
       }
       return next
     })
+  }
+
+  const handleDeleteBranch = async (sourceId: number, branchName: string) => {
+    if (!confirm(`确定从采集源中删除分支 ${branchName} 吗？`)) return
+
+    const key = `${sourceId}-${branchName}`
+    setDeletingBranches(prev => new Set(prev).add(key))
+
+    try {
+      const res = await fetch(`/api/collect/sources/${sourceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ removeBranch: branchName }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || '删除分支失败')
+      }
+
+      // 从本地结果中移除该分支
+      setLocalResults(prev =>
+        prev.map(result => {
+          if (result.sourceId !== sourceId || !result.branches) return result
+
+          const updatedBranches = result.branches.filter(b => b.name !== branchName)
+
+          return {
+            ...result,
+            branches: updatedBranches,
+          }
+        })
+      )
+
+      // 通知父组件刷新列表
+      onSourceChanged?.()
+
+      toast.success(`分支 ${branchName} 已删除`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '删除分支失败')
+    } finally {
+      setDeletingBranches(prev => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
+    }
   }
 
   return (
@@ -73,12 +126,14 @@ export function SyncResultsCard({ results, onClose }: SyncResultsCardProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {results.map(result => (
+          {localResults.map(result => (
             <SyncResultRow
               key={result.sourceId}
               result={result}
               expanded={expandedErrors.has(result.sourceId)}
               onToggle={() => toggleError(result.sourceId)}
+              deletingBranches={deletingBranches}
+              onDeleteBranch={handleDeleteBranch}
             />
           ))}
         </div>
@@ -91,9 +146,11 @@ interface SyncResultRowProps {
   result: SyncResult
   expanded: boolean
   onToggle: () => void
+  deletingBranches: Set<string>
+  onDeleteBranch: (sourceId: number, branchName: string) => void
 }
 
-function SyncResultRow({ result, expanded, onToggle }: SyncResultRowProps) {
+function SyncResultRow({ result, expanded, onToggle, deletingBranches, onDeleteBranch }: SyncResultRowProps) {
   const { status, sourceName, commitsCount, eventsCount, error, warnings, branches } = result
 
   if (status === 'failed') {
@@ -153,33 +210,54 @@ function SyncResultRow({ result, expanded, onToggle }: SyncResultRowProps) {
             同步成功，但部分分支失败
           </div>
           <div className="mt-2 space-y-1.5">
-            {branches.map((branch) => (
-              <div
-                key={branch.name}
-                className={cn(
-                  'flex items-start gap-2 text-xs rounded px-2 py-1.5',
-                  branch.status === 'failed'
-                    ? 'bg-destructive/10 text-destructive'
-                    : 'bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400'
-                )}
-              >
-                {branch.status === 'success' ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                ) : (
-                  <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <span className="font-medium">{branch.name}</span>
+            {branches.map((branch) => {
+              const branchKey = `${result.sourceId}-${branch.name}`
+              const isDeleting = deletingBranches.has(branchKey)
+
+              return (
+                <div
+                  key={branch.name}
+                  className={cn(
+                    'flex items-start gap-2 text-xs rounded px-2 py-1.5',
+                    branch.status === 'failed'
+                      ? 'bg-destructive/10 text-destructive'
+                      : 'bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400'
+                  )}
+                >
                   {branch.status === 'success' ? (
-                    <span className="ml-2 text-muted-foreground">
-                      {branch.commitsCount} commits
-                    </span>
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                   ) : (
-                    <span className="ml-2 break-words">{branch.error}</span>
+                    <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium">{branch.name}</span>
+                    {branch.status === 'success' ? (
+                      <span className="ml-2 text-muted-foreground">
+                        {branch.commitsCount} commits
+                      </span>
+                    ) : (
+                      <span className="ml-2 break-words">{branch.error}</span>
+                    )}
+                  </div>
+                  {branch.status === 'failed' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 shrink-0 hover:text-destructive"
+                      onClick={() => onDeleteBranch(result.sourceId, branch.name)}
+                      disabled={isDeleting}
+                      title="删除此分支"
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
+                    </Button>
                   )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
           <div className="mt-2 text-xs text-muted-foreground">
             commits: {commitsCount}, events: {eventsCount}

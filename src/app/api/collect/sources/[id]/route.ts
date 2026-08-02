@@ -173,6 +173,41 @@ export async function PATCH(
       }
     }
 
+    // 处理分支删除
+    if ('removeBranch' in body && typeof body.removeBranch === 'string') {
+      const branchName = body.removeBranch
+      const config = existing.config
+
+      if (!config.branches || !Array.isArray(config.branches)) {
+        return NextResponse.json(
+          { error: '采集源没有分支配置', code: 'NO_BRANCHES' },
+          { status: 400 }
+        )
+      }
+
+      const branchIndex = config.branches.findIndex((b) =>
+        (typeof b === 'string' ? b : b.name) === branchName
+      )
+      if (branchIndex === -1) {
+        return NextResponse.json(
+          { error: `分支 ${branchName} 不存在`, code: 'BRANCH_NOT_FOUND' },
+          { status: 404 }
+        )
+      }
+
+      if (config.branches.length === 1) {
+        return NextResponse.json(
+          { error: '至少保留一个分支', code: 'LAST_BRANCH' },
+          { status: 400 }
+        )
+      }
+
+      // 删除分支
+      const updatedBranches = [...config.branches]
+      updatedBranches.splice(branchIndex, 1)
+      updates.config = { ...config, branches: updatedBranches }
+    }
+
     const result = await db.update(collectSources)
       .set(updates)
       .where(eq(collectSources.id, sourceId))
