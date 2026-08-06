@@ -137,6 +137,8 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
     const branches = normalizeBranches(source.config.branches)
 
     let allCommits: Awaited<ReturnType<typeof adapter.fetchCommits>> = []
+    // 记录每个 commit 来自哪个分支（多分支源下归一化时需要区分）
+    const branchCommits: Array<{ commit: Awaited<ReturnType<typeof adapter.fetchCommits>>[number]; branchName: string }> = []
     // 记录每个分支本次拉取到的最大 committer date
     const branchMaxCommitterDate: Record<string, Date> = {}
     // 记录每个分支的同步结果
@@ -159,6 +161,9 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
 
         const commits = await adapter.fetchCommits(options)
         allCommits = allCommits.concat(commits)
+        for (const c of commits) {
+          branchCommits.push({ commit: c, branchName: branch.name })
+        }
 
         // 计算该分支本次拉取到的最大 committer date
         if (commits.length > 0) {
@@ -204,14 +209,16 @@ export async function syncSource(sourceId: number, resync?: boolean): Promise<Sy
       return failedResult(source, source.id, errorMessage)
     }
 
-    const sourceInfo = {
+    const baseSourceInfo = {
       repo: repoName,
-      branch: branches[0]?.name || '',
+      branch: '',  // will be overridden per commit
       sourceId: source.id,
       sourceName: source.name,
     }
 
-    const events = allCommits.map(c => adapter.normalizeCommit(c, source.type, sourceInfo))
+    const events = branchCommits.map(({ commit, branchName }) =>
+      adapter.normalizeCommit(commit, source.type, { ...baseSourceInfo, branch: branchName })
+    )
     const eventsCount = await insertNewEvents(db, source.id, events, now)
 
     // 更新分支 cursor：只更新本次拉到新 commit 的分支
