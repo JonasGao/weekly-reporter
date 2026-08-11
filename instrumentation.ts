@@ -6,11 +6,5 @@ export async function register() {
     } catch (error) {
       console.error('Failed to initialize built-in snippets:', error)
     }
-    try {
-      const { initializeBuiltInTags } = await import('./src/lib/init-tags')
-      await initializeBuiltInTags()
-    } catch (error) {
-      console.error('Failed to initialize built-in tags:', error)
-    }
   }
 }

@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { rawEvents, RawEvent } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { parseTags } from '@/lib/tags/parser'
-import { mapTagsToSectionType } from '@/lib/tags/mapper'
 
-type EventUpdateData = Partial<Pick<RawEvent, 'content' | 'tags' | 'eventTime' | 'sectionType' | 'isImportant' | 'updatedAt'>>
+type EventUpdateData = Partial<Pick<RawEvent, 'content' | 'eventTime' | 'isImportant' | 'updatedAt'>>
 
 export async function PUT(
   request: NextRequest,
@@ -60,10 +58,7 @@ export async function PUT(
           { status: 400 }
         )
       }
-      const { content, tags } = parseTags(body.content)
-      updateData.content = content
-      updateData.tags = tags
-      updateData.sectionType = await mapTagsToSectionType(tags)
+      updateData.content = body.content
     }
     
     // Validate eventTime if provided

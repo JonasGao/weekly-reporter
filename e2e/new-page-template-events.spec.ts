@@ -4,19 +4,19 @@ test.describe('新建周报页面 - 模板事件填充', () => {
   const createdEventIds: number[] = []
 
   test.beforeEach(async ({ request }) => {
-    // Seed pending events for the current week with tags for sectionType mapping
+    // Seed pending events for the current week
     const now = new Date()
     const events = [
       {
-        content: '完成了用户认证模块的开发和测试 #成果',
+        content: '完成了用户认证模块的开发和测试',
         eventTime: now.toISOString(),
       },
       {
-        content: '优化了数据库查询性能，响应时间提升 50% #成果',
+        content: '优化了数据库查询性能，响应时间提升 50%',
         eventTime: now.toISOString(),
       },
       {
-        content: '准备下周的技术分享会材料 #计划',
+        content: '准备下周的技术分享会材料',
         eventTime: now.toISOString(),
       },
     ]

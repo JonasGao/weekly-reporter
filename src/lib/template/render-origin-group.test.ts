@@ -17,7 +17,6 @@ describe('renderTemplate - 来源分组排序', () => {
     metadata: metadata ?? { repo: 'owner/repo', sha: 'abc123', sourceId: 1 },
     category: '核心开发',
     sectionType: sectionType as SectionType,
-    tags: [],
     isImportant: false,
     createdAt: new Date(),
     updatedAt: new Date(),

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { TimelineViewSwitcher } from './TimelineViewSwitcher'
 import { TimelineGroup } from './TimelineGroup'
@@ -13,7 +13,6 @@ interface TimelineViewProps {
   events: RawEvent[]
   onEdit?: (id: number, data: Partial<RawEvent>) => Promise<void>
   onDelete?: (id: number) => Promise<void>
-  onTagClick?: (tag: string) => void
 }
 
 function groupEventsByViewMode(events: RawEvent[], viewMode: ViewMode): Map<string, RawEvent[]> {
@@ -47,7 +46,7 @@ function groupEventsByViewMode(events: RawEvent[], viewMode: ViewMode): Map<stri
   return groups
 }
 
-export function TimelineView({ events, onEdit, onDelete, onTagClick }: TimelineViewProps) {
+export function TimelineView({ events, onEdit, onDelete }: TimelineViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [groups, setGroups] = useState<Map<string, RawEvent[]>>(new Map())
   
@@ -68,7 +67,6 @@ export function TimelineView({ events, onEdit, onDelete, onTagClick }: TimelineV
             events={groupEvents}
             onEdit={onEdit}
             onDelete={onDelete}
-            onTagClick={onTagClick}
           />
         ))}
       </div>

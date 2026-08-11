@@ -18,7 +18,6 @@ describe('renderTemplate - repo grouping', () => {
     category: '核心开发',
     sectionType: sectionType as any,
     status: 'pending',
-    tags: [],
     isImportant: false,
     createdAt: new Date(),
     updatedAt: new Date(),

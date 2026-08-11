@@ -3,31 +3,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { QuickInputBar } from '@/components/QuickInputBar'
 import { TimelineView } from '@/components/TimelineView'
-import { TagFilterPanel } from '@/components/TagFilterPanel'
 import { SourceFilterPanel, type SourceFilter } from '@/components/SourceFilterPanel'
 import { ActivityHeatmap, type HeatmapData } from '@/components/ActivityHeatmap'
 import { Button } from '@/components/ui/button'
 import { Loader2, Calendar, X } from 'lucide-react'
 import type { RawEvent } from '@/lib/db/schema'
 
-interface TagStat {
-  name: string
-  color: string | null
-  usage_count: number
-}
-
 export default function TimelinePage() {
   const [events, setEvents] = useState<RawEvent[]>([])
-  const [tagStats, setTagStats] = useState<TagStat[]>([])
   const [heatmapData, setHeatmapData] = useState<HeatmapData[]>([])
   const [selectedHeatmapDate, setSelectedHeatmapDate] = useState<string | null>(null)
-  const [selectedTags, setSelectedTags] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('selectedTags')
-      return saved ? JSON.parse(saved) : []
-    }
-    return []
-  })
   const [selectedSources, setSelectedSources] = useState<SourceFilter[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('selectedSources')
@@ -45,9 +30,6 @@ export default function TimelinePage() {
     try {
       const params = new URLSearchParams()
       params.set('limit', '30')
-      if (selectedTags.length > 0) {
-        params.append('tags', selectedTags.join(','))
-      }
       if (selectedSources.length > 0 && selectedSources.length < 2) {
         params.set('source', selectedSources[0])
       }
@@ -76,7 +58,7 @@ export default function TimelinePage() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [selectedTags, selectedSources, selectedHeatmapDate])
+  }, [selectedSources, selectedHeatmapDate])
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasMore || nextCursor === null) return
@@ -91,7 +73,7 @@ export default function TimelinePage() {
     setNextCursor(null)
     setHasMore(true)
     loadEvents()
-  }, [selectedTags, selectedSources, selectedHeatmapDate])
+  }, [selectedSources, selectedHeatmapDate])
 
   // 滚动到底部自动加载更多
   useEffect(() => {
@@ -109,20 +91,6 @@ export default function TimelinePage() {
     return () => observer.disconnect()
   }, [hasMore, loadingMore, loadMore])
 
-  const loadTagStats = async () => {
-    try {
-      const res = await fetch('/api/tags/stats')
-      const data = await res.json()
-      setTagStats(data)
-    } catch (error) {
-      console.error('Failed to load tag stats:', error)
-    }
-  }
-
-  useEffect(() => {
-    loadTagStats()
-  }, [])
-
   // Load heatmap data (independent of timeline filters)
   useEffect(() => {
     const loadHeatmap = async () => {
@@ -139,21 +107,16 @@ export default function TimelinePage() {
 
   // 持久化筛选条件到 sessionStorage
   useEffect(() => {
-    sessionStorage.setItem('selectedTags', JSON.stringify(selectedTags))
-  }, [selectedTags])
-
-  useEffect(() => {
     sessionStorage.setItem('selectedSources', JSON.stringify(selectedSources))
   }, [selectedSources])
 
-  const handleSubmit = async ({ content, tags }: { content: string; tags: string[] }) => {
+  const handleSubmit = async ({ content }: { content: string }) => {
     await fetch('/api/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, tags }),
+      body: JSON.stringify({ content }),
     })
     loadEvents(undefined, false)
-    loadTagStats()
   }
 
   const handleEdit = async (id: number, data: Partial<RawEvent>) => {
@@ -168,15 +131,6 @@ export default function TimelinePage() {
   const handleDelete = async (id: number) => {
     await fetch(`/api/events/${id}`, { method: 'DELETE' })
     loadEvents(undefined, false)
-    loadTagStats()
-  }
-
-  const handleTagSelect = (tag: string) => {
-    setSelectedTags(prev =>
-      prev.includes(tag)
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    )
   }
 
   const handleSourceSelect = (source: SourceFilter) => {
@@ -188,12 +142,7 @@ export default function TimelinePage() {
   }
 
   const handleClearFilters = () => {
-    setSelectedTags([])
     setSelectedSources([])
-  }
-
-  const handleManageTags = () => {
-    window.location.href = '/tags'
   }
 
   return (
@@ -212,7 +161,6 @@ export default function TimelinePage() {
                 events={events}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                onTagClick={handleTagSelect}
               />
               <div ref={sentinelRef} className="flex justify-center py-4">
                 {loadingMore ? (
@@ -256,13 +204,6 @@ export default function TimelinePage() {
             selectedSources={selectedSources}
             onSourceSelect={handleSourceSelect}
             onClearFilters={handleClearFilters}
-          />
-          <TagFilterPanel
-            tags={tagStats}
-            selectedTags={selectedTags}
-            onTagSelect={handleTagSelect}
-            onClearFilters={handleClearFilters}
-            onManageTags={handleManageTags}
           />
         </div>
       </div>

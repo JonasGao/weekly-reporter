@@ -3,7 +3,7 @@ import { PUT, DELETE } from './route'
 
 vi.mock('@/lib/db', () => {
   let mockChain: ReturnType<typeof createMockChain> | null = null
-  
+
   const createMockChain = () => {
     const mockOrderBy = vi.fn()
     const mockLimit = vi.fn()
@@ -43,24 +43,6 @@ vi.mock('@/lib/db', () => {
   }
 })
 
-vi.mock('@/lib/tags/parser', () => ({
-  parseTags: vi.fn((input: string) => {
-    const tags: string[] = []
-    const content = input.replace(/#([\w\u4e00-\u9fa5]+)/g, (match, tag) => {
-      tags.push(tag)
-      return ''
-    }).replace(/\s+/g, ' ').trim()
-    return { content, tags }
-  }),
-}))
-
-vi.mock('@/lib/tags/mapper', () => ({
-  mapTagsToSectionType: vi.fn(async (tagNames: string[]) => {
-    if (tagNames.includes('会议') || tagNames.includes('plan')) return 'plan'
-    return 'routine'
-  }),
-}))
-
 describe('/api/events/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -71,11 +53,10 @@ describe('/api/events/[id]', () => {
   })
 
   describe('PUT', () => {
-    it('should update event content and tags', async () => {
+    it('should update event content', async () => {
       const existingEvent = {
         id: 1,
         content: 'Original content',
-        tags: [],
         eventTime: new Date('2024-01-10T10:00:00'),
         source: 'manual',
         sectionType: 'routine',
@@ -88,7 +69,6 @@ describe('/api/events/[id]', () => {
       const updatedEvent = {
         ...existingEvent,
         content: '更新后的内容',
-        tags: ['会议'],
         isImportant: true,
         updatedAt: new Date('2024-01-11T10:00:00'),
       }
@@ -102,7 +82,7 @@ describe('/api/events/[id]', () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: '更新后的内容 #会议',
+          content: '更新后的内容',
           isImportant: true,
         }),
       })
@@ -112,7 +92,6 @@ describe('/api/events/[id]', () => {
 
       expect(response.status).toBe(200)
       expect(data.content).toBe('更新后的内容')
-      expect(data.tags).toEqual(['会议'])
       expect(data.isImportant).toBe(true)
       expect(db.update).toHaveBeenCalled()
       expect(db.set).toHaveBeenCalled()
@@ -122,7 +101,6 @@ describe('/api/events/[id]', () => {
       const existingEvent = {
         id: 1,
         content: 'Test event',
-        tags: [],
         eventTime: new Date('2024-01-10T10:00:00'),
         source: 'manual',
         sectionType: 'routine',
@@ -179,7 +157,6 @@ describe('/api/events/[id]', () => {
       const existingEvent = {
         id: 1,
         content: 'Original content',
-        tags: [],
         eventTime: new Date('2024-01-10T10:00:00'),
         source: 'manual',
         sectionType: 'routine',
@@ -213,7 +190,6 @@ describe('/api/events/[id]', () => {
       const existingEvent = {
         id: 1,
         content: 'Original content',
-        tags: [],
         eventTime: new Date('2024-01-10T10:00:00'),
         source: 'manual',
         sectionType: 'routine',
@@ -247,7 +223,6 @@ describe('/api/events/[id]', () => {
       const existingEvent = {
         id: 1,
         content: 'Original content',
-        tags: [],
         eventTime: new Date('2024-01-10T10:00:00'),
         source: 'manual',
         sectionType: 'routine',
@@ -281,7 +256,6 @@ describe('/api/events/[id]', () => {
       const existingEvent = {
         id: 1,
         content: 'Original content',
-        tags: [],
         eventTime: new Date('2024-01-10T10:00:00'),
         source: 'manual',
         sectionType: 'routine',
@@ -315,7 +289,6 @@ describe('/api/events/[id]', () => {
       const existingEvent = {
         id: 1,
         content: 'Original content',
-        tags: [],
         eventTime: new Date('2024-01-10T10:00:00'),
         source: 'manual',
         sectionType: 'routine',
@@ -347,7 +320,6 @@ describe('/api/events/[id]', () => {
       const existingEvent = {
         id: 1,
         content: 'Original content',
-        tags: [],
         eventTime: new Date('2024-01-10T10:00:00'),
         source: 'manual',
         sectionType: 'routine',
@@ -388,7 +360,6 @@ describe('/api/events/[id]', () => {
       const existingEvent = {
         id: 1,
         content: 'Test event',
-        tags: [],
         eventTime: new Date('2024-01-10T10:00:00'),
         source: 'manual',
         sectionType: 'routine',
@@ -417,7 +388,6 @@ describe('/api/events/[id]', () => {
       const existingEvent = {
         id: 1,
         content: 'GitHub event',
-        tags: [],
         eventTime: new Date('2024-01-10T10:00:00'),
         source: 'github',
         sectionType: 'routine',

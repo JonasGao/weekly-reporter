@@ -43,15 +43,6 @@ vi.mock('@/lib/db', () => {
   }
 })
 
-vi.mock('@/lib/tags/mapper', () => ({
-  mapTagsToSectionType: vi.fn(async (tagNames: string[]) => {
-    if (tagNames.includes('成果') || tagNames.includes('achievement')) return 'achievement'
-    if (tagNames.includes('风险') || tagNames.includes('risk')) return 'risk'
-    if (tagNames.includes('计划') || tagNames.includes('plan')) return 'plan'
-    return 'routine'
-  }),
-}))
-
 describe('/api/templates/[id]/render', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -70,7 +61,6 @@ describe('/api/templates/[id]/render', () => {
           source: 'manual',
           content: '完成了用户认证模块开发',
           status: 'pending',
-          tags: ['成果'],
           sectionType: 'achievement',
           isImportant: false,
           metadata: {},
@@ -84,7 +74,6 @@ describe('/api/templates/[id]/render', () => {
           source: 'manual',
           content: '准备下周技术分享会',
           status: 'pending',
-          tags: ['计划'],
           sectionType: 'plan',
           isImportant: false,
           metadata: {},
@@ -118,7 +107,6 @@ describe('/api/templates/[id]/render', () => {
           source: 'manual',
           content: '完成订单模块开发 80%',
           status: 'pending',
-          tags: ['成果'],
           sectionType: 'achievement',
           isImportant: false,
           metadata: {},
@@ -132,7 +120,6 @@ describe('/api/templates/[id]/render', () => {
           source: 'manual',
           content: '修复登录页面样式问题',
           status: 'pending',
-          tags: ['风险'],
           sectionType: 'risk',
           isImportant: false,
           metadata: {},
@@ -166,7 +153,6 @@ describe('/api/templates/[id]/render', () => {
           source: 'manual',
           content: '完成项目 A 交付',
           status: 'pending',
-          tags: ['成果'],
           sectionType: 'achievement',
           isImportant: false,
           metadata: {},
@@ -199,7 +185,6 @@ describe('/api/templates/[id]/render', () => {
           source: 'manual',
           content: '成功上线新功能',
           status: 'pending',
-          tags: ['成果'],
           sectionType: 'achievement',
           isImportant: false,
           metadata: {},
@@ -213,7 +198,6 @@ describe('/api/templates/[id]/render', () => {
           source: 'manual',
           content: '遇到数据库死锁问题',
           status: 'pending',
-          tags: ['风险'],
           sectionType: 'risk',
           isImportant: false,
           metadata: {},
@@ -281,7 +265,6 @@ describe('/api/templates/[id]/render', () => {
           source: 'manual',
           content: '测试事件',
           status: 'pending',
-          tags: ['成果'],
           sectionType: 'achievement',
           isImportant: false,
           metadata: {},

@@ -5,7 +5,6 @@ import { reports, templates, rawEvents } from '@/lib/db/schema'
 import { reportSchema } from '@/lib/validations'
 import { renderTemplate } from '@/lib/template/render'
 import { OFFICIAL_TEMPLATES } from '@/lib/official-templates'
-import { mapTagsToSectionType } from '@/lib/tags/mapper'
 import { triggerAsyncScoring } from '@/lib/scoring'
 import { getSourceScopes } from '@/lib/collect/source-scopes'
 
@@ -62,18 +61,7 @@ export async function POST(request: Request) {
       .where(
         between(rawEvents.eventTime, weekStartDate, weekEndDate)
       )
-    
-    // Map tags to sectionType for each event
-    const processedEvents = await Promise.all(
-      eventsToProcess.map(async (event) => {
-        if (event.tags && event.tags.length > 0) {
-          const mappedSectionType = await mapTagsToSectionType(event.tags)
-          return { ...event, sectionType: mappedSectionType }
-        }
-        return event
-      })
-    )
-    
+
     // If templateId is provided, render the template
     if (templateId) {
       let templateContent: string = ''
@@ -103,7 +91,7 @@ export async function POST(request: Request) {
       if (templateContent) {
         finalContent = renderTemplate(templateContent, {
           date: baseDate ? new Date(baseDate) : new Date(),
-          events: processedEvents,
+          events: eventsToProcess,
           sourceScopes: await getSourceScopes(),
         })
       }

@@ -15,7 +15,6 @@ describe('EventCard', () => {
       source: 'manual',
       eventTime: eventTime as Date,
       isImportant: false,
-      tags: null,
       metadata: null,
       createdAt: new Date('2026-07-13T10:00:00'),
     }) as unknown as RawEvent

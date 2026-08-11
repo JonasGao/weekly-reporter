@@ -3,16 +3,6 @@ import { sql } from "drizzle-orm"
 
 export type SectionType = 'achievement' | 'risk' | 'routine' | 'plan'
 
-export const tags = sqliteTable("tags", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull().unique(),
-  sectionType: text("section_type").$type<SectionType>(),
-  color: text("color"),
-  isBuiltIn: integer("is_built_in", { mode: "boolean" }).default(false),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
-})
-
 export const reports = sqliteTable("reports", {
 	id: integer().primaryKey({ autoIncrement: true }).notNull(),
 	title: text().notNull(),
@@ -44,7 +34,6 @@ export const rawEvents = sqliteTable("raw_events", {
 	category: text("category"),
 	sectionType: text("section_type").default("routine").notNull().$type<SectionType>(),
 	status: text("status").default("pending").notNull(),
-	tags: text("tags", { mode: "json" }),
 	isImportant: integer("is_important", { mode: "boolean" }).default(false),
 	createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 	updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),

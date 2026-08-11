@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { desc, eq, between, sql } from 'drizzle-orm'
 import { rawEvents, collectSources } from '@/lib/db/schema'
-import { parseTags } from '@/lib/tags/parser'
-import { mapTagsToSectionType } from '@/lib/tags/mapper'
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +10,6 @@ export async function GET(request: Request) {
     const weekStart = searchParams.get('weekStart')
     const weekEnd = searchParams.get('weekEnd')
     const dateParam = searchParams.get('date')
-    const tagsParam = searchParams.get('tags')
     const sourceParam = searchParams.get('source')
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
     const cursorId = searchParams.get('cursorId') ? parseInt(searchParams.get('cursorId')!) : null
@@ -34,14 +31,6 @@ export async function GET(request: Request) {
         const dayEnd = new Date(dateObj)
         dayEnd.setHours(23, 59, 59, 999)
         conditions.push(between(rawEvents.eventTime, dayStart, dayEnd))
-      }
-    }
-
-    if (tagsParam) {
-      const tags = tagsParam.split(',').map(t => t.trim()).filter(Boolean)
-      if (tags.length > 0) {
-        const inClause = sql`(${sql.join(tags.map(t => sql`${t}`), sql`, `)})`
-        conditions.push(sql`${rawEvents.tags} IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(${rawEvents.tags}) WHERE json_each.value IN ${inClause})`)
       }
     }
 
@@ -132,16 +121,11 @@ export async function POST(request: Request) {
       }
     }
     
-    const { content: cleanContent, tags } = parseTags(content)
-    const sectionType = await mapTagsToSectionType(tags)
-    
     const now = new Date()
     const newEvent = await db.insert(rawEvents).values({
-      content: cleanContent,
-      tags,
+      content,
       eventTime: eventTime ? new Date(eventTime) : now,
       source: 'manual',
-      sectionType,
       isImportant: false,
       createdAt: now,
       updatedAt: now,
