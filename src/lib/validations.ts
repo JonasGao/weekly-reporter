@@ -3,8 +3,7 @@ import { expandInputPath } from '@/lib/collect/paths'
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/
 
-export const createReportSchema = z.object({
-  title: z.string().min(1, '标题不能为空').max(200, '标题最多200个字符'),
+export const reportWeekSchema = z.object({
   weekStart: z.string().regex(dateRegex, '日期格式必须为 YYYY-MM-DD'),
   weekEnd: z.string().regex(dateRegex, '日期格式必须为 YYYY-MM-DD'),
 }).refine(
@@ -14,6 +13,10 @@ export const createReportSchema = z.object({
     path: ['weekEnd'],
   },
 )
+
+export const createReportSchema = reportWeekSchema.safeExtend({
+  title: z.string().min(1, '标题不能为空').max(200, '标题最多200个字符'),
+})
 
 export type CreateReportInput = z.infer<typeof createReportSchema>
 

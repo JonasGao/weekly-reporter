@@ -3,16 +3,30 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { addWeeks, getWeek, getYear, subWeeks } from 'date-fns'
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, Eye, User } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getWeekRange, formatDate } from '@/lib/utils'
+
+type AudienceVariant = 'leadership' | 'personal'
+type PreviewVariant = { variant: AudienceVariant; sourceDraft: string }
+
+const variantLabels: Record<AudienceVariant, string> = {
+  leadership: '领导版',
+  personal: '个人版',
+}
 
 export default function NewReportPage() {
   const router = useRouter()
   const [baseDate, setBaseDate] = useState(new Date())
+  const [preview, setPreview] = useState<PreviewVariant[] | null>(null)
+  const [previewVariant, setPreviewVariant] = useState<AudienceVariant>('leadership')
+  const [previewing, setPreviewing] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const { start, end } = getWeekRange(baseDate)
@@ -25,11 +39,38 @@ export default function NewReportPage() {
   function changeWeek(nextDate: Date) {
     setBaseDate(nextDate)
     setTitle(`${getYear(nextDate)}年第${getWeek(nextDate, { weekStartsOn: 1 })}周工作周报`)
+    setPreview(null)
+    setPreviewVariant('leadership')
+  }
+
+  async function handlePreview() {
+    setPreviewing(true)
+    try {
+      const response = await fetch('/api/reports/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weekStart, weekEnd }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || '预览失败')
+      }
+      setPreview(data.variants as PreviewVariant[])
+      setPreviewVariant('leadership')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '预览失败，请重试')
+    } finally {
+      setPreviewing(false)
+    }
   }
 
   async function handleSave() {
     if (!title.trim()) {
       toast.error('请填写标题')
+      return
+    }
+    if (!preview) {
+      toast.error('请先预览原稿')
       return
     }
 
@@ -53,10 +94,12 @@ export default function NewReportPage() {
     }
   }
 
+  const activePreview = preview?.find((item) => item.variant === previewVariant)?.sourceDraft ?? ''
+
   return (
-    <main className="container mx-auto py-8 px-4 max-w-3xl">
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+    <main className="container mx-auto max-w-4xl px-4 py-8">
+      <div className="mb-6 flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} aria-label="返回">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-2xl font-bold">新建周报</h1>
@@ -64,32 +107,57 @@ export default function NewReportPage() {
 
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <Button type="button" variant="outline" size="icon" onClick={() => changeWeek(subWeeks(baseDate, 1))} aria-label="上一周">
+          <Button type="button" variant="outline" size="icon" onClick={() => changeWeek(subWeeks(baseDate, 1))} disabled={previewing || saving} aria-label="上一周">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="text-lg font-medium">
+          <div className="text-center text-lg font-medium">
             {year}年第{weekNumber}周 ({weekStart} ~ {weekEnd})
           </div>
-          <Button type="button" variant="outline" size="icon" onClick={() => changeWeek(addWeeks(baseDate, 1))} aria-label="下一周">
+          <Button type="button" variant="outline" size="icon" onClick={() => changeWeek(addWeeks(baseDate, 1))} disabled={previewing || saving} aria-label="下一周">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="title">标题</Label>
-          <Input id="title" value={title} onChange={(event) => setTitle(event.target.value)} />
+          <Input id="title" value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} />
         </div>
 
-        <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-2">
-          <p>创建时会按现有事件来源和时间规则生成领导版、个人版两份原稿。</p>
-          <p>模板和 AI 生成在创建后进行；没有 AI 配置也不影响原稿保存。</p>
-        </div>
+        {preview && (
+          <section aria-label="原稿预览" className="space-y-4 rounded-lg border border-border p-5">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="font-semibold">原稿预览（只读）</h2>
+              <Button type="button" variant="outline" onClick={handlePreview} disabled={previewing || saving}>
+                <Eye className="mr-1.5 h-4 w-4" />
+                {previewing ? '加载中...' : '重新预览'}
+              </Button>
+            </div>
+            <Tabs value={previewVariant} onValueChange={(value) => setPreviewVariant(value as AudienceVariant)}>
+              <TabsList className="w-full">
+                <TabsTrigger value="leadership"><Briefcase className="h-4 w-4" />{variantLabels.leadership}</TabsTrigger>
+                <TabsTrigger value="personal"><User className="h-4 w-4" />{variantLabels.personal}</TabsTrigger>
+              </TabsList>
+              <TabsContent value={previewVariant} className="mt-4">
+                <div className="min-h-56 rounded-lg border border-border bg-muted/20 p-5 prose-report">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{activePreview}</ReactMarkdown>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </section>
+        )}
 
         <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => router.back()}>取消</Button>
-          <Button type="button" onClick={handleSave} disabled={saving}>
-            {saving ? '创建中...' : '创建原稿'}
-          </Button>
+          <Button type="button" variant="outline" onClick={() => router.back()} disabled={previewing || saving}>取消</Button>
+          {!preview ? (
+            <Button type="button" onClick={handlePreview} disabled={previewing || saving}>
+              <Eye className="mr-1.5 h-4 w-4" />
+              {previewing ? '预览中...' : '预览原稿'}
+            </Button>
+          ) : (
+            <Button type="button" onClick={handleSave} disabled={previewing || saving}>
+              {saving ? '创建中...' : '确认创建'}
+            </Button>
+          )}
         </div>
       </div>
     </main>

@@ -79,17 +79,36 @@ function variantSourceDrafts(events: RawEvent[], sourceScopes: ReadonlyMap<numbe
   } satisfies Record<AudienceVariant, string>
 }
 
+async function collectSourceDrafts(weekStart: string, weekEnd: string) {
+  const [events, sourceScopes] = await Promise.all([
+    findEventsForWeek(weekStart, weekEnd),
+    getSourceScopes(),
+  ])
+  return {
+    events,
+    sourceScopes,
+    drafts: variantSourceDrafts(events, sourceScopes),
+  }
+}
+
+export async function previewReportSourceDrafts(input: {
+  weekStart: string
+  weekEnd: string
+}) {
+  const { drafts } = await collectSourceDrafts(input.weekStart, input.weekEnd)
+  return AUDIENCE_VARIANTS.map((variant) => ({
+    variant,
+    sourceDraft: drafts[variant],
+  }))
+}
+
 export async function createReportWithSourceDrafts(input: {
   title: string
   weekStart: string
   weekEnd: string
 }) {
   const db = getDb()
-  const [events, sourceScopes] = await Promise.all([
-    findEventsForWeek(input.weekStart, input.weekEnd),
-    getSourceScopes(),
-  ])
-  const drafts = variantSourceDrafts(events, sourceScopes)
+  const { events, sourceScopes, drafts } = await collectSourceDrafts(input.weekStart, input.weekEnd)
   const now = new Date()
 
   const created = db.transaction((tx) => {

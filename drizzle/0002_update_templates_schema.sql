@@ -1,9 +1,10 @@
 -- Update templates table schema
--- Drop old columns (if they exist)
-ALTER TABLE templates DROP COLUMN IF EXISTS work_types;
-ALTER TABLE templates DROP COLUMN IF EXISTS is_default;
-
--- Add new columns (if they don't exist)
-ALTER TABLE templates ADD COLUMN IF NOT EXISTS description text;
-ALTER TABLE templates ADD COLUMN IF NOT EXISTS tags text;
-ALTER TABLE templates ADD COLUMN IF NOT EXISTS source_template_id text;
+ALTER TABLE templates DROP COLUMN work_types;
+--> statement-breakpoint
+ALTER TABLE templates DROP COLUMN is_default;
+--> statement-breakpoint
+ALTER TABLE templates ADD COLUMN description text;
+--> statement-breakpoint
+ALTER TABLE templates ADD COLUMN tags text;
+--> statement-breakpoint
+ALTER TABLE templates ADD COLUMN source_template_id text;
