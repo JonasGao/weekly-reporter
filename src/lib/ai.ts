@@ -7,7 +7,7 @@ import { getAIConfig } from './ai/config'
 import { createModelFromConfig, AIConfigError } from './ai/provider'
 
 /** 获取系统提示词模板 */
-async function getSystemPrompt(key: 'check' | 'score'): Promise<string> {
+async function getSystemPrompt(key: 'check' | 'score' | 'generate'): Promise<string> {
   const db = getDb()
   const row = await db.query.systemPrompts.findFirst({
     where: eq(systemPrompts.key, key),
@@ -32,6 +32,17 @@ async function getSystemPrompt(key: 'check' | 'score'): Promise<string> {
 请给出具体、简洁的建议（每条不超过20字）。
 如果内容很好，返回空数组 []。`
   }
+  if (key === 'generate') {
+    return `你是周报终版生成助手。请严格依据原稿中的事实，按照模板要求输出 Markdown 周报。
+
+规则：
+- 只处理当前受众版本提供的原稿，不得引入其他版本的信息。
+- 可以重组、合并、概括和补全表达，但不得虚构项目、数字、结果、时间或计划。
+- 模板是格式规范，不要输出模板占位符、解释文字或代码围栏。
+- 原稿没有事实支撑的章节请省略，或明确写出暂无内容。
+- 只返回终版 Markdown 正文。`
+  }
+
   // score
   return `你是一个周报评分专家。请对以下周报进行评分和建议。
 
@@ -239,4 +250,47 @@ export async function unifyStyle(
     unifiedContent: object.unifiedContent,
     changesCount: object.changesCount,
   }
+}
+
+export interface GenerateFinalReportRequest {
+  sourceDraft: string
+  template: string
+  variant: 'leadership' | 'personal'
+  weekStart: string
+  weekEnd: string
+  stylePrompt: string
+}
+
+/** Generate one audience-specific final report from only its source draft. */
+export async function generateFinalReport(
+  request: GenerateFinalReportRequest,
+  temperature: number,
+): Promise<string> {
+  const systemPrompt = await getSystemPrompt('generate')
+  const model = await getModel()
+  const { object } = await generateObject({
+    model,
+    schema: z.object({ content: z.string().min(1) }),
+    prompt: `${systemPrompt}
+
+写作风格：
+${request.stylePrompt}
+
+受众版本：${request.variant === 'leadership' ? '领导版' : '个人版'}
+日期范围：${request.weekStart} 至 ${request.weekEnd}
+
+目标模板（原样理解，不要执行程序变量替换）：
+---
+${request.template}
+---
+
+当前受众版本的周报原稿（唯一事实来源）：
+---
+${request.sourceDraft}
+---
+`,
+    temperature,
+  })
+
+  return object.content.trim()
 }

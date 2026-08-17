@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validated = cloneTemplateSchema.parse(body)
     
-    let sourceTemplate: { name: string; content: string; id: string } | null = null
+    let sourceTemplate: { name: string; content: string; id: string; aiStyle?: string } | null = null
     
     // 根据sourceId前缀判断来源
     if (validated.sourceId.startsWith('official-')) {
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
           id: validated.sourceId,
           name: userTemplate[0].name,
           content: userTemplate[0].content,
+          aiStyle: userTemplate[0].aiStyle,
         }
       }
     }
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
       description: undefined,
       tags: undefined,
       sourceTemplateId: validated.sourceId,
+      aiStyle: sourceTemplate.aiStyle,
       createdAt: now,
       updatedAt: now,
     }

@@ -1,137 +1,80 @@
 import { NextResponse } from 'next/server'
+import { desc } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
-import { desc, eq, between } from 'drizzle-orm'
-import { reports, templates, rawEvents } from '@/lib/db/schema'
-import { reportSchema } from '@/lib/validations'
-import { renderTemplate } from '@/lib/template/render'
-import { OFFICIAL_TEMPLATES } from '@/lib/official-templates'
-import { triggerAsyncScoring } from '@/lib/scoring'
-import { getSourceScopes } from '@/lib/collect/source-scopes'
+import { reports, reportVariants } from '@/lib/db/schema'
+import { createReportSchema } from '@/lib/validations'
+import { createReportWithSourceDrafts } from '@/lib/reports/service'
 
 export async function GET(request: Request) {
   try {
     const db = getDb()
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '10')
-    
+    const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10))
+    const pageSize = Math.max(1, Number.parseInt(searchParams.get('pageSize') || '10', 10))
     const offset = (page - 1) * pageSize
-    
+
     const allReports = await db.query.reports.findMany({
       orderBy: [desc(reports.createdAt)],
       limit: pageSize,
       offset,
     })
-    
-    const totalResult = await db.select().from(reports)
-    const total = totalResult.length
-    
-    return NextResponse.json({
-      reports: allReports,
-      total,
-      page,
-      pageSize,
+    let variants: Array<typeof reportVariants.$inferSelect> = []
+    try {
+      const variantRows = allReports.length > 0 ? await db.select().from(reportVariants) : []
+      variants = variantRows ?? []
+    } catch {
+      // Compatibility with legacy callers/mocks that only expose reports.
+      variants = []
+    }
+    const variantByReport = new Map<number, typeof variants>()
+    for (const variant of variants) {
+      const list = variantByReport.get(variant.reportId) ?? []
+      list.push(variant)
+      variantByReport.set(variant.reportId, list)
+    }
+
+    const results = allReports.map((report) => {
+      const personal = variantByReport.get(report.id)?.find((variant) => variant.variant === 'personal')
+      return {
+        ...report,
+        // Compatibility fields used by the existing report list.
+        content: personal?.finalContent ?? personal?.sourceDraft ?? report.content,
+        scoreStatus: personal?.finalContent ? (personal.scoreStatus ?? report.scoreStatus) : 'completed',
+        scoreStructure: personal?.scoreStructure ?? report.scoreStructure,
+        scoreContent: personal?.scoreContent ?? report.scoreContent,
+        scoreValue: personal?.scoreValue ?? report.scoreValue,
+        scoreOverall: personal?.scoreOverall ?? report.scoreOverall,
+        suggestions: personal?.suggestions ?? report.suggestions,
+        scoreError: personal?.scoreError ?? report.scoreError,
+        variants: variantByReport.get(report.id) ?? [],
+      }
     })
+
+    let total = allReports.length
+    try {
+      const totalRows = await db.select({ id: reports.id }).from(reports)
+      total = totalRows?.length ?? total
+    } catch {
+      // Keep the page result usable for legacy database adapters.
+    }
+    return NextResponse.json({ reports: results, total, page, pageSize })
   } catch (error) {
-    console.error('[/api/reports] Error:', error)
-    return NextResponse.json(
-      { error: '获取周报列表失败', code: 'FETCH_ERROR' },
-      { status: 500 }
-    )
+    console.error('[/api/reports] GET error:', error)
+    return NextResponse.json({ error: '获取周报列表失败', code: 'FETCH_ERROR' }, { status: 500 })
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const db = getDb()
     const body = await request.json()
-    
-    const validated = reportSchema.parse(body)
-    
-    // Extract templateId and baseDate
-    const { templateId, baseDate, weekStart, weekEnd } = validated
-    let finalContent = validated.content || ''
-    
-    // Query events within the week range
-    const weekStartDate = new Date(weekStart)
-    const weekEndDate = new Date(weekEnd)
-
-    const eventsToProcess = await db.select()
-      .from(rawEvents)
-      .where(
-        between(rawEvents.eventTime, weekStartDate, weekEndDate)
-      )
-
-    // If templateId is provided, render the template
-    if (templateId) {
-      let templateContent: string = ''
-      
-      // Handle official templates
-      if (templateId.startsWith('official-')) {
-        const template = OFFICIAL_TEMPLATES.find(t => t.id === templateId)
-        if (template) {
-          templateContent = template.content
-        }
-      }
-      // Handle user templates
-      else if (templateId.startsWith('user-')) {
-        const templateIdNum = parseInt(templateId.replace('user-', ''), 10)
-        if (!isNaN(templateIdNum)) {
-          const result = await db.select()
-            .from(templates)
-            .where(eq(templates.id, templateIdNum))
-            .limit(1)
-          if (result.length > 0) {
-            templateContent = result[0].content
-          }
-        }
-      }
-      
-      // Render template with processed events
-      if (templateContent) {
-        finalContent = renderTemplate(templateContent, {
-          date: baseDate ? new Date(baseDate) : new Date(),
-          events: eventsToProcess,
-          sourceScopes: await getSourceScopes(),
-        })
-      }
-    }
-    
-    // Ensure we have content
-    if (!finalContent) {
-      return NextResponse.json(
-        { error: '无法获取模板内容或未提供内容', code: 'TEMPLATE_ERROR' },
-        { status: 400 }
-      )
-    }
-    
-    const now = new Date()
-    const result = await db.insert(reports).values({
-      title: validated.title,
-      content: finalContent,
-      weekStart: validated.weekStart,
-      weekEnd: validated.weekEnd,
-      createdAt: now,
-      updatedAt: now,
-    }).returning()
-    
-    if (result[0]) {
-      triggerAsyncScoring(result[0].id).catch(err => {
-        console.error('[reports] Async scoring failed:', err)
-      })
-    }
-
-    return NextResponse.json(result[0], { status: 201 })
+    const validated = createReportSchema.parse(body)
+    const result = await createReportWithSourceDrafts(validated)
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json(
-        { error: '数据验证失败', code: 'VALIDATION_ERROR', details: error },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: '数据验证失败', code: 'VALIDATION_ERROR', details: error }, { status: 400 })
     }
-    return NextResponse.json(
-      { error: '创建周报失败', code: 'CREATE_ERROR' },
-      { status: 500 }
-    )
+    console.error('[/api/reports] POST error:', error)
+    return NextResponse.json({ error: '创建周报失败', code: 'CREATE_ERROR' }, { status: 500 })
   }
 }

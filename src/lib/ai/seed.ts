@@ -169,6 +169,18 @@ const BUILTIN_SYSTEM_PROMPTS = [
 2. 具体改进建议（每条不超过30字）
 3. （可选）改写示例`,
   },
+  {
+    key: 'generate' as const,
+    label: '终版生成',
+    promptText: `你是周报终版生成助手。请严格依据原稿中的事实，按照模板要求输出 Markdown 周报。
+
+规则：
+- 只处理当前受众版本提供的原稿，不得引入其他版本的信息。
+- 可以重组、合并、概括和补全表达，但不得虚构项目、数字、结果、时间或计划。
+- 模板是格式规范，不要输出模板占位符、解释文字或代码围栏。
+- 原稿没有事实支撑的章节请省略，或明确写出暂无内容。
+- 只返回终版 Markdown 正文。`,
+  },
 ]
 
 let seeded = false
@@ -197,9 +209,12 @@ export async function ensureSeed(): Promise<void> {
 
   // Seed system prompts if empty
   try {
-    const promptCount = await db.select({ count: sql<number>`count(*)` }).from(systemPrompts)
-    if ((promptCount[0]?.count ?? 0) === 0) {
-      for (const prompt of BUILTIN_SYSTEM_PROMPTS) {
+    for (const prompt of BUILTIN_SYSTEM_PROMPTS) {
+      const existing = await db.select({ id: systemPrompts.id })
+        .from(systemPrompts)
+        .where(sql`${systemPrompts.key} = ${prompt.key}`)
+        .limit(1)
+      if (existing.length === 0) {
         await db.insert(systemPrompts).values({ ...prompt, createdAt: now, updatedAt: now })
       }
     }

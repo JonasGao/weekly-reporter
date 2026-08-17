@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm'
 import { getDb } from '../db'
-import { aiStyles as aiStylesTable, ScoreWeights } from '../db/schema'
+import { aiStyles as aiStylesTable } from '../db/schema'
 import type { AIStyleRow } from '../db/schema'
 import { ensureSeed } from './seed'
 
@@ -198,10 +198,13 @@ export async function deleteAIStyle(id: number): Promise<{ success: boolean; err
   }
 
   // 清除引用此风格的报告的 aiStyleOverride
-  const { reports } = await import('../db/schema')
+  const { reports, templates } = await import('../db/schema')
   await db.update(reports)
     .set({ aiStyleOverride: null })
     .where(eq(reports.aiStyleOverride, style.key))
+  await db.update(templates)
+    .set({ aiStyle: 'formal', updatedAt: new Date() })
+    .where(eq(templates.aiStyle, style.key))
 
   // 删除风格
   await db.delete(aiStylesTable).where(eq(aiStylesTable.id, id))

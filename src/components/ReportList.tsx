@@ -11,6 +11,7 @@ import type { Report, ScoreStatus } from '@/lib/db/schema'
 
 interface ScoreUpdate {
   reportId: number
+  variant?: 'leadership' | 'personal'
   scoreStatus: ScoreStatus
   scoreStructure?: number | null
   scoreContent?: number | null
@@ -68,6 +69,7 @@ export function ReportList() {
     eventSource.onmessage = (event) => {
       try {
         const update: ScoreUpdate = JSON.parse(event.data)
+        if (update.variant && update.variant !== 'personal') return
         setReports(prev => prev.map(report => {
           if (report.id === update.reportId) {
             return {

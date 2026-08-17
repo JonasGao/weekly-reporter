@@ -1,45 +1,41 @@
 import { NextResponse } from 'next/server'
+import { desc } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
-import { or, like, and, gte, lte } from 'drizzle-orm'
-import { reports } from '@/lib/db/schema'
+import { reportVariants, reports } from '@/lib/db/schema'
 
 export async function GET(request: Request) {
   try {
     const db = getDb()
     const { searchParams } = new URL(request.url)
-    const query = searchParams.get('q') || ''
+    const query = (searchParams.get('q') || '').trim().toLowerCase()
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
-    
-    const conditions = []
-    
-    if (query) {
-      conditions.push(
-        or(
-          like(reports.title, `%${query}%`),
-          like(reports.content, `%${query}%`)
-        )
-      )
+    const allReports = await db.query.reports.findMany({ orderBy: [desc(reports.createdAt)] })
+    const variants = await db.select().from(reportVariants)
+    const variantsByReport = new Map<number, typeof variants>()
+    for (const variant of variants) {
+      const list = variantsByReport.get(variant.reportId) ?? []
+      list.push(variant)
+      variantsByReport.set(variant.reportId, list)
     }
-    
-    if (startDate) {
-      conditions.push(gte(reports.weekStart, startDate))
-    }
-    
-    if (endDate) {
-      conditions.push(lte(reports.weekEnd, endDate))
-    }
-    
-    const results = await db.query.reports.findMany({
-      where: conditions.length > 0 ? and(...conditions) : undefined,
-      orderBy: (reports, { desc }) => [desc(reports.createdAt)],
-    })
-    
+
+    const results = allReports.filter((report) => {
+      if (startDate && report.weekStart < startDate) return false
+      if (endDate && report.weekEnd > endDate) return false
+      if (!query) return true
+      const text = [
+        report.title,
+        report.content,
+        ...(variantsByReport.get(report.id) ?? []).flatMap((variant) => [variant.sourceDraft, variant.finalContent ?? '']),
+      ].join('\n').toLowerCase()
+      return text.includes(query)
+    }).map((report) => ({
+      ...report,
+      variants: variantsByReport.get(report.id) ?? [],
+    }))
+
     return NextResponse.json({ reports: results })
-  } catch (error) {
-    return NextResponse.json(
-      { error: '搜索失败', code: 'SEARCH_ERROR' },
-      { status: 500 }
-    )
+  } catch {
+    return NextResponse.json({ error: '搜索失败', code: 'SEARCH_ERROR' }, { status: 500 })
   }
 }

@@ -1,231 +1,42 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import NewReportPage from './page';
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import NewReportPage from './page'
 
-// Mock next/navigation
-const mockPush = vi.fn();
-const mockRouter = {
-  push: mockPush,
-};
+const mockPush = vi.fn()
+const mockFetch = vi.fn()
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => mockRouter,
-}));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush, back: vi.fn() }) }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('@/components/ui/button', async () => {
+  const actual = await vi.importActual<typeof import('@/components/ui/button')>('@/components/ui/button')
+  return actual
+})
 
-// Mock sonner toast
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-
-// Mock MilkdownEditor to avoid complex rendering
-vi.mock('@/components/editor/MilkdownEditor', () => ({
-  MilkdownEditor: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <textarea
-      data-testid="milkdown-editor"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  ),
-}));
-
-// Mock CheckPanel
-vi.mock('@/components/CheckPanel', () => ({
-  CheckPanel: () => <div data-testid="check-panel">Check Panel</div>,
-}));
-
-// Mock ScorePanel
-vi.mock('@/components/ScorePanel', () => ({
-  ScorePanel: ({ onConfirm }: { onConfirm: () => void }) => (
-    <button data-testid="score-panel-confirm" onClick={onConfirm}>
-      Confirm
-    </button>
-  ),
-}));
-
-// Mock TemplateSelect
-vi.mock('@/components/TemplateSelect', () => ({
-  TemplateSelect: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <select
-      data-testid="template-select"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      <option value="">Select template</option>
-      <option value="official-1">Official Template 1</option>
-      <option value="user-1">User Template 1</option>
-    </select>
-  ),
-}));
+global.fetch = mockFetch
 
 describe('NewReportPage', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    
-    // Default mock for templates API
-    mockFetch.mockImplementation((url: string) => {
-      if (url === '/api/templates') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            official: [{ id: 'official-1', name: 'Official Template', content: 'Template content' }],
-            user: [],
-          }),
-        });
-      }
-      if (url.includes('/api/templates/') && url.includes('/render')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            content: 'Rendered content',
-            templateId: 'official-1',
-          }),
-        });
-      }
-      if (url === '/api/reports') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        });
-      }
-      return Promise.resolve({ ok: false, json: () => Promise.resolve({ error: 'Unknown' }) });
-    });
-  });
+    vi.clearAllMocks()
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ report: { id: 7 }, variants: [] }),
+    })
+  })
 
-  describe('VariableToolbar Integration', () => {
-    it('should render VariableToolbar in the editor section', async () => {
-      render(<NewReportPage />);
-      
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /插入变量/i })).toBeInTheDocument();
-      });
-    });
+  it('does not load templates or render events during initial creation', () => {
+    render(<NewReportPage />)
+    expect(screen.getByRole('heading', { name: '新建周报' })).toBeInTheDocument()
+    expect(screen.getByText(/两份原稿/)).toBeInTheDocument()
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
 
-    it('should insert variable when VariableToolbar button is clicked', async () => {
-      render(<NewReportPage />);
-      
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /插入变量/i })).toBeInTheDocument();
-      });
-      
-      // Open dropdown
-      const toolbarButton = screen.getByRole('button', { name: /插入变量/i });
-      fireEvent.click(toolbarButton);
-      
-      // Click a variable
-      const weekRangeVariable = screen.getByText('{{本周日期范围}}');
-      fireEvent.click(weekRangeVariable);
-      
-      // Check toast was called
-      const { toast } = await import('sonner');
-      expect(toast.success).toHaveBeenCalledWith('已插入变量：{{本周日期范围}}');
-      
-      // Check editor content was updated
-      const editor = screen.getByTestId('milkdown-editor');
-      expect(editor.value).toContain('{{本周日期范围}}');
-    });
-  });
-
-  describe('Template Selection', () => {
-    it('should call render API when template is changed', async () => {
-      render(<NewReportPage />);
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('template-select')).toBeInTheDocument();
-      });
-      
-      // Change template
-      const select = screen.getByTestId('template-select');
-      fireEvent.change(select, { target: { value: 'user-1' } });
-      
-      await waitFor(() => {
-        // Check that render API was called
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('/api/templates/user-1/render')
-        );
-      });
-    });
-  });
-
-  describe('Week Navigation', () => {
-    it('should re-render template when switching weeks', async () => {
-      render(<NewReportPage />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('template-select')).toBeInTheDocument();
-      });
-
-      // Clear previous render calls from initial template selection
-      mockFetch.mockClear();
-
-      // Click next week
-      const nextButton = screen.getByRole('button', { name: /下一周/i });
-      fireEvent.click(nextButton);
-
-      await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('/api/templates/official-1/render')
-        );
-      });
-
-      const renderUrl = mockFetch.mock.calls.find((call) =>
-        call[0].includes('/api/templates/official-1/render')
-      )[0];
-      expect(renderUrl).toContain('date=');
-    });
-
-    it('should not call render API when no template is selected', async () => {
-      render(<NewReportPage />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('template-select')).toBeInTheDocument();
-      });
-
-      // Deselect template and wait for the resulting state update to settle
-      const select = screen.getByTestId('template-select');
-      fireEvent.change(select, { target: { value: '' } });
-      await waitFor(() => {
-        expect(select).toHaveValue('');
-      });
-
-      mockFetch.mockClear();
-
-      // Click previous week
-      const prevButton = screen.getByRole('button', { name: /上一周/i });
-      fireEvent.click(prevButton);
-
-      // Wait a tick to ensure no async render call is made
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      expect(mockFetch).not.toHaveBeenCalledWith(
-        expect.stringContaining('/api/templates/')
-      );
-    });
-  });
-
-  describe('Editor Key Refresh', () => {
-    it('should update editorKey after inserting variable', async () => {
-      render(<NewReportPage />);
-      
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /插入变量/i })).toBeInTheDocument();
-      });
-      
-      // Open dropdown and click variable
-      const toolbarButton = screen.getByRole('button', { name: /插入变量/i });
-      fireEvent.click(toolbarButton);
-      const weekRangeVariable = screen.getByText('{{本周日期范围}}');
-      fireEvent.click(weekRangeVariable);
-      
-      // Editor should be re-rendered with updated content
-      const editor = screen.getByTestId('milkdown-editor');
-      expect(editor.value).toContain('{{本周日期范围}}');
-    });
-  });
-});
+  it('creates a report with title and week range only', async () => {
+    render(<NewReportPage />)
+    fireEvent.click(screen.getByRole('button', { name: '创建原稿' }))
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/reports', expect.objectContaining({ method: 'POST' })))
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    expect(body).toEqual(expect.objectContaining({ title: expect.any(String), weekStart: expect.any(String), weekEnd: expect.any(String) }))
+    expect(body).not.toHaveProperty('templateId')
+    expect(body).not.toHaveProperty('content')
+  })
+})

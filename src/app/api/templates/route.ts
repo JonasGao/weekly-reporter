@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       content: validated.content,
       description: validated.description,
       tags: validated.tags,
+      aiStyle: validated.aiStyle,
       createdAt: now,
       updatedAt: now,
     }).returning()

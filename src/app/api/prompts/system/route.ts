@@ -28,7 +28,7 @@ export async function PUT(request: Request) {
     const validated = systemPromptSchema.parse(body)
     const key = body.key
 
-    if (!key || !['check', 'score'].includes(key)) {
+    if (!key || !['check', 'score', 'generate'].includes(key)) {
       return NextResponse.json(
         { error: '无效的提示词 key', code: 'VALIDATION_ERROR' },
         { status: 400 },

@@ -3,37 +3,26 @@ import { expandInputPath } from '@/lib/collect/paths'
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/
 
-export const reportSchema = z.object({
+export const createReportSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(200, '标题最多200个字符'),
-  content: z.string().optional(),
   weekStart: z.string().regex(dateRegex, '日期格式必须为 YYYY-MM-DD'),
   weekEnd: z.string().regex(dateRegex, '日期格式必须为 YYYY-MM-DD'),
-  templateId: z.string().optional(),
-  baseDate: z.string().optional(),
 }).refine(
   (data) => new Date(data.weekStart) <= new Date(data.weekEnd),
   {
     message: '开始日期不能晚于结束日期',
     path: ['weekEnd'],
-  }
-).refine(
-  (data) => {
-    // Either content or templateId must be provided
-    return (data.content && data.content.length > 0) || data.templateId
   },
-  {
-    message: '必须提供内容或模板ID',
-    path: ['content'],
-  }
 )
 
-export type ReportInput = z.infer<typeof reportSchema>
+export type CreateReportInput = z.infer<typeof createReportSchema>
 
 export const templateSchema = z.object({
   name: z.string().min(1, '模板名称不能为空').max(100),
   content: z.string().min(1, '模板内容不能为空'),
   description: z.string().max(200).optional(),
   tags: z.string().optional(),
+  aiStyle: z.string().regex(/^[a-z][a-z0-9_-]*$/).optional(),
 })
 
 export const cloneTemplateSchema = z.object({

@@ -1,6 +1,8 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 export type ScoreStatus = 'pending' | 'scoring' | 'completed' | 'failed'
+export type AudienceVariant = 'leadership' | 'personal'
+export type FinalStatus = 'none' | 'current' | 'stale'
 
 export const reports = sqliteTable('reports', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -24,39 +26,61 @@ export const reports = sqliteTable('reports', {
 export type Report = typeof reports.$inferSelect
 export type NewReport = typeof reports.$inferInsert
 
-export type SectionType = 'achievement' | 'risk' | 'routine' | 'plan'
+/**
+ * A persisted audience-specific source draft and optional AI-generated final.
+ * The legacy reports.content/score columns remain for reports created before
+ * the dual-variant model was introduced.
+ */
+export const reportVariants = sqliteTable('report_variants', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  reportId: integer('report_id').notNull(),
+  variant: text('variant').notNull().$type<AudienceVariant>(),
+  sourceDraft: text('source_draft').notNull(),
+  finalContent: text('final_content'),
+  finalStatus: text('final_status').notNull().default('none').$type<FinalStatus>(),
+  templateId: text('template_id'),
+  templateName: text('template_name'),
+  templateContent: text('template_content'),
+  aiStyle: text('ai_style').$type<AIStyle>(),
+  sourceRevision: integer('source_revision').notNull().default(1),
+  scoreStatus: text('score_status').$type<ScoreStatus>().default('pending').notNull(),
+  scoreStructure: integer('score_structure'),
+  scoreContent: integer('score_content'),
+  scoreValue: integer('score_value'),
+  scoreOverall: integer('score_overall'),
+  suggestions: text('suggestions'),
+  scoreError: text('score_error'),
+  scoredAt: integer('scored_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+}, (table) => ({
+  reportVariantUnique: uniqueIndex('report_variants_report_variant_unique').on(table.reportId, table.variant),
+}))
+
+export type ReportVariant = typeof reportVariants.$inferSelect
+export type NewReportVariant = typeof reportVariants.$inferInsert
+
+/** Immutable event facts captured when a report's source drafts are created. */
+export const reportEventSnapshots = sqliteTable('report_event_snapshots', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  reportId: integer('report_id').notNull(),
+  rawEventId: integer('raw_event_id'),
+  eventTime: integer('event_time', { mode: 'timestamp' }).notNull(),
+  source: text('source').notNull(),
+  content: text('content').notNull(),
+  metadata: text('metadata', { mode: 'json' }).$type<RawEventMetadata>(),
+  projectScope: text('project_scope').$type<ProjectScope>(),
+  leadershipIncluded: integer('leadership_included', { mode: 'boolean' }).notNull().default(false),
+  personalIncluded: integer('personal_included', { mode: 'boolean' }).notNull().default(true),
+  sourceRevision: integer('source_revision').notNull().default(1),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+})
+
+export type ReportEventSnapshot = typeof reportEventSnapshots.$inferSelect
+export type NewReportEventSnapshot = typeof reportEventSnapshots.$inferInsert
+
 /** @deprecated 改用 string，风格现在是数据库实体，不再硬编码 key */
 export type AIStyle = string
-
-export interface SectionRenderConfig {
-  maxItems?: number
-  autoSort?: boolean
-  filterTrivial?: boolean
-}
-
-export interface ViewConfig {
-  enabledSections: string[]
-  sectionConfig: Record<string, SectionRenderConfig>
-  aiStyle: AIStyle
-}
-
-export interface TemplateConfig {
-  sectionSkeleton?: {
-    type: 'unordered' | 'ordered' | 'task'
-    placeholderCount: number
-  }
-  sectionConfig?: {
-    achievement?: SectionRenderConfig
-    risk?: SectionRenderConfig
-    routine?: SectionRenderConfig
-    plan?: SectionRenderConfig
-  }
-  sectionTypeMap?: Record<string, SectionType>
-  viewConfigs?: {
-    leadership?: ViewConfig
-    personal?: ViewConfig
-  }
-}
 
 export const templates = sqliteTable('templates', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -66,7 +90,6 @@ export const templates = sqliteTable('templates', {
   tags: text('tags'),
   sourceTemplateId: text('source_template_id'),
   aiStyle: text('ai_style').default('formal').notNull().$type<AIStyle>(),
-  config: text('config', { mode: 'json' }).notNull().default({}),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 })
@@ -121,7 +144,6 @@ export const rawEvents = sqliteTable('raw_events', {
   content: text('content').notNull(),
   metadata: text('metadata', { mode: 'json' }).$type<RawEventMetadata>(),
   category: text('category'),
-  sectionType: text('section_type').default('routine').notNull().$type<SectionType>(),
   isImportant: integer('is_important', { mode: 'boolean' }).default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
@@ -191,7 +213,7 @@ export type NewAIStyleRow = typeof aiStyles.$inferInsert
 
 // --- 系统提示词表（全局唯一，只可编辑） ---
 
-export type SystemPromptKey = 'check' | 'score'
+export type SystemPromptKey = 'check' | 'score' | 'generate'
 
 export const systemPrompts = sqliteTable('system_prompts', {
   id: integer('id').primaryKey({ autoIncrement: true }),

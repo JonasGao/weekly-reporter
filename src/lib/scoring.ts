@@ -2,10 +2,13 @@ import { getDb, schema } from './db'
 import { eq } from 'drizzle-orm'
 import { scoreReport } from './ai'
 import { getStyleFromReport } from './ai/style-helpers'
+import { getAIStyle } from './ai/styles'
 import type { ScoreStatus } from './db/schema'
 
 export interface ScoreUpdate {
   reportId: number
+  variantId?: number
+  variant?: 'leadership' | 'personal'
   scoreStatus: ScoreStatus
   scoreStructure?: number | null
   scoreContent?: number | null
@@ -104,6 +107,79 @@ export async function triggerAsyncScoring(reportId: number) {
     
     return { success: false, error: errorMessage }
   }
+}
+
+export async function triggerAsyncVariantScoring(variantId: number) {
+  const db = getDb()
+
+  try {
+    await db.update(schema.reportVariants)
+      .set({ scoreStatus: 'scoring', scoreError: null })
+      .where(eq(schema.reportVariants.id, variantId))
+
+    const variant = await db.query.reportVariants.findFirst({
+      where: eq(schema.reportVariants.id, variantId),
+    })
+    if (!variant || !variant.finalContent) {
+      throw new Error('Final report not found')
+    }
+
+    broadcastScoreUpdate({
+      reportId: variant.reportId,
+      variantId,
+      variant: variant.variant,
+      scoreStatus: 'scoring',
+    })
+
+    const style = await getAIStyle(variant.aiStyle ?? undefined)
+    const result = await scoreReport({ content: variant.finalContent })
+    const weightedScore = calculateWeightedScore(result.score, style.scoreWeights)
+    const now = new Date()
+
+    await db.update(schema.reportVariants).set({
+      scoreStatus: 'completed',
+      scoreStructure: weightedScore.structure,
+      scoreContent: weightedScore.content,
+      scoreValue: weightedScore.value,
+      scoreOverall: weightedScore.overall,
+      suggestions: result.suggestions.join('\n'),
+      scoreError: null,
+      scoredAt: now,
+      updatedAt: now,
+    }).where(eq(schema.reportVariants.id, variantId))
+
+    broadcastScoreUpdate({
+      reportId: variant.reportId,
+      variantId,
+      variant: variant.variant,
+      scoreStatus: 'completed',
+      scoreStructure: weightedScore.structure,
+      scoreContent: weightedScore.content,
+      scoreValue: weightedScore.value,
+      scoreOverall: weightedScore.overall,
+      suggestions: result.suggestions,
+    })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const variant = await db.query.reportVariants.findFirst({ where: eq(schema.reportVariants.id, variantId) })
+    await db.update(schema.reportVariants).set({
+      scoreStatus: 'failed',
+      scoreError: errorMessage,
+      updatedAt: new Date(),
+    }).where(eq(schema.reportVariants.id, variantId))
+    if (variant) {
+      broadcastScoreUpdate({
+        reportId: variant.reportId,
+        variantId,
+        variant: variant.variant,
+        scoreStatus: 'failed',
+        scoreError: errorMessage,
+      })
+    }
+    return { success: false, error: errorMessage }
+  }
+
+  return { success: true }
 }
 
 function calculateWeightedScore(

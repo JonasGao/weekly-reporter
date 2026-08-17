@@ -21,7 +21,7 @@ export async function GET(
     }
     
     return NextResponse.json({ template: template[0] })
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: '获取模板失败', code: 'FETCH_ERROR' },
       { status: 500 }
@@ -38,8 +38,6 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     
-    const validated = templateSchema.parse(body)
-    
     const template = await db.select().from(templates).where(eq(templates.id, parseInt(id)))
     
     if (template.length === 0) {
@@ -49,14 +47,25 @@ export async function PUT(
       )
     }
     
-    const updated = await db.update(templates)
-      .set({
+    const styleOnlyUpdate = Object.keys(body).every((key) => key === 'aiStyle')
+    let values: Partial<typeof templates.$inferInsert>
+    if (styleOnlyUpdate) {
+      const validated = templateSchema.pick({ aiStyle: true }).parse(body)
+      values = { aiStyle: validated.aiStyle, updatedAt: new Date() }
+    } else {
+      const validated = templateSchema.parse(body)
+      values = {
         name: validated.name,
         content: validated.content,
         description: validated.description,
         tags: validated.tags,
+        aiStyle: validated.aiStyle ?? template[0].aiStyle,
         updatedAt: new Date(),
-      })
+      }
+    }
+
+    const updated = await db.update(templates)
+      .set(values)
       .where(eq(templates.id, parseInt(id)))
       .returning()
     
@@ -94,7 +103,7 @@ export async function DELETE(
     await db.delete(templates).where(eq(templates.id, parseInt(id)))
     
     return NextResponse.json({ success: true, message: '模板已删除' })
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: '删除模板失败', code: 'DELETE_ERROR' },
       { status: 500 }
