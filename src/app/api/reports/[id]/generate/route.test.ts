@@ -36,7 +36,10 @@ describe('POST /api/reports/[id]/generate', () => {
       aiStyle: 'formal',
     })
     mocks.getAIStyle.mockResolvedValue({ systemPrompt: '正式风格', temperature: 0.3 })
-    mocks.generateFinalReport.mockResolvedValue('# 终版')
+    mocks.generateFinalReport.mockResolvedValue({
+      content: '# 终版',
+      summary: ['采用本周工作章节', '保留领导可见事项'],
+    })
   })
 
   it('sends only the selected leadership source draft to AI', async () => {
@@ -51,6 +54,10 @@ describe('POST /api/reports/[id]/generate', () => {
 
     expect(response.status).toBe(200)
     expect(body.sourceRevision).toBe(4)
+    expect(body).toMatchObject({
+      content: '# 终版',
+      summary: ['采用本周工作章节', '保留领导可见事项'],
+    })
     expect(mocks.generateFinalReport).toHaveBeenCalledWith(
       expect.objectContaining({
         sourceDraft: '- 领导可见事项',

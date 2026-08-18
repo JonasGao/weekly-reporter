@@ -44,7 +44,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     const effectiveStyleKey = typeof body.styleOverride === 'string' && body.styleOverride
       ? body.styleOverride
       : template.aiStyle
-    const content = await generateFinalReport({
+    const result = await generateFinalReport({
       sourceDraft: reportVariant.sourceDraft,
       template: template.content,
       variant,
@@ -54,7 +54,8 @@ export async function POST(request: Request, { params }: RouteContext) {
     }, style.temperature)
 
     return NextResponse.json({
-      content,
+      content: result.content,
+      summary: result.summary,
       variant,
       template,
       aiStyle: effectiveStyleKey,

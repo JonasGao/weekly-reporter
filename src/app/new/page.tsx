@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { addWeeks, getWeek, getYear, subWeeks } from 'date-fns'
-import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, Eye, User } from 'lucide-react'
+import { ArrowLeft, Briefcase, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw, User } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { toast } from 'sonner'
@@ -25,8 +25,9 @@ export default function NewReportPage() {
   const router = useRouter()
   const [baseDate, setBaseDate] = useState(new Date())
   const [preview, setPreview] = useState<PreviewVariant[] | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [previewRequestVersion, setPreviewRequestVersion] = useState(0)
   const [previewVariant, setPreviewVariant] = useState<AudienceVariant>('leadership')
-  const [previewing, setPreviewing] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const { start, end } = getWeekRange(baseDate)
@@ -40,28 +41,44 @@ export default function NewReportPage() {
     setBaseDate(nextDate)
     setTitle(`${getYear(nextDate)}年第${getWeek(nextDate, { weekStartsOn: 1 })}周工作周报`)
     setPreview(null)
+    setPreviewError(null)
     setPreviewVariant('leadership')
   }
 
-  async function handlePreview() {
-    setPreviewing(true)
-    try {
-      const response = await fetch('/api/reports/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weekStart, weekEnd }),
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || '预览失败')
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadPreview() {
+      try {
+        const response = await fetch('/api/reports/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ weekStart, weekEnd }),
+          signal: controller.signal,
+        })
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || '预览失败')
+        }
+        if (!controller.signal.aborted) {
+          setPreview(data.variants as PreviewVariant[])
+          setPreviewVariant('leadership')
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setPreviewError(error instanceof Error ? error.message : '预览失败，请重试')
+        }
       }
-      setPreview(data.variants as PreviewVariant[])
-      setPreviewVariant('leadership')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '预览失败，请重试')
-    } finally {
-      setPreviewing(false)
     }
+
+    void loadPreview()
+    return () => controller.abort()
+  }, [weekStart, weekEnd, previewRequestVersion])
+
+  function refreshPreview() {
+    setPreview(null)
+    setPreviewError(null)
+    setPreviewRequestVersion((version) => version + 1)
   }
 
   async function handleSave() {
@@ -70,7 +87,7 @@ export default function NewReportPage() {
       return
     }
     if (!preview) {
-      toast.error('请先预览原稿')
+      toast.error('原稿预览尚未完成')
       return
     }
 
@@ -95,6 +112,7 @@ export default function NewReportPage() {
   }
 
   const activePreview = preview?.find((item) => item.variant === previewVariant)?.sourceDraft ?? ''
+  const previewing = preview === null && previewError === null
 
   return (
     <main className="container mx-auto max-w-4xl px-4 py-8">
@@ -123,15 +141,30 @@ export default function NewReportPage() {
           <Input id="title" value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} />
         </div>
 
-        {preview && (
-          <section aria-label="原稿预览" className="space-y-4 rounded-lg border border-border p-5">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="font-semibold">原稿预览（只读）</h2>
-              <Button type="button" variant="outline" onClick={handlePreview} disabled={previewing || saving}>
-                <Eye className="mr-1.5 h-4 w-4" />
-                {previewing ? '加载中...' : '重新预览'}
+        <section aria-label="原稿预览" className="space-y-4 rounded-lg border border-border p-5">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-semibold">原稿预览（只读）</h2>
+            {preview && (
+              <Button type="button" variant="outline" onClick={refreshPreview} disabled={saving}>
+                <RefreshCw className="mr-1.5 h-4 w-4" />
+                刷新
+              </Button>
+            )}
+          </div>
+          {previewing ? (
+            <div role="status" className="flex min-h-56 items-center justify-center gap-2 text-sm text-muted-foreground">
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              正在加载原稿...
+            </div>
+          ) : previewError ? (
+            <div role="alert" className="flex min-h-56 flex-col items-center justify-center gap-3 text-sm text-destructive">
+              <p>{previewError}</p>
+              <Button type="button" variant="outline" onClick={refreshPreview} disabled={saving}>
+                <RefreshCw className="mr-1.5 h-4 w-4" />
+                重试
               </Button>
             </div>
+          ) : preview ? (
             <Tabs value={previewVariant} onValueChange={(value) => setPreviewVariant(value as AudienceVariant)}>
               <TabsList className="w-full">
                 <TabsTrigger value="leadership"><Briefcase className="h-4 w-4" />{variantLabels.leadership}</TabsTrigger>
@@ -143,21 +176,14 @@ export default function NewReportPage() {
                 </div>
               </TabsContent>
             </Tabs>
-          </section>
-        )}
+          ) : null}
+        </section>
 
         <div className="flex justify-end gap-4">
           <Button type="button" variant="outline" onClick={() => router.back()} disabled={previewing || saving}>取消</Button>
-          {!preview ? (
-            <Button type="button" onClick={handlePreview} disabled={previewing || saving}>
-              <Eye className="mr-1.5 h-4 w-4" />
-              {previewing ? '预览中...' : '预览原稿'}
-            </Button>
-          ) : (
-            <Button type="button" onClick={handleSave} disabled={previewing || saving}>
-              {saving ? '创建中...' : '确认创建'}
-            </Button>
-          )}
+          <Button type="button" onClick={handleSave} disabled={previewing || saving || !preview}>
+            {saving ? '创建中...' : '创建'}
+          </Button>
         </div>
       </div>
     </main>

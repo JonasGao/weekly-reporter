@@ -261,16 +261,24 @@ export interface GenerateFinalReportRequest {
   stylePrompt: string
 }
 
+export interface GenerateFinalReportResult {
+  content: string
+  summary: string[]
+}
+
 /** Generate one audience-specific final report from only its source draft. */
 export async function generateFinalReport(
   request: GenerateFinalReportRequest,
   temperature: number,
-): Promise<string> {
+): Promise<GenerateFinalReportResult> {
   const systemPrompt = await getSystemPrompt('generate')
   const model = await getModel()
   const { object } = await generateObject({
     model,
-    schema: z.object({ content: z.string().min(1) }),
+    schema: z.object({
+      summary: z.array(z.string().min(1)).min(1).max(6),
+      content: z.string().min(1),
+    }),
     prompt: `${systemPrompt}
 
 写作风格：
@@ -288,9 +296,17 @@ ${request.template}
 ---
 ${request.sourceDraft}
 ---
+
+结构化返回要求：
+- summary：给用户查看的 2 至 6 条简短处理摘要，只说明采用了哪些模板章节、如何归类或合并原稿事实、哪些缺乏事实依据的内容被省略。
+- summary 不得包含隐藏思维链、逐步内部推理、概率判断或未采用的草稿。
+- content：完整的终版 Markdown 正文；“只返回终版 Markdown 正文”的规则仅约束此字段。
 `,
     temperature,
   })
 
-  return object.content.trim()
+  return {
+    content: object.content.trim(),
+    summary: object.summary.map((item) => item.trim()).filter(Boolean),
+  }
 }
