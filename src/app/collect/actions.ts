@@ -29,14 +29,14 @@ interface FoundRepo {
 function scanForGitRepos(basePath: string, maxDepth: number): string[] {
   const repos: string[] = []
 
-  function scan(currentPath: string, currentDepth: number) {
+  function scan(currentPath: string, currentDepth: number, checkForRepository: boolean) {
     if (currentDepth > maxDepth) return
 
     if (!existsSync(currentPath)) return
 
     const gitDir = join(currentPath, '.git')
     // .git 为目录（常规仓库）或文件（worktree / submodule 工作树）都算 git 仓库
-    if (existsSync(gitDir)) {
+    if (checkForRepository && existsSync(gitDir)) {
       repos.push(currentPath)
       return
     }
@@ -45,14 +45,16 @@ function scanForGitRepos(basePath: string, maxDepth: number): string[] {
       const entries = readdirSync(currentPath, { withFileTypes: true })
       for (const entry of entries) {
         if (entry.isDirectory() && !entry.name.startsWith('.')) {
-          scan(join(currentPath, entry.name), currentDepth + 1)
+          scan(join(currentPath, entry.name), currentDepth + 1, true)
         }
       }
-    } catch (error) {
+    } catch {
     }
   }
 
-  scan(basePath, 0)
+  // The requested path is a scan container. Even when it is a repository,
+  // inspect its child directories instead of treating the container as a result.
+  scan(basePath, 0, false)
   return repos
 }
 
