@@ -7,7 +7,7 @@ import { getAIConfig } from './ai/config'
 import { createModelFromConfig, AIConfigError } from './ai/provider'
 
 /** 获取系统提示词模板 */
-async function getSystemPrompt(key: 'check' | 'score' | 'generate'): Promise<string> {
+export async function getSystemPrompt(key: 'check' | 'score' | 'generate'): Promise<string> {
   const db = getDb()
   const row = await db.query.systemPrompts.findFirst({
     where: eq(systemPrompts.key, key),

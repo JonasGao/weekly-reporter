@@ -3,6 +3,63 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import type { LanguageModel } from 'ai'
 import type { AIConfig } from '@/lib/db/schema'
 
+/** Internal transport markers used only to preserve explicit vendor reasoning. */
+export const COMPAT_REASONING_START = '\u0000weekly-reasoning-start\u0000'
+export const COMPAT_REASONING_END = '\u0000weekly-reasoning-end\u0000'
+
+function createReasoningCompatibleFetch(): typeof fetch {
+  return async (input, init) => {
+    const response = await fetch(input, init)
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!response.body || !contentType.includes('text/event-stream')) return response
+
+    const decoder = new TextDecoder()
+    const encoder = new TextEncoder()
+    let pending = ''
+    const transform = new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        pending += decoder.decode(chunk, { stream: true })
+        const lines = pending.split('\n')
+        pending = lines.pop() ?? ''
+        for (const line of lines) {
+          controller.enqueue(encoder.encode(`${normalizeReasoningSseLine(line)}\n`))
+        }
+      },
+      flush(controller) {
+        if (pending) controller.enqueue(encoder.encode(normalizeReasoningSseLine(pending)))
+      },
+    })
+
+    return new Response(response.body.pipeThrough(transform), {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
+  }
+}
+
+function normalizeReasoningSseLine(line: string): string {
+  if (!line.startsWith('data:')) return line
+  const payload = line.slice(5).trim()
+  if (!payload || payload === '[DONE]') return line
+  try {
+    const value = JSON.parse(payload) as {
+      choices?: Array<{ delta?: Record<string, unknown> }>
+    }
+    const delta = value.choices?.[0]?.delta
+    if (!delta) return line
+    const reasoningKey = ['reasoning_content', 'reasoning', 'thinking'].find((key) => typeof delta[key] === 'string')
+    if (!reasoningKey) return line
+    const reasoning = delta[reasoningKey]
+    delete delta[reasoningKey]
+    const content = typeof delta.content === 'string' ? delta.content : ''
+    delta.content = `${COMPAT_REASONING_START}${reasoning as string}${COMPAT_REASONING_END}${content}`
+    return `data: ${JSON.stringify(value)}`
+  } catch {
+    return line
+  }
+}
+
 export class AIConfigError extends Error {
   constructor(message: string) {
     super(message)
@@ -22,6 +79,7 @@ export function createModelFromConfig(config: AIConfig): LanguageModel {
   const openai = createOpenAI({
     apiKey: config.apiKey,
     baseURL: config.apiUrl,
+    fetch: config.protocol === 'openai-compatible' ? createReasoningCompatibleFetch() : undefined,
   })
 
   // OpenAI Compatible uses chat() for APIs that only support Chat Completions API

@@ -14,6 +14,7 @@ describe('EditReportPage - legacy report compatibility', () => {
       if (url === '/api/reports/1') return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: 1, title: 'Legacy report', content: 'Legacy content', weekStart: '2026-08-17', weekEnd: '2026-08-23' }) })
       if (url === '/api/templates') return Promise.resolve({ ok: true, json: () => Promise.resolve({ official: [], user: [] }) })
       if (url === '/api/prompts/styles') return Promise.resolve({ ok: true, json: () => Promise.resolve({ styles: [] }) })
+      if (url === '/api/reports/1/generation-sessions?variant=personal') return Promise.resolve({ ok: true, json: () => Promise.resolve({ sessions: [] }) })
       return Promise.resolve({ ok: false, json: () => Promise.resolve({ error: 'Unknown' }) })
     })
   })

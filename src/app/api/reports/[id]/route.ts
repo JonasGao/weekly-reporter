@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
-import { reportEventSnapshots, reportVariants, reports } from '@/lib/db/schema'
+import {
+  generationMessageParts,
+  generationProposals,
+  generationSessions,
+  generationTurns,
+  reportEventSnapshots,
+  reportVariants,
+  reports,
+} from '@/lib/db/schema'
 import { getReportBundle } from '@/lib/reports/service'
 
 export async function GET(
@@ -30,6 +38,7 @@ export async function GET(
       templateName: null,
       templateContent: null,
       aiStyle: bundle.aiStyleOverride,
+      acceptedProposalId: null,
       sourceRevision: 0,
       scoreStatus: bundle.scoreStatus,
       scoreStructure: bundle.scoreStructure,
@@ -97,7 +106,30 @@ export async function DELETE(
       return NextResponse.json({ error: '周报不存在', code: 'NOT_FOUND' }, { status: 404 })
     }
 
+    const sessionRows = await db.select({ id: generationSessions.id })
+      .from(generationSessions)
+      .where(eq(generationSessions.reportId, reportId))
+    for (const session of sessionRows) {
+      const acceptedProposal = await db.select({ id: generationProposals.id })
+        .from(generationProposals)
+        .where(and(eq(generationProposals.sessionId, session.id), eq(generationProposals.status, 'accepted')))
+        .limit(1)
+      if (acceptedProposal.length > 0) {
+        return NextResponse.json({ error: '周报包含已确认终版的生成审计记录，请保留记录或先归档会话', code: 'AUDIT_RECORD_REQUIRED' }, { status: 409 })
+      }
+    }
+
     db.transaction((tx) => {
+      const sessions = tx.select({ id: generationSessions.id })
+        .from(generationSessions)
+        .where(eq(generationSessions.reportId, reportId))
+        .all()
+      for (const session of sessions) {
+        tx.delete(generationProposals).where(eq(generationProposals.sessionId, session.id)).run()
+        tx.delete(generationMessageParts).where(eq(generationMessageParts.sessionId, session.id)).run()
+        tx.delete(generationTurns).where(eq(generationTurns.sessionId, session.id)).run()
+      }
+      tx.delete(generationSessions).where(eq(generationSessions.reportId, reportId)).run()
       tx.delete(reportEventSnapshots).where(eq(reportEventSnapshots.reportId, reportId)).run()
       tx.delete(reportVariants).where(eq(reportVariants.reportId, reportId)).run()
       tx.delete(reports).where(eq(reports.id, reportId)).run()

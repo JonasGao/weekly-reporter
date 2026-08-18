@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
-import { reportVariants } from '@/lib/db/schema'
+import { reportVariants, reports } from '@/lib/db/schema'
 import { triggerAsyncVariantScoring } from '@/lib/scoring'
 
 export async function PUT(
@@ -47,6 +47,7 @@ export async function PUT(
       templateName: typeof body.templateName === 'string' ? body.templateName : existing?.templateName ?? null,
       templateContent: typeof body.templateContent === 'string' ? body.templateContent : existing?.templateContent ?? null,
       aiStyle: typeof body.aiStyle === 'string' ? body.aiStyle : existing?.aiStyle ?? null,
+      acceptedProposalId: null,
       scoreStatus: 'pending',
       scoreStructure: null,
       scoreContent: null,
@@ -63,6 +64,9 @@ export async function PUT(
       .returning()
 
     if (updated[0]) {
+      if (variant === 'personal') {
+        await db.update(reports).set({ content: updated[0].finalContent ?? '', updatedAt: now }).where(eq(reports.id, reportId))
+      }
       triggerAsyncVariantScoring(updated[0].id).catch((error) => {
         console.error('[reports] Variant scoring failed:', error)
       })

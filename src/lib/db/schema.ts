@@ -3,6 +3,22 @@ import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core
 export type ScoreStatus = 'pending' | 'scoring' | 'completed' | 'failed'
 export type AudienceVariant = 'leadership' | 'personal'
 export type FinalStatus = 'none' | 'current' | 'stale'
+export type GenerationSessionStatus = 'active' | 'archived'
+export type GenerationTurnStatus = 'working' | 'completed' | 'failed' | 'aborted'
+export type GenerationMessageRole = 'system' | 'user' | 'assistant' | 'tool' | 'application'
+export type GenerationMessagePartType =
+  | 'system-prompt'
+  | 'style-prompt'
+  | 'tool-rules'
+  | 'source-overview'
+  | 'text'
+  | 'reasoning'
+  | 'tool-call'
+  | 'tool-result'
+  | 'status'
+  | 'error'
+  | 'proposal-accepted'
+export type GenerationProposalStatus = 'pending' | 'accepted' | 'superseded'
 
 export const reports = sqliteTable('reports', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -42,6 +58,7 @@ export const reportVariants = sqliteTable('report_variants', {
   templateName: text('template_name'),
   templateContent: text('template_content'),
   aiStyle: text('ai_style').$type<AIStyle>(),
+  acceptedProposalId: integer('accepted_proposal_id'),
   sourceRevision: integer('source_revision').notNull().default(1),
   scoreStatus: text('score_status').$type<ScoreStatus>().default('pending').notNull(),
   scoreStructure: integer('score_structure'),
@@ -78,6 +95,88 @@ export const reportEventSnapshots = sqliteTable('report_event_snapshots', {
 
 export type ReportEventSnapshot = typeof reportEventSnapshots.$inferSelect
 export type NewReportEventSnapshot = typeof reportEventSnapshots.$inferInsert
+
+/**
+ * A durable, audience-specific AI conversation. Context that can change is
+ * snapshotted so reopening a session never silently changes what the model saw.
+ */
+export const generationSessions = sqliteTable('generation_sessions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  reportId: integer('report_id').notNull(),
+  reportVariantId: integer('report_variant_id').notNull(),
+  variant: text('variant').notNull().$type<AudienceVariant>(),
+  title: text('title').notNull(),
+  status: text('status').notNull().default('active').$type<GenerationSessionStatus>(),
+  sourceRevision: integer('source_revision').notNull(),
+  sourceDraftSnapshot: text('source_draft_snapshot').notNull(),
+  sourceOverview: text('source_overview').notNull(),
+  templateId: text('template_id').notNull(),
+  templateName: text('template_name').notNull(),
+  templateContent: text('template_content').notNull(),
+  aiStyleKey: text('ai_style_key').notNull(),
+  aiStyleLabel: text('ai_style_label').notNull(),
+  aiStylePrompt: text('ai_style_prompt').notNull(),
+  temperature: text('temperature').notNull(),
+  systemPrompt: text('system_prompt').notNull(),
+  toolRules: text('tool_rules').notNull(),
+  baselineFinalContent: text('baseline_final_content'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  archivedAt: integer('archived_at', { mode: 'timestamp' }),
+})
+
+export type GenerationSession = typeof generationSessions.$inferSelect
+export type NewGenerationSession = typeof generationSessions.$inferInsert
+
+/** One user request and the streamed assistant response it produced. */
+export const generationTurns = sqliteTable('generation_turns', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').notNull(),
+  status: text('status').notNull().default('working').$type<GenerationTurnStatus>(),
+  protocol: text('protocol').notNull().$type<AIProtocol>(),
+  model: text('model').notNull(),
+  reasoningEffort: text('reasoning_effort'),
+  error: text('error'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  finishedAt: integer('finished_at', { mode: 'timestamp' }),
+})
+
+export type GenerationTurn = typeof generationTurns.$inferSelect
+export type NewGenerationTurn = typeof generationTurns.$inferInsert
+
+/** Append-only, displayable transcript parts. Streamed text is coalesced. */
+export const generationMessageParts = sqliteTable('generation_message_parts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').notNull(),
+  turnId: integer('turn_id'),
+  sequence: integer('sequence').notNull(),
+  role: text('role').notNull().$type<GenerationMessageRole>(),
+  partType: text('part_type').notNull().$type<GenerationMessagePartType>(),
+  content: text('content'),
+  data: text('data', { mode: 'json' }).$type<Record<string, unknown>>(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+}, (table) => ({
+  sessionSequenceUnique: uniqueIndex('generation_message_parts_session_sequence_unique').on(table.sessionId, table.sequence),
+}))
+
+export type GenerationMessagePart = typeof generationMessageParts.$inferSelect
+export type NewGenerationMessagePart = typeof generationMessageParts.$inferInsert
+
+/** A complete Markdown candidate emitted only through propose_final_report. */
+export const generationProposals = sqliteTable('generation_proposals', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').notNull(),
+  turnId: integer('turn_id').notNull(),
+  content: text('content').notNull(),
+  summary: text('summary', { mode: 'json' }).notNull().$type<string[]>(),
+  sourceRevision: integer('source_revision').notNull(),
+  status: text('status').notNull().default('pending').$type<GenerationProposalStatus>(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  acceptedAt: integer('accepted_at', { mode: 'timestamp' }),
+})
+
+export type GenerationProposal = typeof generationProposals.$inferSelect
+export type NewGenerationProposal = typeof generationProposals.$inferInsert
 
 /** @deprecated 改用 string，风格现在是数据库实体，不再硬编码 key */
 export type AIStyle = string

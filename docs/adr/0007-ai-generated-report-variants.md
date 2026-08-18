@@ -19,3 +19,5 @@ Weekly report creation now materializes immutable event snapshots and determinis
 - Template content, template identity, and effective AI style are snapshotted with each final, so later template changes do not alter existing reports.
 - Existing single-content reports remain legacy personal finals; the system does not infer missing source or leadership content.
 - The old weekly-report variable renderer, view-specific template configuration, and variable toolbar are removed; system-prompt variable substitution for checking and scoring remains.
+
+The interactive generation lifecycle is extended by ADR-0008; this ADR remains authoritative for audience isolation, source drafts, snapshots, and confirm-before-save semantics.

@@ -151,8 +151,12 @@ describe('applyDatabaseMigrations', () => {
 
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'report_variants'").get()).toBeTruthy()
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'report_event_snapshots'").get()).toBeTruthy()
+    expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'generation_sessions'").get()).toBeTruthy()
+    expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'generation_message_parts'").get()).toBeTruthy()
+    expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'generation_proposals'").get()).toBeTruthy()
     expect(columnNames(sqlite, 'templates')).toContain('source_template_id')
-    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations').get()).toEqual({ count: 23 })
+    expect(columnNames(sqlite, 'report_variants')).toContain('accepted_proposal_id')
+    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations').get()).toEqual({ count: 24 })
 
     sqlite.close()
   })
@@ -164,6 +168,7 @@ describe('applyDatabaseMigrations', () => {
 
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'report_variants'").get()).toBeTruthy()
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'report_event_snapshots'").get()).toBeTruthy()
+    expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'generation_sessions'").get()).toBeTruthy()
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tags'").get()).toBeUndefined()
     expect(columnNames(sqlite, 'raw_events')).not.toContain('tags')
     expect(columnNames(sqlite, 'raw_events')).not.toContain('section_type')
@@ -188,7 +193,7 @@ describe('applyDatabaseMigrations', () => {
       final_status: 'current',
     })
     expect(sqlite.prepare('SELECT MAX(created_at) AS createdAt FROM __drizzle_migrations').get()).toEqual({
-      createdAt: 1786964018472,
+      createdAt: 1787040000000,
     })
 
     sqlite.close()
