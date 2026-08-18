@@ -645,7 +645,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                   <SortHeader column="lastSyncAt" label="最近同步" />
                 </th>
                 <th className="px-3 py-2.5 text-left min-w-[140px]">同步至</th>
-                <th className="px-3 py-2.5 text-left min-w-[120px]">操作</th>
+                <th className="sticky right-0 z-10 border-l bg-muted-30-solid px-3 py-2.5 text-left min-w-[120px]">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -753,7 +753,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                     <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
                       {syncCursor || '-'}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="sticky right-0 z-[5] border-l bg-background transition-colors px-3 py-2.5 group-hover:bg-muted-30-solid group-data-[selected]:bg-primary-5-solid group-data-[error]:bg-error-row-solid">
                       <div className="flex items-center gap-0.5">
                         <Button
                           size="sm"
