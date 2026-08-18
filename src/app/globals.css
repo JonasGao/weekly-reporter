@@ -226,3 +226,42 @@
 .prose-report p + p {
   margin-top: 1em;
 }
+
+/* Scope the final-report reading typography to the read-only report body.
+   Other .prose-report surfaces intentionally keep their compact preview styles. */
+.report-view-content {
+  color: var(--card-foreground);
+}
+
+.report-view-content h2 {
+  color: var(--foreground);
+  border-bottom-color: var(--border);
+}
+
+.report-view-content h3 {
+  margin: 1.75rem 0 0.625rem;
+  color: var(--foreground);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.report-view-content p {
+  margin: 0;
+  color: var(--muted-foreground);
+  line-height: 1.85;
+}
+
+.report-view-content p + p {
+  margin-top: 0.85em;
+}
+
+.report-view-content li::before {
+  background: var(--muted-foreground);
+}
+
+@media (min-width: 640px) {
+  .report-view-content h3 {
+    font-size: 1.125rem;
+  }
+}

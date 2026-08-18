@@ -281,7 +281,7 @@ export function ReportWorkspace({ reportId, editable = true }: { reportId: numbe
                 <MilkdownEditor key={editorKey} value={content} onChange={setContent} />
               </div>
             ) : (
-              <div className="rounded-xl border border-border bg-[#141414] p-6 prose prose-invert prose-report max-w-none">
+              <div className={`rounded-xl border border-border p-6 prose prose-report max-w-none ${editable ? 'bg-[#141414] prose-invert' : 'report-view-content bg-card text-card-foreground'}`}>
                 <div className="not-prose mb-4 flex items-center justify-between"><Label>{hasFinal ? '终版内容' : '周报原稿（只读）'}</Label>{hasFinal && currentVariant.finalStatus === 'stale' && <span className="text-xs text-amber-400">原稿已更新，终版过期</span>}</div>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
               </div>
