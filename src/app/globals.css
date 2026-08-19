@@ -227,6 +227,41 @@
   margin-top: 1em;
 }
 
+/* The unfinished streaming block never changes Markdown structure. */
+.streaming-markdown-pending {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.streaming-markdown-pending:not(:first-child) {
+  margin-top: 1em;
+}
+
+.streaming-text-reveal {
+  animation: streaming-text-reveal 120ms ease-out both;
+}
+
+.generation-transcript {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+@keyframes streaming-text-reveal {
+  from {
+    opacity: 0.3;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streaming-text-reveal {
+    animation: none;
+  }
+}
+
 /* Scope the final-report reading typography to the read-only report body.
    Other .prose-report surfaces intentionally keep their compact preview styles. */
 .report-view-content {

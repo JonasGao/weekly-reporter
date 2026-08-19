@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
@@ -27,6 +27,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { DEFAULT_GENERATION_INSTRUCTION } from '@/lib/generation/context'
+import {
+  appendRevealedMarkdown,
+  finalizeStreamingMarkdown,
+  type StreamingMarkdown,
+} from '@/lib/generation/streaming-markdown'
 import type { AudienceVariant, ReportVariant } from '@/lib/db/schema'
 
 interface TemplateOption {
@@ -118,6 +123,31 @@ type ReviewTab = 'preview' | 'source' | 'diff'
 interface DiffLine {
   type: 'same' | 'add' | 'remove'
   value: string
+}
+
+const REVEAL_INTERVAL_MS = 50
+const REVEAL_CHARACTERS_PER_SECOND = 160
+const FOLLOW_BOTTOM_THRESHOLD = 64
+
+function emptyStreamingMarkdown(): StreamingMarkdown {
+  return { markdownBlocks: [], pendingChunks: [] }
+}
+
+function takeCharacters(value: string, count: number): [string, string] {
+  let end = 0
+  let taken = 0
+  for (const character of value) {
+    if (taken === count) break
+    end += character.length
+    taken += 1
+  }
+  return [value.slice(0, end), value.slice(end)]
+}
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 function lineDiff(before: string, after: string): DiffLine[] {
@@ -249,8 +279,13 @@ function TranscriptPart({ part }: { part: MessagePart }) {
   return null
 }
 
-function LiveAssistant({ reasoning, text, toolState, working }: { reasoning: string; text: string; toolState: string; working: boolean }) {
-  if (!working && !reasoning && !text && !toolState) return null
+const RenderedMarkdownBlock = memo(function RenderedMarkdownBlock({ content }: { content: string }) {
+  return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+})
+
+function LiveAssistant({ reasoning, text, toolState, working }: { reasoning: string; text: StreamingMarkdown; toolState: string; working: boolean }) {
+  const hasText = text.markdownBlocks.length > 0 || text.pendingChunks.length > 0
+  if (!working && !reasoning && !hasText && !toolState) return null
   return (
     <div className="space-y-3">
       {reasoning && (
@@ -259,11 +294,20 @@ function LiveAssistant({ reasoning, text, toolState, working }: { reasoning: str
           <div className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{reasoning}</div>
         </div>
       )}
-      {(text || working) && (
+      {(hasText || working) && (
         <div className="flex items-start gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-background"><Bot className="h-4 w-4" /></div>
           <div className="min-w-0 flex-1 space-y-3 rounded-2xl rounded-tl-sm border border-border bg-background px-4 py-3">
-            {text && <div className="prose dark:prose-invert prose-report max-w-none text-sm"><ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown></div>}
+            {hasText && (
+              <div className="prose dark:prose-invert prose-report max-w-none text-sm">
+                {text.markdownBlocks.map((block, index) => <RenderedMarkdownBlock key={index} content={block} />)}
+                {text.pendingChunks.length > 0 && (
+                  <div className="streaming-markdown-pending">
+                    {text.pendingChunks.map((chunk) => <span key={chunk.id} className="streaming-text-reveal">{chunk.text}</span>)}
+                  </div>
+                )}
+              </div>
+            )}
             {working && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" />Working...</p>}
             {toolState && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Wrench className="h-3.5 w-3.5" />{toolState}</p>}
           </div>
@@ -360,11 +404,150 @@ export function GenerationWorkspace({
   const [liveTurnId, setLiveTurnId] = useState<number | null>(null)
   const [liveUser, setLiveUser] = useState('')
   const [liveReasoning, setLiveReasoning] = useState('')
-  const [liveText, setLiveText] = useState('')
+  const [liveText, setLiveText] = useState<StreamingMarkdown>(emptyStreamingMarkdown)
   const [liveToolState, setLiveToolState] = useState('')
   const [liveProposal, setLiveProposal] = useState<Proposal | null>(null)
   const [accepting, setAccepting] = useState(false)
-  const transcriptEndRef = useRef<HTMLDivElement>(null)
+  const transcriptRef = useRef<HTMLDivElement>(null)
+  const textQueueRef = useRef('')
+  const textRevealFrameRef = useRef<number | null>(null)
+  const lastTextRevealAtRef = useRef(0)
+  const nextTextChunkIdRef = useRef(0)
+  const textQueueDrainedRef = useRef<(() => void) | null>(null)
+  const reasoningQueueRef = useRef('')
+  const reasoningFlushTimerRef = useRef<number | null>(null)
+  const shouldFollowTranscriptRef = useRef(true)
+  const transcriptFollowFrameRef = useRef<number | null>(null)
+  const autoScrollTopRef = useRef<number | null>(null)
+  const initiallyScrolledSessionRef = useRef<number | null>(null)
+
+  const revealTextChunk = useCallback((text: string) => {
+    const id = nextTextChunkIdRef.current
+    nextTextChunkIdRef.current += 1
+    setLiveText((current) => appendRevealedMarkdown(current, { id, text }))
+  }, [])
+
+  const scheduleTextReveal = useCallback(() => {
+    if (textRevealFrameRef.current !== null) return
+
+    const reveal = (now: number) => {
+      textRevealFrameRef.current = null
+      if (!textQueueRef.current) {
+        const resolve = textQueueDrainedRef.current
+        textQueueDrainedRef.current = null
+        resolve?.()
+        return
+      }
+
+      const elapsed = lastTextRevealAtRef.current === 0
+        ? REVEAL_INTERVAL_MS
+        : now - lastTextRevealAtRef.current
+      if (elapsed < REVEAL_INTERVAL_MS) {
+        textRevealFrameRef.current = requestAnimationFrame(reveal)
+        return
+      }
+
+      const backlogMultiplier = textQueueRef.current.length > REVEAL_CHARACTERS_PER_SECOND * 2
+        ? Math.min(4, 1 + textQueueRef.current.length / (REVEAL_CHARACTERS_PER_SECOND * 2))
+        : 1
+      const characterCount = Math.max(1, Math.round((elapsed / 1_000) * REVEAL_CHARACTERS_PER_SECOND * backlogMultiplier))
+      const [visibleText, remainingText] = takeCharacters(textQueueRef.current, characterCount)
+      textQueueRef.current = remainingText
+      lastTextRevealAtRef.current = now
+      revealTextChunk(visibleText)
+      textRevealFrameRef.current = requestAnimationFrame(reveal)
+    }
+
+    textRevealFrameRef.current = requestAnimationFrame(reveal)
+  }, [revealTextChunk])
+
+  const queueLiveText = useCallback((text: string) => {
+    textQueueRef.current += text
+    scheduleTextReveal()
+  }, [scheduleTextReveal])
+
+  const waitForTextQueue = useCallback(async () => {
+    if (!textQueueRef.current && textRevealFrameRef.current === null) return
+    await new Promise<void>((resolve) => {
+      textQueueDrainedRef.current = resolve
+      scheduleTextReveal()
+    })
+  }, [scheduleTextReveal])
+
+  const cancelTextReveal = useCallback(() => {
+    if (textRevealFrameRef.current !== null) cancelAnimationFrame(textRevealFrameRef.current)
+    textRevealFrameRef.current = null
+    textQueueRef.current = ''
+    lastTextRevealAtRef.current = 0
+    const resolve = textQueueDrainedRef.current
+    textQueueDrainedRef.current = null
+    resolve?.()
+  }, [])
+
+  const flushLiveReasoning = useCallback(() => {
+    if (reasoningFlushTimerRef.current !== null) clearTimeout(reasoningFlushTimerRef.current)
+    reasoningFlushTimerRef.current = null
+    const text = reasoningQueueRef.current
+    reasoningQueueRef.current = ''
+    if (text) setLiveReasoning((current) => current + text)
+  }, [])
+
+  const queueLiveReasoning = useCallback((text: string) => {
+    reasoningQueueRef.current += text
+    if (reasoningFlushTimerRef.current !== null) return
+    reasoningFlushTimerRef.current = window.setTimeout(flushLiveReasoning, REVEAL_INTERVAL_MS)
+  }, [flushLiveReasoning])
+
+  const resetLiveOutput = useCallback(() => {
+    cancelTextReveal()
+    if (reasoningFlushTimerRef.current !== null) clearTimeout(reasoningFlushTimerRef.current)
+    reasoningFlushTimerRef.current = null
+    reasoningQueueRef.current = ''
+    nextTextChunkIdRef.current = 0
+    setLiveReasoning('')
+    setLiveText(emptyStreamingMarkdown())
+    setLiveToolState('')
+  }, [cancelTextReveal])
+
+  const cancelTranscriptFollow = useCallback(() => {
+    if (transcriptFollowFrameRef.current !== null) cancelAnimationFrame(transcriptFollowFrameRef.current)
+    transcriptFollowFrameRef.current = null
+  }, [])
+
+  const scheduleTranscriptFollow = useCallback(() => {
+    if (!shouldFollowTranscriptRef.current || transcriptFollowFrameRef.current !== null) return
+
+    const follow = () => {
+      transcriptFollowFrameRef.current = null
+      const transcript = transcriptRef.current
+      if (!transcript || !shouldFollowTranscriptRef.current) return
+
+      const target = Math.max(0, transcript.scrollHeight - transcript.clientHeight)
+      const distance = target - transcript.scrollTop
+      if (prefersReducedMotion() || Math.abs(distance) < 1) {
+        autoScrollTopRef.current = target
+        transcript.scrollTop = target
+        return
+      }
+
+      const nextPosition = transcript.scrollTop + distance * 0.35
+      autoScrollTopRef.current = nextPosition
+      transcript.scrollTop = nextPosition
+      transcriptFollowFrameRef.current = requestAnimationFrame(follow)
+    }
+
+    transcriptFollowFrameRef.current = requestAnimationFrame(follow)
+  }, [])
+
+  const handleTranscriptScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const transcript = event.currentTarget
+    if (autoScrollTopRef.current !== null && Math.abs(transcript.scrollTop - autoScrollTopRef.current) < 1) return
+
+    const distanceFromBottom = transcript.scrollHeight - transcript.clientHeight - transcript.scrollTop
+    shouldFollowTranscriptRef.current = distanceFromBottom <= FOLLOW_BOTTOM_THRESHOLD
+    if (shouldFollowTranscriptRef.current) scheduleTranscriptFollow()
+    else cancelTranscriptFollow()
+  }, [cancelTranscriptFollow, scheduleTranscriptFollow])
 
   const loadSessions = useCallback(async (preferredId?: number) => {
     const response = await fetch(`/api/reports/${reportId}/generation-sessions?variant=${variant}`)
@@ -379,13 +562,18 @@ export function GenerationWorkspace({
     })
   }, [reportId, variant])
 
-  const loadDetail = useCallback(async (sessionId: number) => {
+  const loadDetail = useCallback(async (sessionId: number, settleLiveStream = false) => {
     const response = await fetch(`/api/reports/${reportId}/generation-sessions/${sessionId}`)
     const data = await response.json()
     if (!response.ok) throw new Error(data.error || '加载会话失败')
     setDetail(data)
     setLiveProposal(null)
-  }, [reportId])
+    if (settleLiveStream) {
+      setLiveTurnId(null)
+      setLiveUser('')
+      resetLiveOutput()
+    }
+  }, [reportId, resetLiveOutput])
 
   useEffect(() => {
     let cancelled = false
@@ -425,17 +613,36 @@ export function GenerationWorkspace({
     return () => { cancelled = true }
   }, [activeSessionId, reportId])
 
-  useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: streaming ? 'smooth' : 'auto' })
-  }, [detail?.messages.length, liveReasoning, liveText, liveToolState, streaming])
+  useLayoutEffect(() => {
+    const transcript = transcriptRef.current
+    if (!transcript || !detail) return
+
+    if (initiallyScrolledSessionRef.current !== detail.id) {
+      const target = Math.max(0, transcript.scrollHeight - transcript.clientHeight)
+      autoScrollTopRef.current = target
+      transcript.scrollTop = target
+      shouldFollowTranscriptRef.current = true
+      initiallyScrolledSessionRef.current = detail.id
+      return
+    }
+
+    scheduleTranscriptFollow()
+  }, [detail, liveReasoning, liveText, liveToolState, liveUser, scheduleTranscriptFollow, streaming])
+
+  useEffect(() => () => {
+    cancelTextReveal()
+    if (reasoningFlushTimerRef.current !== null) clearTimeout(reasoningFlushTimerRef.current)
+    const resolve = textQueueDrainedRef.current
+    textQueueDrainedRef.current = null
+    resolve?.()
+    cancelTranscriptFollow()
+  }, [cancelTextReveal, cancelTranscriptFollow])
 
   async function streamTurn(sessionId: number, message: string) {
     setStreaming(true)
     setLiveTurnId(null)
     setLiveUser(message)
-    setLiveReasoning('')
-    setLiveText('')
-    setLiveToolState('')
+    resetLiveOutput()
     setLiveProposal(null)
     try {
       const response = await fetch(`/api/reports/${reportId}/generation-sessions/${sessionId}/turns`, {
@@ -452,8 +659,8 @@ export function GenerationWorkspace({
       let pending = ''
       const handle = (event: StreamEvent) => {
         if (event.type === 'start') setLiveTurnId(event.turnId)
-        else if (event.type === 'reasoning-delta') setLiveReasoning((value) => value + event.text)
-        else if (event.type === 'text-delta') setLiveText((value) => value + event.text)
+        else if (event.type === 'reasoning-delta') queueLiveReasoning(event.text)
+        else if (event.type === 'text-delta') queueLiveText(event.text)
         else if (event.type === 'tool-input-delta') setLiveToolState('正在整理候选终版...')
         else if (event.type === 'tool-call') setLiveToolState('正在调用 propose_final_report...')
         else if (event.type === 'tool-result') setLiveToolState('候选终版已提交，等待确认。')
@@ -469,17 +676,23 @@ export function GenerationWorkspace({
         for (const line of lines) if (line.trim()) handle(JSON.parse(line) as StreamEvent)
       }
       if (pending.trim()) handle(JSON.parse(pending) as StreamEvent)
-      await Promise.all([loadDetail(sessionId), loadSessions(sessionId)])
+      flushLiveReasoning()
+      await waitForTextQueue()
+      setLiveText((current) => finalizeStreamingMarkdown(current))
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      await Promise.all([loadDetail(sessionId, true), loadSessions(sessionId)])
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'AI 生成失败')
-      await loadDetail(sessionId).catch(() => undefined)
+      flushLiveReasoning()
+      await waitForTextQueue()
+      setLiveText((current) => finalizeStreamingMarkdown(current))
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      await loadDetail(sessionId, true).catch(() => undefined)
     } finally {
       setStreaming(false)
       setLiveTurnId(null)
       setLiveUser('')
-      setLiveReasoning('')
-      setLiveText('')
-      setLiveToolState('')
+      resetLiveOutput()
     }
   }
 
@@ -606,14 +819,13 @@ export function GenerationWorkspace({
               {editable && <div className="flex gap-1"><Button variant="ghost" size="icon-sm" title="重命名" onClick={() => void renameSession()}><Pencil /></Button>{detail.status === 'active' && <Button variant="ghost" size="icon-sm" title="归档" onClick={() => void archiveSession()} disabled={streaming}><Archive /></Button>}</div>}
             </div>
             {!detail.sourceIsCurrent && <div className="border-b border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-500">原稿已经更新。此会话保留用于审计，请从最新原稿创建新会话。</div>}
-            <div className="max-h-[calc(100vh-15rem)] min-h-[520px] space-y-4 overflow-y-auto p-4">
+            <div ref={transcriptRef} onScroll={handleTranscriptScroll} className="generation-transcript max-h-[calc(100vh-15rem)] min-h-[520px] space-y-4 overflow-y-auto p-4">
               <SystemContextCard detail={detail} />
               {detail.messages.map((part) => <TranscriptPart key={part.id} part={part} />)}
               {liveUser && <TranscriptPart part={{ id: -1, turnId: liveTurnId, sequence: Number.MAX_SAFE_INTEGER, role: 'user', partType: 'text', content: liveUser, data: null }} />}
               <LiveAssistant reasoning={liveReasoning} text={liveText} toolState={liveToolState} working={streaming || Boolean(detail.activeTurn && !liveTurnId)} />
               {noProposalAfterLastTurn && !streaming && canChat && <div className="ml-11 rounded-lg border border-dashed border-border p-3 text-sm text-muted-foreground">本轮没有提交候选终版。<Button variant="link" className="h-auto px-1" onClick={() => void sendMessage('请把当前讨论形成一份完整候选终版，并调用 propose_final_report 提交。')}>提交当前版本</Button></div>}
               {lastTurn?.status === 'failed' && !streaming && canChat && lastUserMessage && <div className="ml-11 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">本轮生成失败。<Button variant="link" className="h-auto px-1 text-destructive" onClick={() => void sendMessage(lastUserMessage)}>重试本轮</Button></div>}
-              <div ref={transcriptEndRef} />
             </div>
             {canChat && (
               <div className="border-t border-border p-3">
