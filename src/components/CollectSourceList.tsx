@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RefreshCw, RotateCcw, Trash2, Edit, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Briefcase, User } from 'lucide-react'
+import { RefreshCw, RotateCcw, Download, Trash2, Edit, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Briefcase, User } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface CollectSource {
@@ -91,6 +91,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     return 'desc'
   })
   const [syncingIds, setSyncingIds] = useState<Set<number>>(new Set())
+  const [fetchingIds, setFetchingIds] = useState<Set<number>>(new Set())
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkUpdating, setBulkUpdating] = useState(false)
@@ -270,6 +271,28 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       toast.error('重新同步失败')
     } finally {
       setSyncingIds(prev => { const n = new Set(prev); n.delete(sourceId); return n })
+    }
+  }
+
+  async function handleFetch(sourceId: number) {
+    setFetchingIds(prev => new Set(prev).add(sourceId))
+    try {
+      const res = await fetch('/api/collect/git-local/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId }),
+      })
+      const data = await res.json()
+
+      if (res.ok && data.result?.status === 'success') {
+        toast.success('仓库 Fetch 完成')
+      } else {
+        toast.error(data.error || '仓库 Fetch 失败')
+      }
+    } catch {
+      toast.error('仓库 Fetch 失败')
+    } finally {
+      setFetchingIds(prev => { const n = new Set(prev); n.delete(sourceId); return n })
     }
   }
 
@@ -651,6 +674,8 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             <tbody>
               {sources.map(source => {
                 const isSyncing = syncingIds.has(source.id)
+                const isFetching = fetchingIds.has(source.id)
+                const isSourceBusy = isSyncing || isFetching
                 const isToggling = togglingIds.has(source.id)
                 const isSelected = selectedIds.has(source.id)
                 const sourceStatus = source.status || (source.enabled ? 'enabled' : 'disabled')
@@ -759,7 +784,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                           size="sm"
                           variant="default"
                           className="h-7 px-2 text-xs"
-                          disabled={isSyncing || source.config.authorEmails.length === 0}
+                          disabled={isSourceBusy || source.config.authorEmails.length === 0}
                           onClick={() => handleSync(source.id)}
                           title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : '同步'}
                         >
@@ -770,11 +795,24 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                           variant="outline"
                           className="h-7 w-7 p-0"
                           title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : '重新同步（拉取全部历史，不重复入库）'}
-                          disabled={isSyncing || source.config.authorEmails.length === 0}
+                          disabled={isSourceBusy || source.config.authorEmails.length === 0}
                           onClick={() => handleResync(source.id)}
                         >
                           <RotateCcw className="h-3 w-3" />
                         </Button>
+                        {source.type === 'git-local' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 w-7 p-0"
+                            title="手动 Fetch"
+                            aria-label="手动 Fetch"
+                            disabled={isSourceBusy}
+                            onClick={() => handleFetch(source.id)}
+                          >
+                            {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                          </Button>
+                        )}
                         <Link href={`/collect/${source.id}`}>
                           <Button size="sm" variant="outline" className="h-7 w-7 p-0">
                             <Edit className="h-3 w-3" />

@@ -7,6 +7,7 @@ import type { FetchCommitsOptions, RawEventData } from './types'
 import { basename } from 'path'
 import { getNormalizedRepoName } from './adapters/local-git-adapter'
 import { normalizeRepoName } from '@/lib/utils'
+import { withSourceOperationLock } from './source-operation-lock'
 
 export interface BranchSyncResult {
   name: string
@@ -76,7 +77,7 @@ async function resolveRepoName(source: CollectSource): Promise<string> {
   return basename(source.config.owner)
 }
 
-export async function syncSource(sourceId: number, resync?: boolean): Promise<SyncResult> {
+async function syncSourceUnlocked(sourceId: number, resync?: boolean): Promise<SyncResult> {
   const db = getDb()
 
   const source = await db.query.collectSources.findFirst({
@@ -316,6 +317,10 @@ async function insertNewEvents(
   }
 
   return newEvents.length
+}
+
+export async function syncSource(sourceId: number, resync?: boolean): Promise<SyncResult> {
+  return withSourceOperationLock(sourceId, () => syncSourceUnlocked(sourceId, resync))
 }
 
 export async function syncAllSources(resync?: boolean): Promise<SyncResult[]> {

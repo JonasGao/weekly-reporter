@@ -29,6 +29,10 @@ _Avoid_: 混用二者。UI 展示用 author date，sync cursor 用 committer dat
 ### 时间缝隙 (Time Gap)
 同步操作发生时间 T 与最后一个 commit 的 committer date T-Δ 之间的间隙。若以 T 作为下次 sync 的 `since`，在 T-Δ 到 T 之间被延迟推送的 commit 会被漏掉。以 committer date 作为 cursor 可消除此缝隙。
 
+### 手动仓库 Fetch (Manual Repository Fetch)
+采集源列表中仅对本地 Git 来源提供的仓库准备动作：更新本地仓库记录的远端引用，但不采集事件、不推进同步游标，也不改变采集源的同步结果状态。它与采集源同步是两个独立动作。
+_Avoid_: 手动同步、手动拉取（容易与事件采集或工作树更新混淆）
+
 ## AI 集成
 
 ### 协议格式 (Protocol Format)

@@ -22,6 +22,18 @@ const mockSources = Array.from({ length: 5 }, (_, i) => ({
   updatedAt: new Date().toISOString(),
 }))
 
+const mockLocalSource = {
+  ...mockSources[0],
+  id: 99,
+  type: 'git-local',
+  name: 'local-source',
+  config: {
+    ...mockSources[0].config,
+    owner: '/tmp/repo',
+    repo: undefined,
+  },
+}
+
 describe('CollectSourceList search focus', () => {
   beforeEach(() => {
     sessionStorage.clear()
@@ -86,5 +98,23 @@ describe('CollectSourceList search focus', () => {
     expect(removed).toBe(false)
     expect(input).toHaveValue('repo')
     expect(input).toHaveFocus()
+  })
+
+  it('shows manual Fetch only for local Git sources', async () => {
+    vi.mocked(global.fetch).mockImplementation((url: string | URL | Request) => {
+      const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url
+      if (urlString.includes('/api/collect/sources')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ sources: [...mockSources, mockLocalSource], total: 6, page: 1, pageSize: 12 }),
+        } as Response)
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response)
+    })
+
+    render(<CollectSourceList />)
+
+    expect(await screen.findByTitle('手动 Fetch')).toBeInTheDocument()
+    expect(screen.getAllByTitle('手动 Fetch')).toHaveLength(1)
   })
 })

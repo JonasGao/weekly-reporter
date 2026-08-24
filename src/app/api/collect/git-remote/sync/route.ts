@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { syncSource, syncAllSources } from '@/lib/collect/sync'
+import { SourceOperationBusyError } from '@/lib/collect/source-operation-lock'
 
 export async function POST(request: Request) {
   try {
@@ -44,6 +45,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ results })
     }
   } catch (error) {
+    if (error instanceof SourceOperationBusyError) {
+      return NextResponse.json(
+        { error: '该仓库正在操作中，请稍后重试', code: 'SOURCE_BUSY' },
+        { status: 409 },
+      )
+    }
     return NextResponse.json(
       { error: '同步失败', code: 'SYNC_ERROR' },
       { status: 500 }

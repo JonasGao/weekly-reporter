@@ -5,6 +5,46 @@ import { normalizeRepoName } from '@/lib/utils'
 
 const execFileAsync = promisify(execFile)
 
+function getGitErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'stderr' in error) {
+    const stderr = (error as { stderr?: unknown }).stderr
+    if (typeof stderr === 'string' && stderr.trim()) return stderr.trim()
+  }
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** 更新本地仓库的 origin 远端引用，不修改工作树。 */
+export async function fetchOrigin(repoPath: string): Promise<void> {
+  try {
+    await execFileAsync('git', ['remote', 'get-url', 'origin'], {
+      cwd: repoPath,
+      maxBuffer: 1024 * 1024,
+    })
+  } catch (error) {
+    const message = getGitErrorMessage(error)
+    if (message.includes('not a git repository')) {
+      throw new Error(`路径不是 Git 仓库：${repoPath}`)
+    }
+    if (message.includes('ENOENT') || message.includes('no such file or directory')) {
+      throw new Error(`本地仓库路径不存在：${repoPath}`)
+    }
+    throw new Error('仓库未配置 origin 远端')
+  }
+
+  try {
+    await execFileAsync('git', ['fetch', 'origin'], {
+      cwd: repoPath,
+      maxBuffer: 1024 * 1024 * 10,
+    })
+  } catch (error) {
+    const message = getGitErrorMessage(error)
+    if (message.includes('not a git repository')) {
+      throw new Error(`路径不是 Git 仓库：${repoPath}`)
+    }
+    throw new Error(`Git Fetch 失败：${message}`)
+  }
+}
+
 /**
  * 尝试获取本地 git 仓库的远程 URL
  * 如果没有 remote，返回 null
