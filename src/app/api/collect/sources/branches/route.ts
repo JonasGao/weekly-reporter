@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { expandInputPath } from '@/lib/collect/paths'
+import { getDb } from '@/lib/db'
+import { collectSources } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+import { getCurrentBranch } from '@/lib/collect/adapters/local-git-adapter'
 
 const execFileAsync = promisify(execFile)
 
@@ -14,20 +18,36 @@ export async function GET(request: Request) {
     const repo = searchParams.get('repo') || ''
     const token = searchParams.get('token') || ''
     const baseUrl = searchParams.get('baseUrl') || ''
+    const sourceId = Number(searchParams.get('sourceId') || '')
 
     let branches: string[] = []
+    let currentBranch = ''
+
+    if (Number.isInteger(sourceId) && sourceId > 0) {
+      const db = getDb()
+      const source = await db.query.collectSources.findFirst({ where: eq(collectSources.id, sourceId) })
+      if (source) {
+        if (!token && source.config.token) {
+          // Existing edit forms never receive the stored token; use it only server-side.
+          searchParams.set('token', source.config.token)
+        }
+      }
+    }
+
+    const effectiveToken = searchParams.get('token') || token
 
     if (type === 'git-local' && path) {
       branches = await getLocalBranches(path)
-    } else if (type === 'git-remote-github' && owner && repo && token) {
-      branches = await getGitHubBranches(owner, repo, token)
-    } else if (type === 'git-remote-gitlab' && owner && repo && token) {
-      branches = await getGitLabBranches(owner, repo, token, baseUrl)
-    } else if (type === 'git-remote-gitee' && owner && repo && token) {
-      branches = await getGiteeBranches(owner, repo, token)
+      currentBranch = await getCurrentBranch(path)
+    } else if (type === 'git-remote-github' && owner && repo && effectiveToken) {
+      branches = await getGitHubBranches(owner, repo, effectiveToken)
+    } else if (type === 'git-remote-gitlab' && owner && repo && effectiveToken) {
+      branches = await getGitLabBranches(owner, repo, effectiveToken, baseUrl)
+    } else if (type === 'git-remote-gitee' && owner && repo && effectiveToken) {
+      branches = await getGiteeBranches(owner, repo, effectiveToken)
     }
 
-    return NextResponse.json({ branches })
+    return NextResponse.json({ branches, currentBranch })
   } catch {
     return NextResponse.json({ branches: [] })
   }

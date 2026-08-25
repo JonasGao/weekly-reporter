@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CollectSourceForm } from '@/components/CollectSourceForm'
-import type { FormData } from '@/components/CollectSourceForm'
+import type { FormData, BranchFormValue } from '@/components/CollectSourceForm'
 import { toast } from 'sonner'
 
 export default function EditCollectSourcePage({ params }: { params: Promise<{ id: string }> }) {
@@ -12,20 +12,7 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
   const [initialData, setInitialData] = useState<FormData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    params.then(p => {
-      const sourceId = parseInt(p.id)
-      if (isNaN(sourceId)) {
-        toast.error('无效的采集源ID')
-        router.push('/collect')
-        return
-      }
-      setId(sourceId)
-      fetchSource(sourceId)
-    })
-  }, [params, router])
-
-  async function fetchSource(sourceId: number) {
+  const fetchSource = useCallback(async (sourceId: number) => {
     try {
       const res = await fetch(`/api/collect/sources/${sourceId}`)
       const data = await res.json()
@@ -47,8 +34,8 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
           repo: data.config.repo || '',
           token: '',
           branches: Array.isArray(data.config.branches)
-            ? data.config.branches.map((b: string | { name: string }) => typeof b === 'string' ? b : b.name).join(', ')
-            : '',
+            ? data.config.branches.map((b: string | BranchFormValue) => typeof b === 'string' ? { name: b, lastCommitTime: null } : { name: b.name, lastCommitTime: b.lastCommitTime || null })
+            : [],
           authorEmails: Array.isArray(data.config.authorEmails) ? data.config.authorEmails.join(',') : '',
         },
         enabled: data.enabled,
@@ -59,7 +46,20 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    params.then(p => {
+      const sourceId = parseInt(p.id)
+      if (isNaN(sourceId)) {
+        toast.error('无效的采集源ID')
+        router.push('/collect')
+        return
+      }
+      setId(sourceId)
+      void fetchSource(sourceId)
+    })
+  }, [params, router, fetchSource])
 
   if (loading) {
     return (

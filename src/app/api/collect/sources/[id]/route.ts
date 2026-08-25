@@ -4,6 +4,7 @@ import { getDb } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 import { collectSources } from '@/lib/db/schema'
 import { collectSourceSchema } from '@/lib/validations'
+import { mergeEditedBranches } from '@/lib/collect/branches'
 
 export async function GET(
   request: Request,
@@ -63,9 +64,6 @@ export async function PUT(
       )
     }
 
-    const body = await request.json()
-    const validated = collectSourceSchema.parse(body)
-
     const existing = await db.query.collectSources.findFirst({
       where: eq(collectSources.id, sourceId),
     })
@@ -76,6 +74,16 @@ export async function PUT(
         { status: 404 }
       )
     }
+
+    const body = await request.json() as Record<string, unknown>
+    const bodyConfig = (body.config && typeof body.config === 'object' ? body.config : {}) as Record<string, unknown>
+    const existingConfig = existing.config
+    const bodyType = body.type
+    const shouldKeepToken = bodyType !== 'git-local' && (!bodyConfig.token || bodyConfig.token === '[ENCRYPTED]')
+    const normalizedBody = shouldKeepToken && existingConfig.token
+      ? { ...body, config: { ...bodyConfig, token: existingConfig.token } }
+      : body
+    const validated = collectSourceSchema.parse(normalizedBody)
 
     // Check alias uniqueness across all sources (excluding current source's own aliases)
     if (validated.aliases && validated.aliases.length > 0) {
@@ -100,9 +108,16 @@ export async function PUT(
       ? (validated.enabled === false ? 'disabled' : 'enabled')
       : 'unavailable'
 
+    const normalizedBranches = mergeEditedBranches(existingConfig.branches, validated.config.branches)
+    const config = {
+      ...validated.config,
+      ...(normalizedBranches && normalizedBranches.length > 0 ? { branches: normalizedBranches } : { branches: undefined }),
+    }
+
     const result = await db.update(collectSources)
       .set({
         ...validated,
+        config,
         status: newStatus,
         updatedAt: new Date(),
       })

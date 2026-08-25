@@ -1,15 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { UserCircle } from 'lucide-react'
+import { UserCircle, X, GitBranch, RefreshCw } from 'lucide-react'
 import { AuthorEmailPicker } from './AuthorEmailPicker'
 import { AutoCompleteInput } from './AutoCompleteInput'
 import { TagInput } from './TagInput'
+import { Badge } from './ui/badge'
+
+export interface BranchFormValue {
+  name: string
+  lastCommitTime?: string | null
+}
 
 export interface FormData {
   type: 'git-remote-github' | 'git-remote-gitlab' | 'git-remote-gitee' | 'git-local'
@@ -22,7 +28,7 @@ export interface FormData {
     repo: string
     token: string
     authorEmails: string
-    branches: string
+    branches: BranchFormValue[]
   }
   enabled: boolean
 }
@@ -45,7 +51,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
         repo: '',
         token: '',
         authorEmails: '',
-        branches: '',
+        branches: [],
       },
       enabled: true,
     }
@@ -55,6 +61,10 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
   const [knownEmails, setKnownEmails] = useState<string[]>([])
   // 分支自动补全 — 从当前仓库获取
   const [knownBranches, setKnownBranches] = useState<string[]>([])
+  const [currentBranch, setCurrentBranch] = useState('')
+  const [branchLoading, setBranchLoading] = useState(false)
+  const [branchError, setBranchError] = useState(false)
+  const [branchRefreshKey, setBranchRefreshKey] = useState(0)
 
   // 邮箱表格选择器
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -73,7 +83,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
       if (formData.config.baseUrl) params.set('baseUrl', formData.config.baseUrl)
     }
     // Use first branch for email fetching
-    const firstBranch = formData.config.branches.split(',')[0]?.trim()
+    const firstBranch = formData.config.branches[0]?.name
     if (firstBranch) params.set('branch', firstBranch)
 
     const timer = setTimeout(() => {
@@ -88,25 +98,37 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
   // 根据当前表单值获取仓库分支（防抖）
   useEffect(() => {
     const params = new URLSearchParams({ type: formData.type })
+    if (sourceId) params.set('sourceId', String(sourceId))
     if (isLocal(formData.type)) {
       if (!formData.config.owner) return
       params.set('path', formData.config.owner)
     } else {
-      if (!formData.config.owner || !formData.config.repo || !formData.config.token) return
+      if (!formData.config.owner || !formData.config.repo || (!formData.config.token && !sourceId)) return
       params.set('owner', formData.config.owner)
       params.set('repo', formData.config.repo)
-      params.set('token', formData.config.token)
+      if (formData.config.token) params.set('token', formData.config.token)
       if (formData.config.baseUrl) params.set('baseUrl', formData.config.baseUrl)
     }
 
     const timer = setTimeout(() => {
+      setBranchLoading(true)
+      setBranchError(false)
       fetch(`/api/collect/sources/branches?${params}`)
-        .then(res => res.json())
-        .then(data => setKnownBranches(data.branches || []))
-        .catch(() => {})
+        .then(async res => {
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || '获取分支失败')
+          setKnownBranches(data.branches || [])
+          setCurrentBranch(data.currentBranch || '')
+        })
+        .catch(() => {
+          setKnownBranches([])
+          setCurrentBranch('')
+          setBranchError(true)
+        })
+        .finally(() => setBranchLoading(false))
     }, 500)
     return () => clearTimeout(timer)
-  }, [formData.type, formData.config.owner, formData.config.repo, formData.config.token, formData.config.baseUrl])
+  }, [sourceId, branchRefreshKey, formData.type, formData.config.owner, formData.config.repo, formData.config.token, formData.config.baseUrl])
 
   function handleChange(field: keyof FormData, value: string | boolean) {
     setFormData(prev => ({
@@ -142,7 +164,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
         ? {
           owner: formData.config.owner,
           authorEmails: formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean),
-          branches: formData.config.branches.split(',').map(b => b.trim()).filter(Boolean) || undefined,
+          branches: formData.config.branches.length > 0 ? formData.config.branches : undefined,
         }
         : {
           baseUrl: formData.config.baseUrl || undefined,
@@ -150,7 +172,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
           repo: formData.config.repo,
           token: formData.config.token,
           authorEmails: formData.config.authorEmails.split(',').map(e => e.trim()).filter(Boolean),
-          branches: formData.config.branches.split(',').map(b => b.trim()).filter(Boolean) || undefined,
+          branches: formData.config.branches.length > 0 ? formData.config.branches : undefined,
         },
       enabled: formData.enabled,
     }
@@ -306,13 +328,27 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="branches">分支（可选，多个用逗号分隔，默认主分支）</Label>
-            <AutoCompleteInput
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="branches">分支</Label>
+              {isLocal(formData.type) && (
+                <span className="text-xs text-muted-foreground">
+                  {branchLoading ? '读取当前分支...' : currentBranch ? `当前检出：${currentBranch}` : '当前分支不可读取'}
+                </span>
+              )}
+            </div>
+            <BranchInput
               value={formData.config.branches}
-              onChange={v => handleConfigChange('branches', v)}
+              onChange={branches => setFormData(prev => ({ ...prev, config: { ...prev.config, branches } }))}
               suggestions={knownBranches}
-              placeholder="例如：main, develop"
+              currentBranch={isLocal(formData.type) ? currentBranch : ''}
+              loading={branchLoading}
+              error={branchError}
+              showRefresh={isLocal(formData.type)}
+              onRefresh={() => {
+                setBranchRefreshKey(key => key + 1)
+              }}
             />
+            <p className="text-xs text-muted-foreground">留空跟随仓库默认分支；支持手动输入未出现在候选中的分支。</p>
           </div>
 
           {isRemote(formData.type) && (
@@ -321,16 +357,18 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
               <input
                 id="token"
                 type="password"
-                value={formData.config.token}
-                onChange={e => handleConfigChange('token', e.target.value)}
-                placeholder="请输入访问令牌"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                {formData.type === 'git-remote-github' 
-                  ? 'GitHub: Settings → Developer settings → Personal access tokens'
-                  : 'GitLab: Settings → Access tokens'}
+              value={formData.config.token}
+              onChange={e => handleConfigChange('token', e.target.value)}
+              placeholder={sourceId ? '留空以保留现有令牌' : '请输入访问令牌'}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              required={!sourceId}
+            />
+            <p className="text-xs text-muted-foreground">
+              {sourceId
+                ? '留空保留现有令牌；填写新值将替换它。'
+                : formData.type === 'git-remote-github'
+                ? 'GitHub: Settings → Developer settings → Personal access tokens'
+                : 'GitLab: Settings → Access tokens'}
               </p>
             </div>
           )}
@@ -392,9 +430,113 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
           repo: formData.config.repo,
           token: formData.config.token,
           baseUrl: formData.config.baseUrl,
-          branch: formData.config.branches.split(',')[0]?.trim() || undefined,
+          branch: formData.config.branches[0]?.name || undefined,
         }}
       />
     </Card>
   )
+}
+
+interface BranchInputProps {
+  value: BranchFormValue[]
+  onChange: (value: BranchFormValue[]) => void
+  suggestions: string[]
+  currentBranch: string
+  loading: boolean
+  error: boolean
+  showRefresh: boolean
+  onRefresh: () => void
+}
+
+function BranchInput({ value, onChange, suggestions, currentBranch, loading, error, showRefresh, onRefresh }: BranchInputProps) {
+  const [input, setInput] = useState('')
+  const [open, setOpen] = useState(false)
+  const existing = new Set(value.map(branch => branch.name))
+  const filtered = suggestions.filter(branch =>
+    !existing.has(branch) && branch.toLowerCase().includes(input.trim().toLowerCase())
+  ).slice(0, 10)
+
+  function addBranch(name: string) {
+    const trimmed = name.trim()
+    if (!trimmed || existing.has(trimmed)) {
+      setInput('')
+      return
+    }
+    onChange([...value, { name: trimmed, lastCommitTime: null }])
+    setInput('')
+    setOpen(false)
+  }
+
+  function removeBranch(name: string) {
+    onChange(value.filter(branch => branch.name !== name))
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addBranch(input)
+    } else if (e.key === 'Backspace' && !input && value.length > 0) {
+      removeBranch(value[value.length - 1].name)
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex min-h-10 flex-wrap items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5">
+        {value.map(branch => {
+          const cursor = branch.lastCommitTime ? new Date(branch.lastCommitTime) : null
+          const status = cursor && !Number.isNaN(cursor.getTime())
+            ? `同步至 ${cursor.toLocaleString()}`
+            : '待首次同步'
+          return (
+            <Badge key={branch.name} variant="secondary" className="gap-1 py-1 pr-1">
+              <GitBranch className="h-3 w-3" />
+              <span>{branch.name}</span>
+              <span className="text-[10px] font-normal text-muted-foreground" title={`${status}（committer date）`}>{status}</span>
+              <button type="button" onClick={() => removeBranch(branch.name)} className="ml-1 rounded-sm p-0.5 hover:bg-muted" aria-label={`删除分支 ${branch.name}`} title={`删除分支 ${branch.name}`}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )
+        })}
+        <div className="relative min-w-[180px] flex-1">
+          <input
+            id="branches"
+            value={input}
+            onChange={e => { setInput(e.target.value); setOpen(true) }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onKeyDown={handleKeyDown}
+            placeholder={currentBranch ? `当前分支 ${currentBranch}（留空跟随默认分支）` : '留空跟随默认分支'}
+            className="w-full bg-transparent px-1 py-1 text-sm outline-none placeholder:text-muted-foreground/60"
+          />
+          {open && (filtered.length > 0 || input.trim()) && (
+            <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-md border bg-popover p-1 shadow-md">
+              {filtered.map(branch => (
+                <button key={branch} type="button" className="block w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted" onMouseDown={e => e.preventDefault()} onClick={() => addBranch(branch)}>
+                  {branch}
+                </button>
+              ))}
+              {input.trim() && !existing.has(input.trim()) && !suggestions.some(branch => branch.toLowerCase() === input.trim().toLowerCase()) && (
+                <button type="button" className="block w-full rounded-sm px-2 py-1.5 text-left text-sm text-primary hover:bg-muted" onMouseDown={e => e.preventDefault()} onClick={() => addBranch(input)}>
+                  添加“{input.trim()}”
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {showRefresh && isLocalPlaceholder(currentBranch, loading, error) && (
+          <button type="button" className="rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={onRefresh} title="重新读取分支" aria-label="重新读取分支">
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function isLocalPlaceholder(currentBranch: string, loading: boolean, error: boolean) {
+  return Boolean(loading || error || currentBranch)
 }
