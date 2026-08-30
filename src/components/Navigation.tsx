@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Clock, FileText, FileStack, Cloud, BookOpen, MessageSquare } from 'lucide-react'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { SettingsButton } from './Settings'
+import { SyncAllSourcesButton } from './SyncAllSources'
 
 const NAV_ITEMS = [
   { href: '/', label: '时间线', icon: Clock },
@@ -42,6 +43,7 @@ export function Navigation() {
           })}
 
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+            {pathname !== '/collect' && <SyncAllSourcesButton />}
             <SettingsButton />
             <ThemeSwitcher />
             <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground max-[720px]:hidden">

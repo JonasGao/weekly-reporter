@@ -1,20 +1,24 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { CollectSourceList } from '@/components/CollectSourceList'
 import { ScanReposDialog } from '@/components/ScanReposDialog'
 import { SyncResultsCard } from '@/components/SyncResultsCard'
+import {
+  CollectPageSyncButton,
+  useSyncAllSources,
+} from '@/components/SyncAllSources'
 import type { SyncResult } from '@/lib/collect/sync'
-import { ArrowLeft, Plus, FolderGit2, RefreshCw, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { ArrowLeft, Plus, FolderGit2 } from 'lucide-react'
 
 export default function CollectPage() {
   const [scanDialogOpen, setScanDialogOpen] = useState(false)
-  const [syncingAll, setSyncingAll] = useState(false)
   const [syncResults, setSyncResults] = useState<SyncResult[] | null>(null)
   const refreshFnRef = useRef<(() => void) | null>(null)
+  const { isSyncing, completionVersion } = useSyncAllSources()
+  const observedCompletionVersionRef = useRef(completionVersion)
 
   const handleRefreshReady = useCallback((fetchFn: () => void) => {
     refreshFnRef.current = fetchFn
@@ -26,36 +30,11 @@ export default function CollectPage() {
     }
   }
 
-  async function handleSyncAll() {
-    if (!confirm('确定要同步所有已启用的采集源吗？')) return
-    setSyncingAll(true)
-    setSyncResults(null) // 清空旧结果，确保卡片只反映最新同步
-    try {
-      const res = await fetch('/api/collect/git-remote/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      })
-
-      const data = await res.json()
-
-      // 部分源失败时 API 返回 500 但 body 里带完整 results，照常渲染结果卡片
-      const results = data.results || []
-      if (results.length > 0) {
-        setSyncResults(results)
-      } else if (!res.ok) {
-        throw new Error(data.error || `同步失败: ${res.status} ${res.statusText}`)
-      }
-
-      if (refreshFnRef.current) {
-        refreshFnRef.current()
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '同步失败')
-    } finally {
-      setSyncingAll(false)
-    }
-  }
+  useEffect(() => {
+    if (completionVersion === observedCompletionVersionRef.current) return
+    observedCompletionVersionRef.current = completionVersion
+    refreshFnRef.current?.()
+  }, [completionVersion])
   
   return (
     <main className="container mx-auto py-6 px-4 max-w-7xl">
@@ -69,16 +48,16 @@ export default function CollectPage() {
           <h1 className="text-2xl font-bold">采集源管理</h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" disabled={syncingAll} onClick={handleSyncAll}>
-            {syncingAll ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            {syncingAll ? '同步中...' : '全部同步'}
-          </Button>
-          <Button variant="outline" disabled={syncingAll} onClick={() => setScanDialogOpen(true)}>
+          <CollectPageSyncButton
+            onStart={() => setSyncResults(null)}
+            onResults={setSyncResults}
+          />
+          <Button variant="outline" disabled={isSyncing} onClick={() => setScanDialogOpen(true)}>
             <FolderGit2 className="h-4 w-4 mr-2" />
             扫描目录
           </Button>
           <Link href="/collect/new">
-            <Button disabled={syncingAll}>
+            <Button disabled={isSyncing}>
               <Plus className="h-4 w-4 mr-2" />
               新建采集源
             </Button>

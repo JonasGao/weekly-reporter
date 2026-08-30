@@ -8,6 +8,7 @@ import { ActivityHeatmap, type HeatmapData } from '@/components/ActivityHeatmap'
 import { Button } from '@/components/ui/button'
 import { Loader2, Calendar, X } from 'lucide-react'
 import type { RawEvent } from '@/lib/db/schema'
+import { useSyncAllSources } from '@/components/SyncAllSources'
 
 export default function TimelinePage() {
   const [events, setEvents] = useState<RawEvent[]>([])
@@ -25,6 +26,7 @@ export default function TimelinePage() {
   const [hasMore, setHasMore] = useState(true)
   const [nextCursor, setNextCursor] = useState<{ id: number; eventTime: number } | null>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const { completionVersion } = useSyncAllSources()
 
   const loadEvents = useCallback(async (cursor?: { id: number; eventTime: number }, append = false) => {
     try {
@@ -73,7 +75,7 @@ export default function TimelinePage() {
     setNextCursor(null)
     setHasMore(true)
     loadEvents()
-  }, [selectedSources, selectedHeatmapDate])
+  }, [selectedSources, selectedHeatmapDate, completionVersion])
 
   // 滚动到底部自动加载更多
   useEffect(() => {
@@ -103,7 +105,7 @@ export default function TimelinePage() {
       }
     }
     loadHeatmap()
-  }, [])
+  }, [completionVersion])
 
   // 持久化筛选条件到 sessionStorage
   useEffect(() => {
