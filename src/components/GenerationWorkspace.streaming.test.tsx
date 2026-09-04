@@ -64,6 +64,7 @@ describe('GenerationWorkspace streaming output', () => {
         const encoder = new TextEncoder()
         const events = [
           { type: 'start', turnId: 11, protocol: 'openai', model: 'test' },
+          { type: 'reasoning-delta', text: '正在分析本周工作内容，并整理最新的候选表达。' },
           { type: 'text-delta', text: '已完成段落。\n\n末尾 **未完成' },
           { type: 'finish', status: 'completed' },
         ]
@@ -98,6 +99,9 @@ describe('GenerationWorkspace streaming output', () => {
 
     const completedParagraph = await screen.findByText('已完成段落。')
     const pendingBlock = await screen.findByText('末尾 **未完成')
+    const reasoning = await screen.findByText('正在分析本周工作内容，并整理最新的候选表达。')
+    expect(reasoning).toHaveClass('live-reasoning-content')
+    expect(reasoning.parentElement).toHaveClass('live-reasoning-line')
     expect(completedParagraph.closest('.streaming-markdown-pending')).toBeNull()
     expect(pendingBlock.parentElement).toHaveClass('streaming-markdown-pending')
     expect(pendingBlock.querySelector('strong')).toBeNull()

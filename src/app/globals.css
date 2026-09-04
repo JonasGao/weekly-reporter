@@ -241,6 +241,24 @@
   animation: streaming-text-reveal 120ms ease-out both;
 }
 
+/* Keep live reasoning to one line while anchoring the newest text at the right edge. */
+.live-reasoning-line {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  justify-content: flex-end;
+  white-space: nowrap;
+  mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 100%);
+}
+
+.live-reasoning-content {
+  display: block;
+  flex: 0 0 auto;
+  min-width: 100%;
+  width: max-content;
+}
+
 .generation-transcript {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;

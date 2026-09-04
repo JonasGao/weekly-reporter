@@ -291,7 +291,9 @@ function LiveAssistant({ reasoning, text, toolState, working }: { reasoning: str
       {reasoning && (
         <div className="ml-11 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
           <p className="mb-2 text-xs font-medium text-violet-400">供应商返回的 reasoning / thinking</p>
-          <div className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{reasoning}</div>
+          <div className="live-reasoning-line text-sm leading-6 text-muted-foreground">
+            <span className="live-reasoning-content">{reasoning}</span>
+          </div>
         </div>
       )}
       {(hasText || working) && (
