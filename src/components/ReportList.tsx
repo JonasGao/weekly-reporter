@@ -31,7 +31,7 @@ export function ReportList() {
       const data = await response.json()
       setReports(data.reports || [])
     } catch (error) {
-      toast.error('加载周报失败')
+      toast.error('Failed to load reports')
     } finally {
       setLoading(false)
     }
@@ -49,7 +49,7 @@ export function ReportList() {
         }
       } catch (error) {
         if (!cancelled) {
-          toast.error('加载周报失败')
+          toast.error('Failed to load reports')
         }
       } finally {
         if (!cancelled) {
@@ -110,12 +110,12 @@ export function ReportList() {
       const data = await response.json()
       setReports(data.reports || [])
     } catch (error) {
-      toast.error('搜索失败')
+      toast.error('Search failed')
     }
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('确定要删除这篇周报吗？')) return
+    if (!confirm('Delete this report?')) return
 
     try {
       const response = await fetch(`/api/reports/${id}`, {
@@ -124,10 +124,10 @@ export function ReportList() {
 
       if (response.ok) {
         setReports(reports.filter((r) => r.id !== id))
-        toast.success('周报已删除')
+        toast.success('Report deleted')
       }
     } catch (error) {
-      toast.error('删除失败')
+      toast.error('Delete failed')
     }
   }
   
@@ -139,26 +139,26 @@ export function ReportList() {
       
       if (!response.ok) {
         const error = await response.json()
-        toast.error(error.error || '重新评分失败')
+        toast.error(error.error || 'Rescoring failed')
       }
     } catch (error) {
-      toast.error('重新评分失败')
+      toast.error('Rescoring failed')
     }
   }
 
   if (loading) {
-    return <div className="text-center py-8">加载中...</div>
+    return <div className="text-center py-8">Loading...</div>
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold max-[720px]:text-[24px]">周报编辑器</h1>
+        <h1 className="text-2xl font-bold max-[720px]:text-[24px]">Weekly Reporter</h1>
         <div className="flex items-center gap-2">
           <Link href="/new">
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              新建周报
+              New report
             </Button>
           </Link>
         </div>
@@ -168,7 +168,7 @@ export function ReportList() {
 
       {reports.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          暂无周报，点击&quot;新建周报&quot;开始创建
+          No reports yet. Click &quot;New report&quot; to get started.
         </div>
       ) : (
         <div className="grid gap-4">

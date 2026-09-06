@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('GET /api/snippets error:', error)
     return NextResponse.json(
-      { error: '获取句子片段失败', code: 'FETCH_ERROR', details: String(error) },
+      { error: 'Failed to load snippets', code: 'FETCH_ERROR', details: String(error) },
       { status: 500 }
     )
   }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     // Validate required fields
     if (!body.content || typeof body.content !== 'string') {
       return NextResponse.json(
-        { error: '内容不能为空', code: 'INVALID_INPUT' },
+        { error: 'Content is required', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     // Validate content length
     if (body.content.length > 500) {
       return NextResponse.json(
-        { error: '内容长度不能超过500个字符', code: 'INVALID_INPUT' },
+        { error: 'Content must be 500 characters or fewer', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     // Validate category if provided
     if (body.category && typeof body.category !== 'string') {
       return NextResponse.json(
-        { error: '分类必须为字符串', code: 'INVALID_INPUT' },
+        { error: 'Category must be a string', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const now = new Date()
     const result = await db.insert(sentenceSnippets).values({
       content: body.content,
-      category: body.category || '通用',
+      category: body.category || 'General',
       isBuiltIn: false, // User-created snippets are never built-in
       createdAt: now,
       updatedAt: now,
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('POST /api/snippets error:', error)
     return NextResponse.json(
-      { error: '创建句子片段失败', code: 'CREATE_ERROR', details: String(error) },
+      { error: 'Failed to create snippet', code: 'CREATE_ERROR', details: String(error) },
       { status: 500 }
     )
   }

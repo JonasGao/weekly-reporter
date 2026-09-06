@@ -15,7 +15,7 @@ export async function DELETE(
     // Validate ID
     if (isNaN(snippetId)) {
       return NextResponse.json(
-        { error: '无效的片段ID', code: 'INVALID_ID' },
+        { error: 'Invalid snippet ID', code: 'INVALID_ID' },
         { status: 400 }
       )
     }
@@ -27,7 +27,7 @@ export async function DELETE(
     
     if (!snippet) {
       return NextResponse.json(
-        { error: '句子片段不存在', code: 'NOT_FOUND' },
+        { error: 'Snippet not found', code: 'NOT_FOUND' },
         { status: 404 }
       )
     }
@@ -35,7 +35,7 @@ export async function DELETE(
     // Check if it's a built-in snippet
     if (snippet.isBuiltIn) {
       return NextResponse.json(
-        { error: '内置片段不能删除', code: 'FORBIDDEN' },
+        { error: 'Built-in snippets cannot be deleted', code: 'FORBIDDEN' },
         { status: 403 }
       )
     }
@@ -44,12 +44,12 @@ export async function DELETE(
     await db.delete(sentenceSnippets).where(eq(sentenceSnippets.id, snippetId))
     
     return NextResponse.json({
-      message: '句子片段删除成功',
+      message: 'Snippet deleted successfully',
     })
   } catch (error) {
     console.error('DELETE /api/snippets/[id] error:', error)
     return NextResponse.json(
-      { error: '删除句子片段失败', code: 'DELETE_ERROR', details: String(error) },
+      { error: 'Failed to delete snippet', code: 'DELETE_ERROR', details: String(error) },
       { status: 500 }
     )
   }

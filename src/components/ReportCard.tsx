@@ -1,13 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Pencil, Trash2 } from 'lucide-react'
 import { ScoreBadge } from '@/components/ScoreBadge'
 import type { Report } from '@/lib/db/schema'
+import { formatSystemDate } from '@/lib/time-format'
 
 interface ReportCardProps {
   report: Report
@@ -16,9 +15,9 @@ interface ReportCardProps {
 }
 
 export function ReportCard({ report, onDelete, onRetry }: ReportCardProps) {
-  const weekStart = format(new Date(report.weekStart), 'MM/dd', { locale: zhCN })
-  const weekEnd = format(new Date(report.weekEnd), 'MM/dd', { locale: zhCN })
-  const createdAt = format(new Date(report.createdAt), 'yyyy-MM-dd', { locale: zhCN })
+  const weekStart = formatSystemDate(report.weekStart)
+  const weekEnd = formatSystemDate(report.weekEnd)
+  const createdAt = formatSystemDate(report.createdAt)
 
   const handleRetry = async () => {
     if (onRetry) {
@@ -40,7 +39,7 @@ export function ReportCard({ report, onDelete, onRetry }: ReportCardProps) {
                 onRetry={handleRetry}
               />
               <Link href={`/edit/${report.id}`} onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" aria-label="编辑">
+                <Button variant="ghost" size="icon" aria-label="Edit">
                   <Pencil className="h-4 w-4" />
                 </Button>
               </Link>
@@ -51,7 +50,7 @@ export function ReportCard({ report, onDelete, onRetry }: ReportCardProps) {
                   e.stopPropagation()
                   onDelete(report.id)
                 }}
-                aria-label="删除"
+                aria-label="Delete"
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
@@ -60,10 +59,10 @@ export function ReportCard({ report, onDelete, onRetry }: ReportCardProps) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            {weekStart} - {weekEnd}
+            <span suppressHydrationWarning>{weekStart} - {weekEnd}</span>
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            创建于 {createdAt}
+            Created <span suppressHydrationWarning>{createdAt}</span>
           </p>
         </CardContent>
       </Card>

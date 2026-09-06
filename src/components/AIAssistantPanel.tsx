@@ -69,7 +69,7 @@ export function AIAssistantPanel({
     const contentToPolish = getContentToProcess()
     
     if (!contentToPolish.trim()) {
-      toast.error('请选择或输入要润色的文本')
+      toast.error('Select or enter text to polish')
       return
     }
 
@@ -97,12 +97,12 @@ export function AIAssistantPanel({
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: '润色服务暂时不可用' }))
-        throw new Error(errorData.error || '润色失败')
+        const errorData = await response.json().catch(() => ({ error: 'Polish service is temporarily unavailable' }))
+        throw new Error(errorData.error || 'Polish failed')
       }
 
       const data = await response.json()
-      toast.success('润色成功！文本已优化')
+      toast.success('Polished successfully!')
       
       // Call the callback to update editor
       if (onPolish) {
@@ -117,7 +117,7 @@ export function AIAssistantPanel({
         return
       }
       
-      const errorMessage = error instanceof Error ? error.message : '网络错误，请检查网络连接'
+      const errorMessage = error instanceof Error ? error.message : 'Network error. Check your connection.'
       setError({
         operation: 'polish',
         message: errorMessage,
@@ -135,7 +135,7 @@ export function AIAssistantPanel({
     const contentToExpand = getContentToProcess()
     
     if (!contentToExpand.trim()) {
-      toast.error('请选择或输入要扩展的文本')
+      toast.error('Select or enter text to expand')
       return
     }
 
@@ -163,12 +163,12 @@ export function AIAssistantPanel({
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: '扩展服务暂时不可用' }))
-        throw new Error(errorData.error || '扩展失败')
+        const errorData = await response.json().catch(() => ({ error: 'Expansion service is temporarily unavailable' }))
+        throw new Error(errorData.error || 'Expansion failed')
       }
 
       const data = await response.json()
-      toast.success('扩展成功！内容已丰富')
+      toast.success('Expanded successfully!')
       
       // Call the callback to update editor
       if (onExpand) {
@@ -183,7 +183,7 @@ export function AIAssistantPanel({
         return
       }
       
-      const errorMessage = error instanceof Error ? error.message : '网络错误，请检查网络连接'
+      const errorMessage = error instanceof Error ? error.message : 'Network error. Check your connection.'
       setError({
         operation: 'expand',
         message: errorMessage,
@@ -222,12 +222,12 @@ export function AIAssistantPanel({
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: '统一风格服务暂时不可用' }))
-        throw new Error(errorData.error || '统一风格失败')
+        const errorData = await response.json().catch(() => ({ error: 'Style service is temporarily unavailable' }))
+        throw new Error(errorData.error || 'Style unification failed')
       }
 
       const data = await response.json()
-      toast.success('风格统一成功！整体风格已调整')
+      toast.success('Style unified successfully!')
       
       // Call the callback to update editor
       if (onUnify) {
@@ -239,7 +239,7 @@ export function AIAssistantPanel({
         return
       }
       
-      const errorMessage = error instanceof Error ? error.message : '网络错误，请检查网络连接'
+      const errorMessage = error instanceof Error ? error.message : 'Network error. Check your connection.'
       setError({
         operation: 'unify',
         message: errorMessage,
@@ -272,12 +272,12 @@ export function AIAssistantPanel({
     <div className="space-y-4">
       <div>
         <label className="text-sm font-medium text-foreground mb-2 block">
-          选择事件
+          Select event
         </label>
         <textarea
           value={selectedEvent}
           onChange={(e) => setSelectedEvent(e.target.value)}
-          placeholder="在编辑器中选择文本，或在此输入要处理的周报内容..."
+          placeholder="Select text in the editor, or enter report content here..."
           className="w-full min-h-[120px] px-3 py-2 text-sm border border-input rounded-lg bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all"
           disabled={loading !== null}
         />
@@ -288,7 +288,7 @@ export function AIAssistantPanel({
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
           <div className="flex items-start gap-2">
             <div className="flex-1">
-              <p className="text-sm text-destructive font-medium">操作失败</p>
+              <p className="text-sm text-destructive font-medium">Operation failed</p>
               <p className="text-xs text-destructive/80 mt-1">{error.message}</p>
             </div>
             {error.canRetry && (
@@ -299,7 +299,7 @@ export function AIAssistantPanel({
                 className="h-7 text-xs gap-1"
               >
                 <RefreshCw className="h-3 w-3" />
-                重试
+                Retry
               </Button>
             )}
           </div>
@@ -308,7 +308,7 @@ export function AIAssistantPanel({
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-foreground">
-          AI 助手操作
+          AI assistant actions
         </label>
         <div className="grid grid-cols-1 gap-2">
           <Button
@@ -325,10 +325,10 @@ export function AIAssistantPanel({
             )}
             <div className="flex flex-col items-start text-left">
               <span className="font-medium">
-                {loading === 'polish' ? '润色中...' : '润色文本'}
+                {loading === 'polish' ? 'Polishing...' : 'Polish text'}
               </span>
               <span className="text-xs text-muted-foreground">
-                优化表达，提升专业度
+                Improve wording and professionalism
               </span>
             </div>
           </Button>
@@ -347,10 +347,10 @@ export function AIAssistantPanel({
             )}
             <div className="flex flex-col items-start text-left">
               <span className="font-medium">
-                {loading === 'expand' ? '扩展中...' : '扩展内容'}
+                {loading === 'expand' ? 'Expanding...' : 'Expand content'}
               </span>
               <span className="text-xs text-muted-foreground">
-                补充细节，丰富描述
+                Add detail and richer descriptions
               </span>
             </div>
           </Button>
@@ -369,10 +369,10 @@ export function AIAssistantPanel({
             )}
             <div className="flex flex-col items-start text-left">
               <span className="font-medium">
-                {loading === 'unify' ? '统一风格中...' : '统一风格'}
+                {loading === 'unify' ? 'Unifying style...' : 'Unify style'}
               </span>
               <span className="text-xs text-muted-foreground">
-                整体调整，风格一致
+                Adjust the whole report for consistency
               </span>
             </div>
           </Button>

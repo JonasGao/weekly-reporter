@@ -1,8 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
 import { CalendarIcon } from 'lucide-react'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -11,6 +9,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { formatSystemDate } from '@/lib/time-format'
 
 interface DatePickerProps {
   value?: Date
@@ -21,7 +20,7 @@ interface DatePickerProps {
 export function DatePicker({
   value,
   onChange,
-  placeholder = '选择日期',
+  placeholder = 'Select date',
 }: DatePickerProps) {
   const [open, setOpen] = useState(false)
 
@@ -34,7 +33,7 @@ export function DatePicker({
         )}
       >
         <CalendarIcon className="h-4 w-4" />
-        {value ? format(value, 'yyyy-MM-dd') : placeholder}
+        <span suppressHydrationWarning>{value ? formatSystemDate(value) : placeholder}</span>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
@@ -44,7 +43,6 @@ export function DatePicker({
             onChange(date)
             setOpen(false)
           }}
-          locale={zhCN}
         />
       </PopoverContent>
     </Popover>

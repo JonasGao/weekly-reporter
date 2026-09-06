@@ -22,14 +22,14 @@ export function UserTemplateCard({ template, onUse, onDelete }: UserTemplateCard
           )}
           {template.tags && (
             <div className="text-xs text-muted-foreground">
-              标签: {template.tags}
+              Tags: {template.tags}
             </div>
           )}
           {template.sourceTemplateId && (
             <div className="text-xs text-muted-foreground">
-              来源: {template.sourceTemplateId.startsWith('official-') 
-                ? '官方模板' 
-                : '用户模板'}
+              Source: {template.sourceTemplateId.startsWith('official-')
+                ? 'Official template'
+                : 'User template'}
             </div>
           )}
         </div>
@@ -37,7 +37,7 @@ export function UserTemplateCard({ template, onUse, onDelete }: UserTemplateCard
         <div className="flex items-center gap-2">
           {onUse && (
             <Button variant="outline" size="sm" onClick={() => onUse(template)}>
-              使用
+              Use
             </Button>
           )}
           <Link href={`/templates/${template.id}`}>

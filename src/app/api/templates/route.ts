@@ -19,7 +19,7 @@ export async function GET() {
   } catch (error) {
     console.error('GET /api/templates error:', error)
     return NextResponse.json(
-      { error: '获取模板列表失败', code: 'FETCH_ERROR', details: String(error) },
+      { error: 'Failed to load templates', code: 'FETCH_ERROR', details: String(error) },
       { status: 500 }
     )
   }
@@ -47,12 +47,12 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        { error: '数据验证失败', code: 'VALIDATION_ERROR' },
+      { error: 'Validation failed', code: 'VALIDATION_ERROR' },
         { status: 400 }
       )
     }
     return NextResponse.json(
-      { error: '创建模板失败', code: 'CREATE_ERROR' },
+      { error: 'Failed to create template', code: 'CREATE_ERROR' },
       { status: 500 }
     )
   }

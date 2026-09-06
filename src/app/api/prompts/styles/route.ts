@@ -11,7 +11,7 @@ export async function GET() {
   } catch (error) {
     console.error('GET /api/prompts/styles error:', error)
     return NextResponse.json(
-      { error: '获取风格列表失败', code: 'FETCH_ERROR' },
+      { error: 'Failed to load styles', code: 'FETCH_ERROR' },
       { status: 500 },
     )
   }
@@ -28,12 +28,12 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        { error: '数据验证失败', code: 'VALIDATION_ERROR' },
+      { error: 'Validation failed', code: 'VALIDATION_ERROR' },
         { status: 400 },
       )
     }
     return NextResponse.json(
-      { error: '创建风格失败', code: 'CREATE_ERROR' },
+      { error: 'Failed to create style', code: 'CREATE_ERROR' },
       { status: 500 },
     )
   }

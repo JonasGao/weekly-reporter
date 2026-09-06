@@ -11,9 +11,9 @@ interface TimelineViewSwitcherProps {
 
 const VIEW_MODES: ViewMode[] = ['day', 'week', 'month']
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
-  day: '日',
-  week: '周',
-  month: '月',
+  day: 'Day',
+  week: 'Week',
+  month: 'Month',
 }
 
 export function TimelineViewSwitcher({ viewMode, onViewModeChange }: TimelineViewSwitcherProps) {

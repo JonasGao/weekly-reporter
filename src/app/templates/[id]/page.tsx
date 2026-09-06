@@ -30,11 +30,11 @@ export default function EditTemplatePage() {
         setTemplate(data.template)
         setAiStyle(data.template.aiStyle || 'formal')
       } else {
-        toast.error('模板不存在')
+        toast.error('Template not found')
         router.push('/templates')
       }
     } catch (error) {
-      toast.error('加载失败')
+      toast.error('Failed to load template')
       router.push('/templates')
     } finally {
       setLoading(false)
@@ -52,17 +52,17 @@ export default function EditTemplatePage() {
       })
 
       if (response.ok) {
-        toast.success('AI风格已更新')
+        toast.success('AI style updated')
       } else {
         const error = await response.json()
-        toast.error(error.error || '更新失败')
+        toast.error(error.error || 'Update failed')
         // Revert to previous style
         if (template) {
           setAiStyle(template.aiStyle || 'formal')
         }
       }
     } catch (error) {
-      toast.error('更新失败')
+      toast.error('Update failed')
       // Revert to previous style
       if (template) {
         setAiStyle(template.aiStyle || 'formal')
@@ -86,15 +86,15 @@ export default function EditTemplatePage() {
       router.push('/templates')
     } else {
       const error = await response.json()
-      toast.error(error.error || '更新失败')
-      throw new Error('更新失败')
+      toast.error(error.error || 'Update failed')
+      throw new Error('Update failed')
     }
   }
 
   if (loading) {
     return (
       <main className="container mx-auto py-8 px-4 max-w-3xl">
-        <div className="text-center py-8">加载中...</div>
+        <div className="text-center py-8">Loading...</div>
       </main>
     )
   }
@@ -109,7 +109,7 @@ export default function EditTemplatePage() {
         <Link href="/templates">
           <Button variant="ghost" size="icon">←</Button>
         </Link>
-        <h1 className="text-2xl font-bold">编辑模板</h1>
+        <h1 className="text-2xl font-bold">Edit Template</h1>
       </div>
 
       <div className="space-y-6">

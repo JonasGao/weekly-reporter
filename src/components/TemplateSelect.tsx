@@ -28,11 +28,11 @@ export function TemplateSelect({
   return (
     <Select value={value} onValueChange={(val) => onChange(val as string)}>
       <SelectTrigger>
-        <SelectValue placeholder="选择模板" />
+        <SelectValue placeholder="Select a template" />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          <SelectLabel>官方模板</SelectLabel>
+          <SelectLabel>Official templates</SelectLabel>
           {officialTemplates.map((template) => (
             <SelectItem key={template.id} value={template.id}>
               {template.name}
@@ -40,7 +40,7 @@ export function TemplateSelect({
           ))}
         </SelectGroup>
         <SelectGroup>
-          <SelectLabel>个人模板</SelectLabel>
+          <SelectLabel>Personal templates</SelectLabel>
           {userTemplates.map((template) => (
             <SelectItem key={template.id} value={`user-${template.id}`}>
               {template.name}

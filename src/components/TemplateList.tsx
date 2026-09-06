@@ -34,7 +34,7 @@ export function TemplateList({ onSelect }: TemplateListProps) {
       setOfficialTemplates(data.official || [])
       setUserTemplates(data.user || [])
     } catch (error) {
-      toast.error('加载模板失败')
+      toast.error('Failed to load templates')
     } finally {
       setLoading(false)
     }
@@ -50,14 +50,14 @@ export function TemplateList({ onSelect }: TemplateListProps) {
 
       if (response.ok) {
         const data = await response.json()
-        toast.success('模板已克隆')
+        toast.success('Template cloned')
         router.push(`/templates/${data.template.id}`)
       } else {
         const error = await response.json()
-        toast.error(error.error || '克隆失败')
+        toast.error(error.error || 'Clone failed')
       }
     } catch (error) {
-      toast.error('克隆失败')
+      toast.error('Clone failed')
     }
   }
 
@@ -90,37 +90,37 @@ export function TemplateList({ onSelect }: TemplateListProps) {
 
       if (response.ok) {
         const result = await response.json()
-        toast.success('模板已保存')
+        toast.success('Template saved')
         router.push(`/templates/${result.template.id}`)
         fetchTemplates() // 刷新列表
       } else {
         const error = await response.json()
-        toast.error(error.error || '保存失败')
+        toast.error(error.error || 'Save failed')
       }
     } catch (error) {
-      toast.error('保存失败')
+      toast.error('Save failed')
     }
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('确定要删除这个模板吗？')) return
+    if (!confirm('Delete this template?')) return
 
     try {
       const response = await fetch(`/api/templates/${id}`, { method: 'DELETE' })
       if (response.ok) {
         setUserTemplates(userTemplates.filter((t) => t.id !== id))
-        toast.success('模板已删除')
+        toast.success('Template deleted')
       } else {
         const error = await response.json()
-        toast.error(error.error || '删除失败')
+        toast.error(error.error || 'Delete failed')
       }
     } catch (error) {
-      toast.error('删除失败')
+      toast.error('Delete failed')
     }
   }
 
   if (loading) {
-    return <div className="text-center py-8">加载中...</div>
+    return <div className="text-center py-8">Loading...</div>
   }
 
   return (

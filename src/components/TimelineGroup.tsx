@@ -13,7 +13,7 @@ interface TimelineGroupProps {
 export function TimelineGroup({ title, events, onEdit, onDelete }: TimelineGroupProps) {
   return (
     <div className="space-y-3">
-      <h3 className="font-semibold text-sm">{title}</h3>
+      <h3 className="font-semibold text-sm" suppressHydrationWarning>{title}</h3>
       <div className="space-y-2">
         {events.map((event) => (
           <EventCard

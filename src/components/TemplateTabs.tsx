@@ -29,14 +29,14 @@ export function TemplateTabs({
   return (
     <Tabs defaultValue="official" className="space-y-4">
       <TabsList>
-        <TabsTrigger value="official">官方模板</TabsTrigger>
-        <TabsTrigger value="user">个人模板</TabsTrigger>
+        <TabsTrigger value="official">Official templates</TabsTrigger>
+        <TabsTrigger value="user">Personal templates</TabsTrigger>
       </TabsList>
       
       <TabsContent value="official" className="space-y-4">
         {officialTemplates.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            暂无官方模板
+            No official templates
           </div>
         ) : (
           officialTemplates.map((template) => (
@@ -54,7 +54,7 @@ export function TemplateTabs({
       <TabsContent value="user" className="space-y-4">
         {userTemplates.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            暂无个人模板，可以从官方模板克隆或新建
+            No personal templates. Clone an official template or create one.
           </div>
         ) : (
           <>
@@ -69,7 +69,7 @@ export function TemplateTabs({
               <Link href="/templates/new">
                 <Button variant="outline">
                   <Plus className="h-4 w-4 mr-2" />
-                  新建个人模板
+                  New personal template
                 </Button>
               </Link>
             </div>

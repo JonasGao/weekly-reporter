@@ -8,9 +8,9 @@ import { cn } from '@/lib/utils'
 import { Sun, Moon, Monitor } from 'lucide-react'
 
 const THEME_OPTIONS = [
-  { value: 'light', label: '浅色', icon: Sun },
-  { value: 'dark', label: '深色', icon: Moon },
-  { value: 'system', label: '跟随系统', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
 ] as const
 
 export function ThemeSwitcher() {
@@ -32,7 +32,7 @@ export function ThemeSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
-        aria-label="切换主题"
+        aria-label="Switch theme"
       >
         <CurrentIcon className="h-4 w-4" />
       </DropdownMenuTrigger>

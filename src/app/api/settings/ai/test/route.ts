@@ -10,7 +10,7 @@ export async function POST() {
 
     if (!config) {
       return NextResponse.json(
-        { error: 'AI 未配置', code: 'AI_NOT_CONFIGURED' },
+        { error: 'AI is not configured', code: 'AI_NOT_CONFIGURED' },
         { status: 400 }
       )
     }
@@ -24,7 +24,7 @@ export async function POST() {
   } catch (error) {
     console.error('POST /api/settings/ai/test error:', error)
     return NextResponse.json(
-      { error: '连接测试失败', code: 'TEST_ERROR' },
+      { error: 'Connection test failed', code: 'TEST_ERROR' },
       { status: 500 }
     )
   }

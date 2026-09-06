@@ -36,6 +36,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ reports: results })
   } catch {
-    return NextResponse.json({ error: '搜索失败', code: 'SEARCH_ERROR' }, { status: 500 })
+    return NextResponse.json({ error: 'Search failed', code: 'SEARCH_ERROR' }, { status: 500 })
   }
 }

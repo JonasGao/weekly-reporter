@@ -43,7 +43,7 @@ export function CheckPanel({ content }: CheckPanelProps) {
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">
-      <div className="font-medium">填写进度</div>
+      <div className="font-medium">Completion</div>
       
       <div className="space-y-2">
         {Object.entries(sections).map(([name, sectionContent]) => {
@@ -58,10 +58,10 @@ export function CheckPanel({ content }: CheckPanelProps) {
               <Icon className={`h-4 w-4 ${color}`} />
               <span className="text-sm">{name}</span>
               {sectionStatus === 'short' && (
-                <span className="text-xs text-muted-foreground">建议补充更多细节</span>
+                <span className="text-xs text-muted-foreground">Consider adding more detail</span>
               )}
               {sectionStatus === 'empty' && (
-                <span className="text-xs text-muted-foreground">未填写</span>
+                <span className="text-xs text-muted-foreground">Empty</span>
               )}
             </div>
           )
@@ -70,7 +70,7 @@ export function CheckPanel({ content }: CheckPanelProps) {
 
       {aiSuggestions.length > 0 && (
         <div className="space-y-2">
-          <div className="font-medium">AI 建议</div>
+          <div className="font-medium">AI suggestions</div>
           <div className="space-y-1">
             {aiSuggestions.map((suggestion, index) => (
               <div key={index} className="text-sm text-muted-foreground">

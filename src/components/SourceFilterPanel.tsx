@@ -12,8 +12,8 @@ interface SourceFilterPanelProps {
 }
 
 const SOURCE_LABELS: Record<SourceFilter, string> = {
-  manual: '手动录入',
-  auto: '自动采集',
+  manual: 'Manual',
+  auto: 'Automatic',
 }
 
 export function SourceFilterPanel({
@@ -26,10 +26,10 @@ export function SourceFilterPanel({
   return (
     <div className="space-y-4 p-4 border rounded-lg">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-sm">来源筛选</h3>
+        <h3 className="font-semibold text-sm">Filter by source</h3>
         {selectedSources.length > 0 && selectedSources.length < 2 && (
           <Button size="sm" variant="ghost" onClick={onClearFilters}>
-            清除
+            Clear
           </Button>
         )}
       </div>

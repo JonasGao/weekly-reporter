@@ -49,12 +49,12 @@ export function CloneTemplateDialog({
   
   async function handleSave() {
     if (!name.trim()) {
-      toast.error('请填写模板名称')
+      toast.error('Please enter a template name')
       return
     }
     
     if (!content.trim()) {
-      toast.error('请填写模板内容')
+      toast.error('Please enter template content')
       return
     }
     
@@ -66,10 +66,10 @@ export function CloneTemplateDialog({
         : `user-${template!.id}`
       
       await onClone({ sourceId, name, content })
-      toast.success('模板已保存')
+      toast.success('Template saved')
       onClose()
     } catch (error) {
-      toast.error('保存失败')
+      toast.error('Save failed')
     } finally {
       setSaving(false)
     }
@@ -81,35 +81,35 @@ export function CloneTemplateDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>另存为个人模板</DialogTitle>
+          <DialogTitle>Save as personal template</DialogTitle>
           <DialogDescription>
-            从 "{template.name}" 另存为新的个人模板，可自定义修改
+            Save “{template.name}” as a new personal template and customize it.
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">模板名称</Label>
+            <Label htmlFor="name">Template name</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：我的开发周报"
+              placeholder="e.g. My development report"
             />
           </div>
           
           <div className="space-y-2">
-            <Label>模板内容</Label>
+            <Label>Template content</Label>
             <MilkdownEditor value={content} onChange={setContent} />
           </div>
         </div>
         
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            取消
+            Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? '保存中...' : '保存'}
+            {saving ? 'Saving...' : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>

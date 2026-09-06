@@ -39,7 +39,15 @@ function getMonday(d: Date): Date {
   return date
 }
 
-const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
+function getWeekdays(): string[] {
+  // 2024-01-01 is a Monday; labels follow the browser's locale.
+  const monday = new Date(2024, 0, 1)
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + i)
+    return new Intl.DateTimeFormat(undefined, { weekday: 'narrow' }).format(date)
+  })
+}
 
 const heatmapColors = [
   'var(--color-heatmap-0)',
@@ -58,6 +66,14 @@ const LABEL_COL_WIDTH = 18
 export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHeatmapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
+  // Use a deterministic date for SSR/hydration, then switch to the browser's
+  // current date after mount so timezone boundaries cannot change the markup.
+  const [today, setToday] = useState<Date | null>(null)
+  const weekdays = getWeekdays()
+
+  useEffect(() => {
+    setToday(new Date())
+  }, [])
 
   useEffect(() => {
     const el = containerRef.current
@@ -73,9 +89,10 @@ export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHe
   }, [])
 
   const { weeks, monthLabels } = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const currentMonday = getMonday(today)
+    if (!today) return { weeks: [], monthLabels: [] }
+    const effectiveToday = today ? new Date(today) : new Date(0)
+    effectiveToday.setHours(0, 0, 0, 0)
+    const currentMonday = getMonday(effectiveToday)
 
     const maxWeeks = Math.floor((containerWidth - LABEL_COL_WIDTH + GAP) / (CELL_SIZE + GAP))
     const weeksToShow = Math.max(4, Math.min(52, maxWeeks))
@@ -90,11 +107,11 @@ export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHe
 
     const weeks: Array<Array<{ date: string; count: number }>> = []
     const current = new Date(startDate)
-    while (current <= today) {
+    while (current <= effectiveToday) {
       const week: Array<{ date: string; count: number }> = []
       for (let day = 0; day < 7; day++) {
         const dateStr = formatDate(current)
-        const isFuture = current > today
+        const isFuture = current > effectiveToday
         week.push({ date: dateStr, count: isFuture ? 0 : (countMap.get(dateStr) || 0) })
         current.setDate(current.getDate() + 1)
       }
@@ -116,14 +133,14 @@ export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHe
     })
 
     return { weeks, monthLabels: labels }
-  }, [data, containerWidth])
+  }, [data, containerWidth, today])
 
   const numWeeks = weeks.length
 
   return (
     <div className="rounded-lg border border-border p-3">
       {numWeeks === 0 ? (
-        <div className="text-xs text-muted-foreground py-4 text-center">暂无数据</div>
+        <div className="text-xs text-muted-foreground py-4 text-center">No data</div>
       ) : (
         <div ref={containerRef}>
           {/* Month labels */}
@@ -134,7 +151,7 @@ export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHe
                 className="absolute top-0"
                 style={{ left: `${pct}%` }}
               >
-                {month}月
+                <span suppressHydrationWarning>{new Date(2000, month - 1, 1).toLocaleString(undefined, { month: 'short' })}</span>
               </span>
             ))}
           </div>
@@ -149,9 +166,10 @@ export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHe
             }}
           >
             {/* Weekday labels in first column */}
-            {WEEKDAYS.map((day, i) => (
+            {weekdays.map((day, i) => (
               <div
-                key={day}
+                key={`${day}-${i}`}
+                suppressHydrationWarning
                 className="text-[10px] leading-none text-muted-foreground text-right pr-1"
                 style={{
                   gridRow: i + 1,
@@ -175,7 +193,7 @@ export function ActivityHeatmap({ data, selectedDate, onDateSelect }: ActivityHe
                     data-count={count}
                     data-level={level}
                     data-selected={isSelected ? 'true' : undefined}
-                    title={`${count} 条事件 · ${date}`}
+                    title={`${count} events · ${date}`}
                     className="rounded-[2px] cursor-pointer transition-colors"
                     style={{
                       width: `${CELL_SIZE}px`,

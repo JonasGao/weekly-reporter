@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { format, startOfWeek, endOfWeek } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import { startOfWeek, endOfWeek, getWeek } from 'date-fns'
 import { TimelineViewSwitcher } from './TimelineViewSwitcher'
 import { TimelineGroup } from './TimelineGroup'
 import type { RawEvent } from '@/lib/db/schema'
+import { toValidDate } from '@/lib/time-format'
 
 type ViewMode = 'day' | 'week' | 'month'
 
@@ -19,22 +19,27 @@ function groupEventsByViewMode(events: RawEvent[], viewMode: ViewMode): Map<stri
   const groups = new Map<string, RawEvent[]>()
   
   events.forEach((event) => {
+    const eventDate = toValidDate(event.eventTime)
+    if (!eventDate) return
     let key: string
     
     switch (viewMode) {
       case 'day':
-        key = format(event.eventTime, 'yyyy-MM-dd EEEE', { locale: zhCN })
+        key = new Intl.DateTimeFormat(undefined, { dateStyle: 'full' }).format(eventDate)
         break
       case 'week':
-        const weekStart = startOfWeek(event.eventTime, { weekStartsOn: 1 })
-        const weekEnd = endOfWeek(event.eventTime, { weekStartsOn: 1 })
-        key = `${format(weekStart, 'yyyy')}第${format(weekStart, 'w', { locale: zhCN })}周 (${format(weekStart, 'MM-dd')} ~ ${format(weekEnd, 'MM-dd')})`
+        const weekStart = startOfWeek(eventDate, { weekStartsOn: 1 })
+        const weekEnd = endOfWeek(eventDate, { weekStartsOn: 1 })
+        const weekNumber = getWeek(weekStart, { weekStartsOn: 1 })
+        const dateFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
+        const yearFormatter = new Intl.DateTimeFormat(undefined, { year: 'numeric' })
+        key = `${yearFormatter.format(weekStart)} Week ${weekNumber} (${dateFormatter.format(weekStart)} – ${dateFormatter.format(weekEnd)})`
         break
       case 'month':
-        key = format(event.eventTime, 'yyyy年MM月', { locale: zhCN })
+        key = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'long' }).format(eventDate)
         break
       default:
-        key = format(event.eventTime, 'yyyy-MM-dd', { locale: zhCN })
+        key = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(eventDate)
     }
     
     if (!groups.has(key)) {

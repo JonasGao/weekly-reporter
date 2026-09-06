@@ -16,7 +16,7 @@ export async function GET(
 
     if (result.length === 0) {
       return NextResponse.json(
-        { error: '风格不存在', code: 'STYLE_NOT_FOUND' },
+        { error: 'Style not found', code: 'STYLE_NOT_FOUND' },
         { status: 404 },
       )
     }
@@ -24,7 +24,7 @@ export async function GET(
     return NextResponse.json({ style: result[0] })
   } catch (error) {
     return NextResponse.json(
-      { error: '获取风格失败', code: 'FETCH_ERROR' },
+      { error: 'Failed to load style', code: 'FETCH_ERROR' },
       { status: 500 },
     )
   }
@@ -44,7 +44,7 @@ export async function PUT(
 
     if (!style) {
       return NextResponse.json(
-        { error: '风格不存在', code: 'STYLE_NOT_FOUND' },
+        { error: 'Style not found', code: 'STYLE_NOT_FOUND' },
         { status: 404 },
       )
     }
@@ -53,12 +53,12 @@ export async function PUT(
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        { error: '数据验证失败', code: 'VALIDATION_ERROR' },
+        { error: 'Validation failed', code: 'VALIDATION_ERROR' },
         { status: 400 },
       )
     }
     return NextResponse.json(
-      { error: '更新风格失败', code: 'UPDATE_ERROR' },
+      { error: 'Failed to update style', code: 'UPDATE_ERROR' },
       { status: 500 },
     )
   }
@@ -73,17 +73,17 @@ export async function DELETE(
     const result = await deleteAIStyle(parseInt(id))
 
     if (!result.success) {
-      const status = result.error === '风格不存在' ? 404 : 400
+      const status = result.error === 'Style not found' ? 404 : 400
       return NextResponse.json(
         { error: result.error, code: 'DELETE_ERROR' },
         { status },
       )
     }
 
-    return NextResponse.json({ success: true, message: '风格已删除' })
+    return NextResponse.json({ success: true, message: 'Style deleted' })
   } catch (error) {
     return NextResponse.json(
-      { error: '删除风格失败', code: 'DELETE_ERROR' },
+      { error: 'Failed to delete style', code: 'DELETE_ERROR' },
       { status: 500 },
     )
   }
@@ -100,15 +100,15 @@ export async function PATCH(
 
     if (!style) {
       return NextResponse.json(
-        { error: '风格不存在', code: 'STYLE_NOT_FOUND' },
+        { error: 'Style not found', code: 'STYLE_NOT_FOUND' },
         { status: 404 },
       )
     }
 
-    return NextResponse.json({ style, message: '已设为默认风格' })
+    return NextResponse.json({ style, message: 'Style set as default' })
   } catch (error) {
     return NextResponse.json(
-      { error: '设置默认风格失败', code: 'UPDATE_ERROR' },
+      { error: 'Failed to set default style', code: 'UPDATE_ERROR' },
       { status: 500 },
     )
   }

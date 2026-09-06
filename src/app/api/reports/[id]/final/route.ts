@@ -11,7 +11,7 @@ export async function PUT(
   try {
     const reportId = Number.parseInt((await params).id, 10)
     if (Number.isNaN(reportId)) {
-      return NextResponse.json({ error: '无效的周报ID', code: 'INVALID_ID' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid report ID', code: 'INVALID_ID' }, { status: 400 })
     }
 
     const body = await request.json()
@@ -22,7 +22,7 @@ export async function PUT(
       || !body.content.trim()
       || !Number.isInteger(body.sourceRevision)
     ) {
-      return NextResponse.json({ error: '终版内容、受众版本和原稿版本不能为空', code: 'INVALID_INPUT' }, { status: 400 })
+      return NextResponse.json({ error: 'Final content, audience variant, and source revision are required', code: 'INVALID_INPUT' }, { status: 400 })
     }
 
     const db = getDb()
@@ -30,11 +30,11 @@ export async function PUT(
       where: and(eq(reportVariants.reportId, reportId), eq(reportVariants.variant, variant)),
     })
     if (!existing) {
-      return NextResponse.json({ error: '周报版本不存在', code: 'VARIANT_NOT_FOUND' }, { status: 404 })
+      return NextResponse.json({ error: 'Report variant not found', code: 'VARIANT_NOT_FOUND' }, { status: 404 })
     }
     if (existing.sourceRevision !== body.sourceRevision) {
       return NextResponse.json(
-        { error: '原稿已更新，请基于最新原稿重新生成终版', code: 'SOURCE_REVISION_CONFLICT' },
+        { error: 'The source draft has changed. Regenerate the final version from the latest draft.', code: 'SOURCE_REVISION_CONFLICT' },
         { status: 409 },
       )
     }
@@ -75,7 +75,7 @@ export async function PUT(
     return NextResponse.json(updated[0])
   } catch (error) {
     return NextResponse.json(
-      { error: '保存终版失败', code: 'SAVE_FINAL_ERROR', details: String(error) },
+      { error: 'Failed to save final version', code: 'SAVE_FINAL_ERROR', details: String(error) },
       { status: 500 },
     )
   }

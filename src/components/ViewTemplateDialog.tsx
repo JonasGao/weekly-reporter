@@ -43,12 +43,12 @@ export function ViewTemplateDialog({
         <div className="space-y-4">
           {template.tags.length > 0 && (
             <div className="text-sm text-muted-foreground">
-              标签: {template.tags.join(', ')}
+              Tags: {template.tags.join(', ')}
             </div>
           )}
 
           <div className="space-y-2">
-            <div className="text-sm font-medium">模板内容</div>
+            <div className="text-sm font-medium">Template content</div>
             <div className="max-h-[60vh] overflow-y-auto">
               <MilkdownEditor value={template.content} onChange={() => {}} readOnly />
             </div>
@@ -57,7 +57,7 @@ export function ViewTemplateDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            关闭
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -116,7 +116,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
       fetch(`/api/collect/sources/branches?${params}`)
         .then(async res => {
           const data = await res.json()
-          if (!res.ok) throw new Error(data.error || '获取分支失败')
+          if (!res.ok) throw new Error(data.error || 'Failed to load branches')
           setKnownBranches(data.branches || [])
           setCurrentBranch(data.currentBranch || '')
         })
@@ -192,14 +192,14 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
       const data = await res.json()
       
       if (res.ok) {
-        toast.success(sourceId ? '更新成功' : '创建成功')
+        toast.success(sourceId ? 'Updated successfully' : 'Created successfully')
         router.push('/collect')
       } else {
         const issueMessage = data.details?.issues?.[0]?.message
-        toast.error(issueMessage ? `${data.error}：${issueMessage}` : data.error || '操作失败')
+        toast.error(issueMessage ? `${data.error}: ${issueMessage}` : data.error || 'Operation failed')
       }
     } catch {
-      toast.error('操作失败')
+      toast.error('Operation failed')
     } finally {
       setLoading(false)
     }
@@ -209,24 +209,24 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
     <Card className="overflow-visible">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <CardHeader>
-          <CardTitle>配置信息</CardTitle>
+          <CardTitle>Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">采集源名称</Label>
+            <Label htmlFor="name">Source name</Label>
             <input
               id="name"
               type="text"
               value={formData.name}
               onChange={e => handleChange('name', e.target.value)}
-              placeholder="例如：后端主仓库"
+              placeholder="e.g. Backend repository"
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label>项目范围</Label>
+            <Label>Project scope</Label>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -237,7 +237,7 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
                   onChange={() => handleChange('projectScope', 'work')}
                   className="rounded border-input"
                 />
-                <span className="text-sm">工作项目</span>
+                <span className="text-sm">Work project</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -248,50 +248,50 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
                   onChange={() => handleChange('projectScope', 'personal')}
                   className="rounded border-input"
                 />
-                <span className="text-sm">个人项目</span>
+                <span className="text-sm">Personal project</span>
               </label>
             </div>
             <p className="text-xs text-muted-foreground">
-              工作项目会显示在领导版周报中，个人项目仅在个人版周报中显示
+              Work projects appear in Leadership reports; personal projects appear only in Personal reports.
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="aliases">别名</Label>
+            <Label htmlFor="aliases">Aliases</Label>
             <TagInput
               value={formData.aliases}
               onChange={handleAliasesChange}
-              placeholder="例如：后端服务, API平台"
+              placeholder="e.g. Backend service, API platform"
             />
             <p className="text-xs text-muted-foreground">
-              帮助 AI 识别这个项目，别名会显示在事件中
+              Helps AI identify this project. Aliases appear on events.
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="type">采集类型</Label>
+            <Label htmlFor="type">Source type</Label>
             <select
               id="type"
               value={formData.type}
               onChange={e => handleChange('type', e.target.value as FormData['type'])}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              <option value="git-remote-github">GitHub（远程）</option>
-              <option value="git-remote-gitlab">GitLab（远程）</option>
-              <option value="git-local">本地 Git 仓库</option>
-              <option value="git-remote-gitee">Gitee（暂不支持）</option>
+              <option value="git-remote-github">GitHub (remote)</option>
+              <option value="git-remote-gitlab">GitLab (remote)</option>
+              <option value="git-local">Local Git repository</option>
+              <option value="git-remote-gitee">Gitee (not supported)</option>
             </select>
           </div>
 
           {isRemote(formData.type) && formData.type === 'git-remote-gitlab' && (
             <div className="space-y-2">
-              <Label htmlFor="baseUrl">GitLab 地址（自建实例填写，公有云留空）</Label>
+              <Label htmlFor="baseUrl">GitLab URL (for self-hosted instances; leave blank for gitlab.com)</Label>
               <input
                 id="baseUrl"
                 type="text"
                 value={formData.config.baseUrl}
                 onChange={e => handleConfigChange('baseUrl', e.target.value)}
-                placeholder="例如：https://gitlab.example.com"
+                placeholder="e.g. https://gitlab.example.com"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
@@ -299,14 +299,14 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
 
           <div className="space-y-2">
             <Label htmlFor="owner">
-              {isLocal(formData.type) ? '本地仓库路径' : '仓库所属组织/用户名'}
+              {isLocal(formData.type) ? 'Local repository path' : 'Repository owner or organization'}
             </Label>
             <input
               id="owner"
               type="text"
               value={formData.config.owner}
               onChange={e => handleConfigChange('owner', e.target.value)}
-              placeholder={isLocal(formData.type) ? '例如：/home/user/projects/backend' : '例如：my-org'}
+              placeholder={isLocal(formData.type) ? 'e.g. /home/user/projects/backend' : 'e.g. my-org'}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               required
             />
@@ -314,13 +314,13 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
 
           {isRemote(formData.type) && (
             <div className="space-y-2">
-              <Label htmlFor="repo">仓库名</Label>
+              <Label htmlFor="repo">Repository name</Label>
               <input
                 id="repo"
                 type="text"
                 value={formData.config.repo}
                 onChange={e => handleConfigChange('repo', e.target.value)}
-                placeholder="例如：backend-api"
+                placeholder="e.g. backend-api"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 required
               />
@@ -329,10 +329,10 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="branches">分支</Label>
+              <Label htmlFor="branches">Branches</Label>
               {isLocal(formData.type) && (
                 <span className="text-xs text-muted-foreground">
-                  {branchLoading ? '读取当前分支...' : currentBranch ? `当前检出：${currentBranch}` : '当前分支不可读取'}
+                  {branchLoading ? 'Reading current branch...' : currentBranch ? `Checked out: ${currentBranch}` : 'Current branch unavailable'}
                 </span>
               )}
             </div>
@@ -348,24 +348,24 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
                 setBranchRefreshKey(key => key + 1)
               }}
             />
-            <p className="text-xs text-muted-foreground">留空跟随仓库默认分支；支持手动输入未出现在候选中的分支。</p>
+            <p className="text-xs text-muted-foreground">Leave blank to follow the repository default branch. You can enter a branch not shown in suggestions.</p>
           </div>
 
           {isRemote(formData.type) && (
             <div className="space-y-2">
-              <Label htmlFor="token">个人访问令牌</Label>
+              <Label htmlFor="token">Personal access token</Label>
               <input
                 id="token"
                 type="password"
               value={formData.config.token}
               onChange={e => handleConfigChange('token', e.target.value)}
-              placeholder={sourceId ? '留空以保留现有令牌' : '请输入访问令牌'}
+              placeholder={sourceId ? 'Leave blank to keep the existing token' : 'Enter an access token'}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               required={!sourceId}
             />
             <p className="text-xs text-muted-foreground">
               {sourceId
-                ? '留空保留现有令牌；填写新值将替换它。'
+                ? 'Leave blank to keep the existing token; entering a new value replaces it.'
                 : formData.type === 'git-remote-github'
                 ? 'GitHub: Settings → Developer settings → Personal access tokens'
                 : 'GitLab: Settings → Access tokens'}
@@ -375,25 +375,25 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="authorEmails">作者邮箱（多个用逗号分隔）</Label>
+              <Label htmlFor="authorEmails">Author emails (comma-separated)</Label>
               <button
                 type="button"
                 onClick={() => setPickerOpen(true)}
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 <UserCircle className="h-3.5 w-3.5" />
-                从仓库选择
+                Select from repository
               </button>
             </div>
             <AutoCompleteInput
               value={formData.config.authorEmails}
               onChange={v => handleConfigChange('authorEmails', v)}
               suggestions={knownEmails}
-              placeholder="例如：user@example.com, work@company.com"
+              placeholder="e.g. user@example.com, work@company.com"
               allowCreate
             />
             <p className="text-xs text-muted-foreground">
-              只采集这些邮箱的提交记录
+              Only collect commits from these email addresses.
             </p>
           </div>
 
@@ -405,15 +405,15 @@ export function CollectSourceForm({ sourceId, initialData }: { sourceId?: number
               onChange={e => handleChange('enabled', e.target.checked)}
               className="rounded border-input"
             />
-            <Label htmlFor="enabled">启用此采集源</Label>
+            <Label htmlFor="enabled">Enable this source</Label>
           </div>
         </CardContent>
         <CardFooter className="gap-2">
           <Button type="submit" disabled={loading}>
-            {loading ? '保存中...' : '保存'}
+            {loading ? 'Saving...' : 'Save'}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.push('/collect')}>
-            取消
+            Cancel
           </Button>
         </CardFooter>
       </form>
@@ -488,14 +488,14 @@ function BranchInput({ value, onChange, suggestions, currentBranch, loading, err
         {value.map(branch => {
           const cursor = branch.lastCommitTime ? new Date(branch.lastCommitTime) : null
           const status = cursor && !Number.isNaN(cursor.getTime())
-            ? `同步至 ${cursor.toLocaleString()}`
-            : '待首次同步'
+            ? `Synced through ${cursor.toLocaleString()}`
+            : 'Awaiting first sync'
           return (
             <Badge key={branch.name} variant="secondary" className="gap-1 py-1 pr-1">
               <GitBranch className="h-3 w-3" />
               <span>{branch.name}</span>
-              <span className="text-[10px] font-normal text-muted-foreground" title={`${status}（committer date）`}>{status}</span>
-              <button type="button" onClick={() => removeBranch(branch.name)} className="ml-1 rounded-sm p-0.5 hover:bg-muted" aria-label={`删除分支 ${branch.name}`} title={`删除分支 ${branch.name}`}>
+                <span className="text-[10px] font-normal text-muted-foreground" title={`${status} (committer date)`}>{status}</span>
+              <button type="button" onClick={() => removeBranch(branch.name)} className="ml-1 rounded-sm p-0.5 hover:bg-muted" aria-label={`Remove branch ${branch.name}`} title={`Remove branch ${branch.name}`}>
                 <X className="h-3 w-3" />
               </button>
             </Badge>
@@ -509,7 +509,7 @@ function BranchInput({ value, onChange, suggestions, currentBranch, loading, err
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
             onKeyDown={handleKeyDown}
-            placeholder={currentBranch ? `当前分支 ${currentBranch}（留空跟随默认分支）` : '留空跟随默认分支'}
+            placeholder={currentBranch ? `Current branch ${currentBranch} (leave blank for default)` : 'Leave blank for default branch'}
             className="w-full bg-transparent px-1 py-1 text-sm outline-none placeholder:text-muted-foreground/60"
           />
           {open && (filtered.length > 0 || input.trim()) && (
@@ -521,14 +521,14 @@ function BranchInput({ value, onChange, suggestions, currentBranch, loading, err
               ))}
               {input.trim() && !existing.has(input.trim()) && !suggestions.some(branch => branch.toLowerCase() === input.trim().toLowerCase()) && (
                 <button type="button" className="block w-full rounded-sm px-2 py-1.5 text-left text-sm text-primary hover:bg-muted" onMouseDown={e => e.preventDefault()} onClick={() => addBranch(input)}>
-                  添加“{input.trim()}”
+                  Add “{input.trim()}”
                 </button>
               )}
             </div>
           )}
         </div>
         {showRefresh && isLocalPlaceholder(currentBranch, loading, error) && (
-          <button type="button" className="rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={onRefresh} title="重新读取分支" aria-label="重新读取分支">
+          <button type="button" className="rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={onRefresh} title="Reload branches" aria-label="Reload branches">
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
         )}

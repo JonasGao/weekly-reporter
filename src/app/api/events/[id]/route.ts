@@ -35,7 +35,7 @@ export async function PUT(
       body = await request.json()
     } catch {
       return NextResponse.json(
-        { error: '请求体格式无效', code: 'INVALID_BODY' },
+        { error: 'Invalid request body', code: 'INVALID_BODY' },
         { status: 400 }
       )
     }
@@ -43,7 +43,7 @@ export async function PUT(
     // Validate request body exists and has at least one field
     if (!body || typeof body !== 'object') {
       return NextResponse.json(
-        { error: '请求体不能为空', code: 'EMPTY_BODY' },
+        { error: 'Request body cannot be empty', code: 'EMPTY_BODY' },
         { status: 400 }
       )
     }
@@ -54,7 +54,7 @@ export async function PUT(
     if (body.content !== undefined) {
       if (typeof body.content !== 'string' || body.content.trim().length === 0) {
         return NextResponse.json(
-          { error: '内容不能为空', code: 'INVALID_CONTENT' },
+          { error: 'Content is required', code: 'INVALID_CONTENT' },
           { status: 400 }
         )
       }
@@ -66,7 +66,7 @@ export async function PUT(
       const parsedDate = new Date(body.eventTime)
       if (isNaN(parsedDate.getTime())) {
         return NextResponse.json(
-          { error: '时间格式无效', code: 'INVALID_EVENT_TIME' },
+          { error: 'Invalid event time', code: 'INVALID_EVENT_TIME' },
           { status: 400 }
         )
       }
@@ -77,7 +77,7 @@ export async function PUT(
     if (body.isImportant !== undefined) {
       if (typeof body.isImportant !== 'boolean') {
         return NextResponse.json(
-          { error: 'isImportant 必须是布尔值', code: 'INVALID_IS_IMPORTANT' },
+          { error: 'isImportant must be a boolean', code: 'INVALID_IS_IMPORTANT' },
           { status: 400 }
         )
       }
@@ -93,7 +93,7 @@ export async function PUT(
   } catch (error) {
     console.error('Error updating event:', error)
     return NextResponse.json(
-      { error: '更新事件失败', code: 'UPDATE_ERROR' },
+      { error: 'Failed to update event', code: 'UPDATE_ERROR' },
       { status: 500 }
     )
   }
@@ -138,7 +138,7 @@ export async function DELETE(
   } catch (error) {
     console.error('Error deleting event:', error)
     return NextResponse.json(
-      { error: '删除事件失败', code: 'DELETE_ERROR' },
+      { error: 'Failed to delete event', code: 'DELETE_ERROR' },
       { status: 500 }
     )
   }

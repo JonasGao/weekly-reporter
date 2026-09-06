@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "周报编辑器",
-  description: "个人周报管理工具",
+  title: "Weekly Reporter",
+  description: "Personal weekly report manager",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="zh-CN"
+      lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >

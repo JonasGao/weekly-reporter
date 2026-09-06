@@ -15,7 +15,7 @@ export async function GET() {
   } catch (error) {
     console.error('GET /api/prompts/system error:', error)
     return NextResponse.json(
-      { error: '获取系统提示词失败', code: 'FETCH_ERROR' },
+      { error: 'Failed to load system prompts', code: 'FETCH_ERROR' },
       { status: 500 },
     )
   }
@@ -30,7 +30,7 @@ export async function PUT(request: Request) {
 
     if (!key || !['check', 'score', 'generate'].includes(key)) {
       return NextResponse.json(
-        { error: '无效的提示词 key', code: 'VALIDATION_ERROR' },
+        { error: 'Invalid prompt key', code: 'VALIDATION_ERROR' },
         { status: 400 },
       )
     }
@@ -40,7 +40,7 @@ export async function PUT(request: Request) {
 
     if (existing.length === 0) {
       return NextResponse.json(
-        { error: '系统提示词不存在', code: 'NOT_FOUND' },
+        { error: 'System prompt not found', code: 'NOT_FOUND' },
         { status: 404 },
       )
     }
@@ -55,12 +55,12 @@ export async function PUT(request: Request) {
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        { error: '数据验证失败', code: 'VALIDATION_ERROR' },
+        { error: 'Validation failed', code: 'VALIDATION_ERROR' },
         { status: 400 },
       )
     }
     return NextResponse.json(
-      { error: '更新系统提示词失败', code: 'UPDATE_ERROR' },
+      { error: 'Failed to update system prompt', code: 'UPDATE_ERROR' },
       { status: 500 },
     )
   }

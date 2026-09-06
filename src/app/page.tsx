@@ -156,7 +156,7 @@ export default function TimelinePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           {loading ? (
-            <div className="text-center py-12">加载中...</div>
+            <div className="text-center py-12">Loading...</div>
           ) : (
             <>
               <TimelineView
@@ -168,14 +168,14 @@ export default function TimelinePage() {
                 {loadingMore ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    加载中…
+                    Loading…
                   </div>
                 ) : hasMore ? (
                   <Button variant="ghost" size="sm" onClick={loadMore}>
-                    加载更多
+                    Load more
                   </Button>
                 ) : events.length > 0 ? (
-                  <span className="text-xs text-muted-foreground">已加载全部</span>
+                  <span className="text-xs text-muted-foreground">All loaded</span>
                 ) : null}
               </div>
             </>

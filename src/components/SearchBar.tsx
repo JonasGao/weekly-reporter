@@ -9,7 +9,7 @@ interface SearchBarProps {
   placeholder?: string
 }
 
-export function SearchBar({ onSearch, placeholder = '搜索周报...' }: SearchBarProps) {
+export function SearchBar({ onSearch, placeholder = 'Search reports...' }: SearchBarProps) {
   const [value, setValue] = useState('')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

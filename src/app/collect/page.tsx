@@ -45,7 +45,7 @@ export default function CollectPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold">采集源管理</h1>
+          <h1 className="text-2xl font-bold">Source Management</h1>
         </div>
         <div className="flex gap-2">
           <CollectPageSyncButton
@@ -54,12 +54,12 @@ export default function CollectPage() {
           />
           <Button variant="outline" disabled={isSyncing} onClick={() => setScanDialogOpen(true)}>
             <FolderGit2 className="h-4 w-4 mr-2" />
-            扫描目录
+            Scan directory
           </Button>
           <Link href="/collect/new">
             <Button disabled={isSyncing}>
               <Plus className="h-4 w-4 mr-2" />
-              新建采集源
+              New source
             </Button>
           </Link>
         </div>

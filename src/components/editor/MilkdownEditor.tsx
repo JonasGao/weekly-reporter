@@ -15,7 +15,7 @@ interface MilkdownEditorProps {
   readOnly?: boolean
 }
 
-function MilkdownEditorInner({ value, onChange, placeholder = '开始编写周报...', readOnly = false }: MilkdownEditorProps) {
+function MilkdownEditorInner({ value, onChange, placeholder = 'Start writing your report...', readOnly = false }: MilkdownEditorProps) {
   useEditor((root) =>
     Editor.make()
       .config(nord)

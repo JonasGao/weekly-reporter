@@ -1,6 +1,7 @@
 import type { AudienceVariant } from '@/lib/db/schema'
+import { isEmptySourceDraft } from '@/lib/reports/source-draft'
 
-export const DEFAULT_GENERATION_INSTRUCTION = '请基于当前原稿和模板生成一份终版周报。先说明你准备如何处理；完成后请调用 propose_final_report 提交完整候选终版。'
+export const DEFAULT_GENERATION_INSTRUCTION = 'Use the current source draft and template to create a final report. Briefly explain your approach, then call propose_final_report to submit a complete proposal.'
 
 export const FINAL_REPORT_TOOL_RULES = `你可以调用 propose_final_report 工具提交候选终版。
 
@@ -40,14 +41,14 @@ export function buildSourceOverview(sourceDraft: string, variant: AudienceVarian
       continue
     }
     const eventMatch = line.match(/^\s*-\s+(.+)$/)
-    if (eventMatch && eventMatch[1] !== '本周暂无事件') {
+    if (eventMatch && !isEmptySourceDraft(eventMatch[1])) {
       events.push(eventMatch[1].replace(/^\*\*(.+?)\*\*$/, '$1'))
     }
   }
 
   const label = variant === 'leadership' ? '领导版' : '个人版'
   if (events.length === 0) {
-    return `${label}原稿：本周暂无可用事件。`
+    return `${label} source draft: No usable events this week.`
   }
 
   const preview = events.slice(0, 5).map((event, index) => {
@@ -55,11 +56,11 @@ export function buildSourceOverview(sourceDraft: string, variant: AudienceVarian
     return `${index + 1}. ${compact.length > 88 ? `${compact.slice(0, 88)}…` : compact}`
   })
   const repositorySummary = repositories.length > 0
-    ? `涉及 ${repositories.length} 个仓库/项目：${repositories.join('、')}`
-    : '未识别到仓库分组'
-  const remainder = events.length > preview.length ? `\n另有 ${events.length - preview.length} 条事件未在概览中展开。` : ''
+    ? `${repositories.length} repositories/projects: ${repositories.join(', ')}`
+    : 'No repository groups identified'
+  const remainder = events.length > preview.length ? `\n${events.length - preview.length} more events omitted from the overview.` : ''
 
-  return `${label}原稿共 ${events.length} 条事件，${repositorySummary}。\n${preview.join('\n')}${remainder}`
+  return `${label} source draft: ${events.length} events. ${repositorySummary}.\n${preview.join('\n')}${remainder}`
 }
 
 export function buildModelSystemContext(input: {

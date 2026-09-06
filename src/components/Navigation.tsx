@@ -9,11 +9,11 @@ import { SettingsButton } from './Settings'
 import { SyncAllSourcesButton } from './SyncAllSources'
 
 const NAV_ITEMS = [
-  { href: '/', label: '时间线', icon: Clock },
-  { href: '/reports', label: '周报', icon: FileText },
-  { href: '/templates', label: '模板', icon: FileStack },
-  { href: '/prompts', label: '提示词', icon: MessageSquare },
-  { href: '/collect', label: '采集源', icon: Cloud },
+  { href: '/', label: 'Timeline', icon: Clock },
+  { href: '/reports', label: 'Reports', icon: FileText },
+  { href: '/templates', label: 'Templates', icon: FileStack },
+  { href: '/prompts', label: 'Prompts', icon: MessageSquare },
+  { href: '/collect', label: 'Sources', icon: Cloud },
 ]
 
 export function Navigation() {

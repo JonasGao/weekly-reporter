@@ -11,7 +11,7 @@ interface TagInputProps {
   className?: string
 }
 
-export function TagInput({ value, onChange, placeholder = '输入后按 Enter 添加', className }: TagInputProps) {
+export function TagInput({ value, onChange, placeholder = 'Type and press Enter to add', className }: TagInputProps) {
   const [inputValue, setInputValue] = useState('')
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -40,7 +40,7 @@ export function TagInput({ value, onChange, placeholder = '输入后按 Enter �
               type="button"
               onClick={() => handleRemoveTag(tag)}
               className="ml-1 hover:text-destructive"
-              aria-label={`删除 ${tag}`}
+              aria-label={`Remove ${tag}`}
             >
               <X className="h-3 w-3" />
             </button>

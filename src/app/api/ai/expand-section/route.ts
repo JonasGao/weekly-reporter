@@ -19,21 +19,21 @@ export async function POST(request: Request) {
 
     if (!body.sectionTitle || typeof body.sectionTitle !== 'string') {
       return NextResponse.json(
-        { error: '章节标题不能为空', code: 'INVALID_INPUT' },
+        { error: 'Section title is required', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
 
     if (!Array.isArray(body.existingItems)) {
       return NextResponse.json(
-        { error: '现有条目必须为数组', code: 'INVALID_INPUT' },
+        { error: 'Existing items must be an array', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
 
     if (!Array.isArray(body.events)) {
       return NextResponse.json(
-        { error: '事件列表必须为数组', code: 'INVALID_INPUT' },
+        { error: 'Events must be an array', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       expandedItems,
       addedCount,
-      message: `成功扩展 ${addedCount} 个新条目`,
+      message: `Added ${addedCount} new items`,
     })
   } catch (error) {
     console.error('POST /api/ai/expand-section error:', error)
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       )
     }
     return NextResponse.json(
-      { error: '章节扩展失败', code: 'EXPAND_ERROR', details: String(error) },
+      { error: 'Failed to expand section', code: 'EXPAND_ERROR', details: String(error) },
       { status: 500 }
     )
   }

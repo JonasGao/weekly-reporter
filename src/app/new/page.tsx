@@ -12,34 +12,43 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getWeekRange, formatDate } from '@/lib/utils'
+import { formatSystemDate } from '@/lib/time-format'
 
 type AudienceVariant = 'leadership' | 'personal'
 type PreviewVariant = { variant: AudienceVariant; sourceDraft: string }
 
 const variantLabels: Record<AudienceVariant, string> = {
-  leadership: '领导版',
-  personal: '个人版',
+  leadership: 'Leadership',
+  personal: 'Personal',
 }
 
 export default function NewReportPage() {
   const router = useRouter()
-  const [baseDate, setBaseDate] = useState(new Date())
+  const [baseDate, setBaseDate] = useState<Date | null>(null)
   const [preview, setPreview] = useState<PreviewVariant[] | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [previewRequestVersion, setPreviewRequestVersion] = useState(0)
   const [previewVariant, setPreviewVariant] = useState<AudienceVariant>('leadership')
   const [saving, setSaving] = useState(false)
 
-  const { start, end } = getWeekRange(baseDate)
+  const { start, end } = getWeekRange(baseDate ?? new Date(0))
   const weekStart = formatDate(start)
   const weekEnd = formatDate(end)
-  const year = getYear(baseDate)
-  const weekNumber = getWeek(baseDate, { weekStartsOn: 1 })
-  const [title, setTitle] = useState(`${year}年第${weekNumber}周工作周报`)
+  const displayWeekStart = formatSystemDate(`${weekStart}T00:00:00`)
+  const displayWeekEnd = formatSystemDate(`${weekEnd}T00:00:00`)
+  const year = getYear(baseDate ?? new Date(0))
+  const weekNumber = getWeek(baseDate ?? new Date(0), { weekStartsOn: 1 })
+  const [title, setTitle] = useState('')
+
+  useEffect(() => {
+    const now = new Date()
+    setBaseDate(now)
+    setTitle(`${getYear(now)} Week ${getWeek(now, { weekStartsOn: 1 })} Work Report`)
+  }, [])
 
   function changeWeek(nextDate: Date) {
     setBaseDate(nextDate)
-    setTitle(`${getYear(nextDate)}年第${getWeek(nextDate, { weekStartsOn: 1 })}周工作周报`)
+    setTitle(`${getYear(nextDate)} Week ${getWeek(nextDate, { weekStartsOn: 1 })} Work Report`)
     setPreview(null)
     setPreviewError(null)
     setPreviewVariant('leadership')
@@ -49,6 +58,7 @@ export default function NewReportPage() {
     const controller = new AbortController()
 
     async function loadPreview() {
+      if (!baseDate) return
       try {
         const response = await fetch('/api/reports/preview', {
           method: 'POST',
@@ -58,7 +68,7 @@ export default function NewReportPage() {
         })
         const data = await response.json()
         if (!response.ok) {
-          throw new Error(data.error || '预览失败')
+          throw new Error(data.error || 'Preview failed')
         }
         if (!controller.signal.aborted) {
           setPreview(data.variants as PreviewVariant[])
@@ -66,14 +76,14 @@ export default function NewReportPage() {
         }
       } catch (error) {
         if (!controller.signal.aborted) {
-          setPreviewError(error instanceof Error ? error.message : '预览失败，请重试')
+          setPreviewError(error instanceof Error ? error.message : 'Preview failed. Please try again.')
         }
       }
     }
 
     void loadPreview()
     return () => controller.abort()
-  }, [weekStart, weekEnd, previewRequestVersion])
+  }, [baseDate, weekStart, weekEnd, previewRequestVersion])
 
   function refreshPreview() {
     setPreview(null)
@@ -83,11 +93,11 @@ export default function NewReportPage() {
 
   async function handleSave() {
     if (!title.trim()) {
-      toast.error('请填写标题')
+      toast.error('Please enter a title')
       return
     }
     if (!preview) {
-      toast.error('原稿预览尚未完成')
+      toast.error('Source draft preview is not ready')
       return
     }
 
@@ -100,12 +110,12 @@ export default function NewReportPage() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || '创建失败')
+        throw new Error(data.error || 'Creation failed')
       }
-      toast.success('周报原稿已创建')
+      toast.success('Source draft created')
       router.push(`/reports/${data.report.id}`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '创建失败，请重试')
+      toast.error(error instanceof Error ? error.message : 'Creation failed. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -114,54 +124,58 @@ export default function NewReportPage() {
   const activePreview = preview?.find((item) => item.variant === previewVariant)?.sourceDraft ?? ''
   const previewing = preview === null && previewError === null
 
+  if (!baseDate) {
+    return <main className="container mx-auto max-w-4xl px-4 py-8">Loading...</main>
+  }
+
   return (
     <main className="container mx-auto max-w-4xl px-4 py-8">
       <div className="mb-6 flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} aria-label="返回">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} aria-label="Back">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-bold">新建周报</h1>
+        <h1 className="text-2xl font-bold">New Report</h1>
       </div>
 
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <Button type="button" variant="outline" size="icon" onClick={() => changeWeek(subWeeks(baseDate, 1))} disabled={previewing || saving} aria-label="上一周">
+          <Button type="button" variant="outline" size="icon" onClick={() => changeWeek(subWeeks(baseDate, 1))} disabled={previewing || saving} aria-label="Previous week">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="text-center text-lg font-medium">
-            {year}年第{weekNumber}周 ({weekStart} ~ {weekEnd})
+            <span suppressHydrationWarning>Week {weekNumber}, {year} ({displayWeekStart} – {displayWeekEnd})</span>
           </div>
-          <Button type="button" variant="outline" size="icon" onClick={() => changeWeek(addWeeks(baseDate, 1))} disabled={previewing || saving} aria-label="下一周">
+          <Button type="button" variant="outline" size="icon" onClick={() => changeWeek(addWeeks(baseDate, 1))} disabled={previewing || saving} aria-label="Next week">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="title">标题</Label>
+          <Label htmlFor="title">Title</Label>
           <Input id="title" value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} />
         </div>
 
-        <section aria-label="原稿预览" className="space-y-4 rounded-lg border border-border p-5">
+        <section aria-label="Source draft preview" className="space-y-4 rounded-lg border border-border p-5">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="font-semibold">原稿预览（只读）</h2>
+            <h2 className="font-semibold">Source draft preview (read-only)</h2>
             {preview && (
               <Button type="button" variant="outline" onClick={refreshPreview} disabled={saving}>
                 <RefreshCw className="mr-1.5 h-4 w-4" />
-                刷新
+                Refresh
               </Button>
             )}
           </div>
           {previewing ? (
             <div role="status" className="flex min-h-56 items-center justify-center gap-2 text-sm text-muted-foreground">
               <LoaderCircle className="h-4 w-4 animate-spin" />
-              正在加载原稿...
+              Loading source draft...
             </div>
           ) : previewError ? (
             <div role="alert" className="flex min-h-56 flex-col items-center justify-center gap-3 text-sm text-destructive">
               <p>{previewError}</p>
               <Button type="button" variant="outline" onClick={refreshPreview} disabled={saving}>
                 <RefreshCw className="mr-1.5 h-4 w-4" />
-                重试
+                Retry
               </Button>
             </div>
           ) : preview ? (
@@ -180,9 +194,9 @@ export default function NewReportPage() {
         </section>
 
         <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => router.back()} disabled={previewing || saving}>取消</Button>
+          <Button type="button" variant="outline" onClick={() => router.back()} disabled={previewing || saving}>Cancel</Button>
           <Button type="button" onClick={handleSave} disabled={previewing || saving || !preview}>
-            {saving ? '创建中...' : '创建'}
+            {saving ? 'Creating...' : 'Create'}
           </Button>
         </div>
       </div>

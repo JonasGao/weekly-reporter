@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     
     if (!sourceTemplate) {
       return NextResponse.json(
-        { error: '源模板不存在', code: 'TEMPLATE_NOT_FOUND' },
+        { error: 'Source template not found', code: 'TEMPLATE_NOT_FOUND' },
         { status: 400 }
       )
     }
@@ -53,12 +53,12 @@ export async function POST(request: Request) {
     
     return NextResponse.json({
       template: result[0],
-      message: '模板已克隆成功',
+      message: 'Template cloned successfully',
     }, { status: 201 })
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({ error: '数据验证失败', code: 'VALIDATION_ERROR' }, { status: 400 })
+      return NextResponse.json({ error: 'Validation failed', code: 'VALIDATION_ERROR' }, { status: 400 })
     }
-    return NextResponse.json({ error: '克隆模板失败', code: 'CLONE_ERROR' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to clone template', code: 'CLONE_ERROR' }, { status: 500 })
   }
 }

@@ -39,7 +39,7 @@ export function AutoCompleteInput({
   renderItem,
   onSelect,
   allowCreate = false,
-  createLabel = (text) => `+ 创建 "${text}"`,
+  createLabel = (text) => `+ Create "${text}"`,
 }: AutoCompleteInputProps) {
   const [showDropdown, setShowDropdown] = useState(false)
   const [filterText, setFilterText] = useState('')
@@ -231,7 +231,7 @@ export function AutoCompleteInput({
         >
           <Command className="rounded-lg border shadow-md bg-popover">
             <CommandList className="max-h-60">
-              <CommandEmpty>无匹配项</CommandEmpty>
+              <CommandEmpty>No matches</CommandEmpty>
               <CommandGroup>
                 {filtered.slice(0, 10).map(item => (
                   <CommandItem

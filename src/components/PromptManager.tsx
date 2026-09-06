@@ -41,9 +41,9 @@ interface StyleFormData {
   isDefault: boolean
 }
 
-function emptyStyleForm(): StyleFormData {
+function emptyStyleForm(key = ''): StyleFormData {
   return {
-    key: randomWord(),
+    key,
     label: '',
     systemPrompt: '',
     temperature: 0.3,
@@ -75,7 +75,7 @@ export function PromptManager() {
           }`}
           onClick={() => setActiveTab('styles')}
         >
-          风格管理
+          Style management
         </button>
         <button
           className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
@@ -85,7 +85,7 @@ export function PromptManager() {
           }`}
           onClick={() => setActiveTab('system')}
         >
-          系统提示词
+          System prompts
         </button>
       </div>
 
@@ -101,7 +101,9 @@ function StyleTab() {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<AIStyleRow | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [form, setForm] = useState<StyleFormData>(emptyStyleForm())
+  // Keep the server-rendered initial form deterministic. Random keys are only
+  // generated after the user opens the create dialog in the browser.
+  const [form, setForm] = useState<StyleFormData>(() => emptyStyleForm())
   const [showAdvanced, setShowAdvanced] = useState(false)
 
   async function fetchStyles() {
@@ -110,7 +112,7 @@ function StyleTab() {
       const data = await res.json()
       setStyles(data.styles || [])
     } catch {
-      toast.error('加载风格列表失败')
+      toast.error('Failed to load styles')
     } finally {
       setLoading(false)
     }
@@ -120,7 +122,7 @@ function StyleTab() {
 
   function openCreate() {
     setEditing(null)
-    setForm(emptyStyleForm())
+    setForm(emptyStyleForm(randomWord()))
     setShowAdvanced(false)
     setDialogOpen(true)
   }
@@ -160,12 +162,12 @@ function StyleTab() {
           body: JSON.stringify(payload),
         })
         if (res.ok) {
-          toast.success('风格已更新')
+          toast.success('Style updated')
           setDialogOpen(false)
           fetchStyles()
         } else {
           const err = await res.json()
-          toast.error(err.error || '更新失败')
+          toast.error(err.error || 'Update failed')
         }
       } else {
         const res = await fetch('/api/prompts/styles', {
@@ -174,33 +176,33 @@ function StyleTab() {
           body: JSON.stringify(payload),
         })
         if (res.ok) {
-          toast.success('风格已创建')
+          toast.success('Style created')
           setDialogOpen(false)
           fetchStyles()
         } else {
           const err = await res.json()
-          toast.error(err.error || '创建失败')
+          toast.error(err.error || 'Creation failed')
         }
       }
     } catch {
-      toast.error('操作失败')
+      toast.error('Operation failed')
     }
   }
 
   async function handleDelete(style: AIStyleRow) {
-    if (!confirm(`确定要删除风格「${style.label}」吗？`)) return
+    if (!confirm(`Delete style “${style.label}”?`)) return
 
     try {
       const res = await fetch(`/api/prompts/styles/${style.id}`, { method: 'DELETE' })
       if (res.ok) {
-        toast.success('风格已删除')
+        toast.success('Style deleted')
         fetchStyles()
       } else {
         const err = await res.json()
-        toast.error(err.error || '删除失败')
+        toast.error(err.error || 'Delete failed')
       }
     } catch {
-      toast.error('删除失败')
+      toast.error('Delete failed')
     }
   }
 
@@ -208,34 +210,34 @@ function StyleTab() {
     try {
       const res = await fetch(`/api/prompts/styles/${style.id}`, { method: 'PATCH' })
       if (res.ok) {
-        toast.success(`已将「${style.label}」设为默认风格`)
+        toast.success(`“${style.label}” is now the default style`)
         fetchStyles()
       } else {
         const err = await res.json()
-        toast.error(err.error || '设置失败')
+        toast.error(err.error || 'Update failed')
       }
     } catch {
-      toast.error('设置失败')
+      toast.error('Update failed')
     }
   }
 
-  if (loading) return <div className="text-center py-8 text-muted-foreground">加载中...</div>
+  if (loading) return <div className="text-center py-8 text-muted-foreground">Loading...</div>
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-muted-foreground">
-          共 {styles.length} 个风格
+          {styles.length} styles
         </p>
         <Button size="sm" onClick={openCreate}>
           <Plus className="w-4 h-4 mr-1" />
-          新建风格
+          New style
         </Button>
       </div>
 
       {styles.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          暂无风格，点击上方按钮创建
+          No styles yet. Click the button above to create one.
         </div>
       ) : (
         <div className="space-y-2">
@@ -250,7 +252,7 @@ function StyleTab() {
                   <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{style.key}</code>
                   {style.isDefault && (
                     <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                      默认
+                      Default
                     </span>
                   )}
                 </div>
@@ -260,7 +262,7 @@ function StyleTab() {
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 {!style.isDefault && (
-                  <Button size="icon" variant="ghost" title="设为默认" onClick={() => handleSetDefault(style)}>
+                  <Button size="icon" variant="ghost" title="Set as default" onClick={() => handleSetDefault(style)}>
                     <Star className="w-4 h-4" />
                   </Button>
                 )}
@@ -276,16 +278,16 @@ function StyleTab() {
         </div>
       )}
 
-      {/* 新建/编辑对话框 */}
+      {/* New/edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editing ? '编辑风格' : '新建风格'}</DialogTitle>
+            <DialogTitle>{editing ? 'Edit style' : 'New style'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="skey">标识 (key)</Label>
+                <Label htmlFor="skey">Identifier (key)</Label>
                 <div className="flex gap-1">
                   <Input
                     id="skey"
@@ -299,7 +301,7 @@ function StyleTab() {
                     type="button"
                     size="icon"
                     variant="outline"
-                    title="随机生成"
+                    title="Generate randomly"
                     onClick={() => regenerateKey(form, setForm)}
                   >
                     <RotateCcw className="w-4 h-4" />
@@ -307,7 +309,7 @@ function StyleTab() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="slabel">名称</Label>
+                <Label htmlFor="slabel">Name</Label>
                 <Input
                   id="slabel"
                   value={form.label}
@@ -335,17 +337,17 @@ function StyleTab() {
                 checked={form.isDefault}
                 onCheckedChange={(v) => setForm({ ...form, isDefault: v })}
               />
-              <Label>设为默认风格</Label>
+              <Label>Set as default style</Label>
             </div>
 
-            {/* 高级参数 */}
+            {/* Advanced parameters */}
             <div>
               <button
                 type="button"
                 className="text-sm text-muted-foreground hover:text-foreground"
                 onClick={() => setShowAdvanced(!showAdvanced)}
               >
-                {showAdvanced ? '▾' : '▸'} 高级参数
+                {showAdvanced ? '▾' : '▸'} Advanced parameters
               </button>
               {showAdvanced && (
                 <div className="mt-3 space-y-4 pl-2 border-l-2 border-muted">
@@ -364,7 +366,7 @@ function StyleTab() {
 
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">结构权重</Label>
+                      <Label className="text-xs">Structure weight</Label>
                       <Input
                         type="number"
                         min={0}
@@ -374,7 +376,7 @@ function StyleTab() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">内容权重</Label>
+                      <Label className="text-xs">Content weight</Label>
                       <Input
                         type="number"
                         min={0}
@@ -384,7 +386,7 @@ function StyleTab() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">价值权重</Label>
+                      <Label className="text-xs">Value weight</Label>
                       <Input
                         type="number"
                         min={0}
@@ -397,7 +399,7 @@ function StyleTab() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs">详细程度</Label>
+                      <Label className="text-xs">Detail level</Label>
                       <Select
                         value={form.detailLevel || 'medium'}
                         onValueChange={(v) => setForm({ ...form, detailLevel: v as string })}
@@ -406,14 +408,14 @@ function StyleTab() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="low">简洁</SelectItem>
-                          <SelectItem value="medium">适中</SelectItem>
-                          <SelectItem value="high">详细</SelectItem>
+                          <SelectItem value="low">Concise</SelectItem>
+                          <SelectItem value="medium">Balanced</SelectItem>
+                          <SelectItem value="high">Detailed</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs">结果导向</Label>
+                      <Label className="text-xs">Result orientation</Label>
                       <Select
                         value={form.resultOriented || 'medium'}
                         onValueChange={(v) => setForm({ ...form, resultOriented: v as string })}
@@ -422,9 +424,9 @@ function StyleTab() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="low">低</SelectItem>
-                          <SelectItem value="medium">中</SelectItem>
-                          <SelectItem value="high">高</SelectItem>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -435,9 +437,9 @@ function StyleTab() {
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                取消
+                Cancel
               </Button>
-              <Button type="submit">{editing ? '保存' : '创建'}</Button>
+              <Button type="submit">{editing ? 'Save' : 'Create'}</Button>
             </div>
           </form>
         </DialogContent>
@@ -454,36 +456,36 @@ function SystemPromptTab() {
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
 
-  const DEFAULT_CHECK = `你是一个周报写作助手。用户正在写周报，请分析以下内容并给出改进建议。
+  const DEFAULT_CHECK = `You are a weekly report writing assistant. Analyze the content below and provide improvement suggestions.
 
-内容：
+Content:
 {{content}}
 
-{{#section}}当前区块：{{section}}{{/section}}
+{{#section}}Current section: {{section}}{{/section}}
 
-请从以下方面分析：
-1. 是否有具体数据和细节支撑
-2. 是否突出了成果和价值
-3. 表达是否清晰简洁
-4. 是否有更好的表达方式
+Analyze these aspects:
+1. Specific data and details
+2. Clear results and value
+3. Clear and concise wording
+4. Better ways to express the content
 
-请给出具体、简洁的建议（每条不超过20字）。
-如果内容很好，返回空数组 []。`
+Give specific, concise suggestions (no more than 20 words each).
+If the content is already strong, return an empty array [].`
 
-  const DEFAULT_SCORE = `你是一个周报评分专家。请对以下周报进行评分和建议。
+  const DEFAULT_SCORE = `You are a weekly report scoring expert. Score the report below and provide suggestions.
 
-周报内容：
+Report content:
 {{content}}
 
-请从以下维度评分（0-100）：
-1. structure（结构完整度）：各区块是否填写完整
-2. content（内容充实度）：是否有具体细节和数据
-3. value（价值突出度）：是否强调成果和贡献
+Score these dimensions (0-100):
+1. structure: whether all sections are complete
+2. content: whether the report includes concrete details and data
+3. value: whether results and contributions are emphasized
 
-请给出：
-1. 各维度评分
-2. 具体改进建议（每条不超过30字）
-3. （可选）改写示例`
+Return:
+1. A score for each dimension
+2. Specific improvement suggestions (no more than 30 words each)
+3. An optional rewrite example`
 
   async function fetchPrompts() {
     try {
@@ -491,7 +493,7 @@ function SystemPromptTab() {
       const data = await res.json()
       setPrompts(data.prompts || [])
     } catch {
-      toast.error('加载系统提示词失败')
+      toast.error('Failed to load system prompts')
     } finally {
       setLoading(false)
     }
@@ -517,15 +519,15 @@ function SystemPromptTab() {
         body: JSON.stringify({ key, promptText: editText }),
       })
       if (res.ok) {
-        toast.success('提示词已更新')
+        toast.success('Prompt updated')
         setEditingKey(null)
         fetchPrompts()
       } else {
         const err = await res.json()
-        toast.error(err.error || '更新失败')
+        toast.error(err.error || 'Update failed')
       }
     } catch {
-      toast.error('更新失败')
+      toast.error('Update failed')
     }
   }
 
@@ -538,7 +540,7 @@ function SystemPromptTab() {
     return prompts.find((p) => p.key === key)
   }
 
-  if (loading) return <div className="text-center py-8 text-muted-foreground">加载中...</div>
+  if (loading) return <div className="text-center py-8 text-muted-foreground">Loading...</div>
 
   const checkPrompt = getPromptByKey('check')
   const scorePrompt = getPromptByKey('score')
@@ -549,9 +551,9 @@ function SystemPromptTab() {
       <div className="rounded-lg border bg-card p-4">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="font-medium">写作建议提示词</h3>
+            <h3 className="font-medium">Writing suggestions prompt</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              用于实时检查周报内容并给出改进建议。可用变量：
+              Checks report content in real time and provides suggestions. Variables:
               <code className="bg-muted px-1 rounded">{'{{content}}'}</code>
               <code className="bg-muted px-1 rounded ml-1">{'{{section}}'}</code>
             </p>
@@ -559,7 +561,7 @@ function SystemPromptTab() {
           {editingKey !== 'check' && (
             <Button size="sm" variant="outline" onClick={() => startEdit('check', checkPrompt?.promptText || DEFAULT_CHECK)}>
               <Pencil className="w-4 h-4 mr-1" />
-              编辑
+              Edit
             </Button>
           )}
         </div>
@@ -573,7 +575,7 @@ function SystemPromptTab() {
                 onClick={() => resetToDefault('check')}
               >
                 <RotateCcw className="w-4 h-4 mr-1" />
-                重置为默认
+                Reset to default
               </Button>
             </div>
             <Textarea
@@ -583,13 +585,13 @@ function SystemPromptTab() {
               className="font-mono text-sm min-h-[400px]"
             />
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={cancelEdit}>取消</Button>
-              <Button size="sm" onClick={() => saveEdit('check')}>保存</Button>
+              <Button variant="outline" size="sm" onClick={cancelEdit}>Cancel</Button>
+              <Button size="sm" onClick={() => saveEdit('check')}>Save</Button>
             </div>
           </div>
         ) : (
           <pre className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/50 rounded p-3 max-h-48 overflow-y-auto">
-            {checkPrompt?.promptText || '加载中...'}
+            {checkPrompt?.promptText || 'Loading...'}
           </pre>
         )}
       </div>
@@ -598,16 +600,16 @@ function SystemPromptTab() {
       <div className="rounded-lg border bg-card p-4">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="font-medium">周报评分提示词</h3>
+            <h3 className="font-medium">Report scoring prompt</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              用于对完整周报进行多维评分。可用变量：
+              Scores complete reports across multiple dimensions. Variables:
               <code className="bg-muted px-1 rounded">{'{{content}}'}</code>
             </p>
           </div>
           {editingKey !== 'score' && (
             <Button size="sm" variant="outline" onClick={() => startEdit('score', scorePrompt?.promptText || DEFAULT_SCORE)}>
               <Pencil className="w-4 h-4 mr-1" />
-              编辑
+              Edit
             </Button>
           )}
         </div>
@@ -621,7 +623,7 @@ function SystemPromptTab() {
                 onClick={() => resetToDefault('score')}
               >
                 <RotateCcw className="w-4 h-4 mr-1" />
-                重置为默认
+                Reset to default
               </Button>
             </div>
             <Textarea
@@ -631,13 +633,13 @@ function SystemPromptTab() {
               className="font-mono text-sm min-h-[350px]"
             />
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={cancelEdit}>取消</Button>
-              <Button size="sm" onClick={() => saveEdit('score')}>保存</Button>
+              <Button variant="outline" size="sm" onClick={cancelEdit}>Cancel</Button>
+              <Button size="sm" onClick={() => saveEdit('score')}>Save</Button>
             </div>
           </div>
         ) : (
           <pre className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/50 rounded p-3 max-h-48 overflow-y-auto">
-            {scorePrompt?.promptText || '加载中...'}
+            {scorePrompt?.promptText || 'Loading...'}
           </pre>
         )}
       </div>

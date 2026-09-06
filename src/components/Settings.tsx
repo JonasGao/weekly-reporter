@@ -25,7 +25,7 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-background border rounded-lg p-6 w-full max-w-lg space-y-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold">设置</h2>
+          <h2 className="text-xl font-bold">Settings</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -33,7 +33,7 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
-            <TabsTrigger value="font">字体</TabsTrigger>
+          <TabsTrigger value="font">Fonts</TabsTrigger>
             <TabsTrigger value="ai">AI</TabsTrigger>
           </TabsList>
 
@@ -47,7 +47,7 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
         </Tabs>
 
         <div className="flex justify-end">
-          <Button onClick={onClose}>完成</Button>
+          <Button onClick={onClose}>Done</Button>
         </div>
       </div>
     </div>
@@ -90,33 +90,33 @@ function FontSettingsTab() {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="ui-font">界面字体</Label>
+        <Label htmlFor="ui-font">UI font</Label>
         <Input
           id="ui-font"
           value={uiFont}
           onChange={(e) => handleUiFontChange(e.target.value)}
-          placeholder="例如：system-ui, sans-serif"
+          placeholder="e.g. system-ui, sans-serif"
         />
         <p className="text-xs text-muted-foreground">
-          用于界面标题、按钮、列表等元素。支持 CSS font-family 格式。
+          Used for UI headings, buttons, lists, and other elements. Use CSS font-family syntax.
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="editor-font">编辑器字体</Label>
+        <Label htmlFor="editor-font">Editor font</Label>
         <Input
           id="editor-font"
           value={editorFont}
           onChange={(e) => handleEditorFontChange(e.target.value)}
-          placeholder="例如：Geist, sans-serif"
+          placeholder="e.g. Geist, sans-serif"
         />
         <p className="text-xs text-muted-foreground">
-          用于 Markdown 编辑器内容。支持 CSS font-family 格式。
+          Used for Markdown editor content. Use CSS font-family syntax.
         </p>
       </div>
 
       <Button variant="outline" onClick={handleReset}>
-        重置默认
+        Reset defaults
       </Button>
     </div>
   )
@@ -174,12 +174,12 @@ function AISettingsTab() {
         setTimeout(() => setSaved(false), 2000)
         await loadConfig()
       } else {
-        const data = await res.json().catch(() => ({ error: '保存失败' }))
-        setSaveError(data.error ?? '保存失败')
+        const data = await res.json().catch(() => ({ error: 'Save failed' }))
+        setSaveError(data.error ?? 'Save failed')
       }
     } catch (error) {
       console.error('Failed to save AI config:', error)
-      setSaveError('网络错误，请检查连接')
+      setSaveError('Network error. Check your connection.')
     } finally {
       setLoading(false)
     }
@@ -230,7 +230,7 @@ function AISettingsTab() {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>协议格式</Label>
+        <Label>Protocol</Label>
         <Select value={protocol} onValueChange={(v) => setProtocol(v as 'openai' | 'openai-compatible' | 'anthropic')}>
           <SelectTrigger>
             <SelectValue />
@@ -242,7 +242,7 @@ function AISettingsTab() {
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          OpenAI Compatible 支持 Qwen、DeepSeek 等兼容接口
+          OpenAI Compatible supports compatible APIs such as Qwen and DeepSeek.
         </p>
       </div>
 
@@ -268,17 +268,17 @@ function AISettingsTab() {
       </div>
 
       <div className="space-y-2 relative z-1">
-        <Label>模型</Label>
+        <Label>Model</Label>
         <div className="flex gap-2">
           <div className="flex-1">
             <Select value={model} onValueChange={(v) => setModel(v as string)}>
               <SelectTrigger>
-                <SelectValue placeholder="选择模型或手动输入" />
+                <SelectValue placeholder="Select a model or enter one manually" />
               </SelectTrigger>
               <SelectContent>
                 {availableModels.length === 0 ? (
                   <SelectItem value="__placeholder__" disabled>
-                    暂无可用模型
+                    No models available
                   </SelectItem>
                 ) : (
                   availableModels.map(m => (
@@ -294,7 +294,7 @@ function AISettingsTab() {
               size="icon"
               onClick={handleFetchModels}
               disabled={loading || !apiUrl || (!apiKey && !apiKeyConfigured)}
-              title="刷新模型列表"
+              title="Refresh model list"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
@@ -302,25 +302,25 @@ function AISettingsTab() {
         </div>
         {protocol === 'openai' && availableModels.length === 0 && (
           <p className="text-xs text-muted-foreground">
-            点击刷新按钮自动拉取模型列表，或手动输入模型名称
+            Click refresh to fetch models, or enter a model name manually.
           </p>
         )}
         {protocol === 'anthropic' && (
           <p className="text-xs text-muted-foreground">
-            Anthropic 协议不支持自动拉取，请手动输入模型名称（如 claude-sonnet-4-20250514）
+            Anthropic does not support automatic model fetching. Enter a model name manually (for example, claude-sonnet-4-20250514).
           </p>
         )}
         <Input
           value={model === '__placeholder__' ? '' : model}
           onChange={(e) => setModel(e.target.value)}
-          placeholder="或手动输入模型名称"
+          placeholder="Or enter a model name manually"
           className="mt-2"
         />
       </div>
 
       <div className="flex gap-2">
         <Button onClick={handleSave} disabled={loading}>
-          {loading ? '保存中...' : saved ? '已保存 ✓' : '保存'}
+          {loading ? 'Saving...' : saved ? 'Saved ✓' : 'Save'}
         </Button>
         <Button
           variant="outline"
@@ -330,12 +330,12 @@ function AISettingsTab() {
           {testing ? (
             <>
               <TestTube className="h-4 w-4 mr-2 animate-pulse" />
-              测试中...
+              Testing...
             </>
           ) : (
             <>
               <TestTube className="h-4 w-4 mr-2" />
-              测试连接
+              Test connection
             </>
           )}
         </Button>
@@ -343,13 +343,13 @@ function AISettingsTab() {
 
       {saveError && (
         <div className="text-sm text-red-600">
-          ✗ 保存失败: {saveError}
+          ✗ Save failed: {saveError}
         </div>
       )}
 
       {testResult && (
         <div className={`text-sm ${testResult.ok ? 'text-green-600' : 'text-red-600'}`}>
-          {testResult.ok ? '✓ 连接成功' : `✗ 连接失败: ${testResult.error}`}
+          {testResult.ok ? '✓ Connected' : `✗ Connection failed: ${testResult.error}`}
         </div>
       )}
     </div>

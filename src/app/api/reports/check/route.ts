@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({
       score: { structure: 0, content: 0, value: 0, overall: 0 },
-      suggestions: ['检查失败'],
+      suggestions: ['Check failed'],
     })
   }
 }

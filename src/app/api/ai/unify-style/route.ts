@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
     if (!body.reportContent || typeof body.reportContent !== 'string') {
       return NextResponse.json(
-        { error: '报告内容不能为空', code: 'INVALID_INPUT' },
+        { error: 'Report content is required', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       unifiedContent,
       changesCount,
-      message: `成功统一风格，共修改 ${changesCount} 处`,
+      message: `Style unified with ${changesCount} changes`,
     })
   } catch (error) {
     console.error('POST /api/ai/unify-style error:', error)
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       )
     }
     return NextResponse.json(
-      { error: '风格统一失败', code: 'UNIFY_ERROR', details: String(error) },
+      { error: 'Failed to unify style', code: 'UNIFY_ERROR', details: String(error) },
       { status: 500 }
     )
   }

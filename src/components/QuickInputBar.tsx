@@ -11,7 +11,7 @@ interface QuickInputBarProps {
 
 export function QuickInputBar({
   onSubmit,
-  placeholder = '记录工作内容...'
+  placeholder = 'Record a work item...'
 }: QuickInputBarProps) {
   const [value, setValue] = useState('')
   const [loading, setLoading] = useState(false)
@@ -35,10 +35,10 @@ export function QuickInputBar({
     try {
       await onSubmit({ content: trimmedValue })
       setValue('')
-      toast.success('已记录')
+      toast.success('Recorded')
     } catch (error) {
       console.error('Failed to submit:', error)
-      toast.error('提交失败')
+      toast.error('Submission failed')
     } finally {
       setLoading(false)
     }

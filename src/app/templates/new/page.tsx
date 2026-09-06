@@ -25,8 +25,8 @@ export default function NewTemplatePage() {
       router.push('/templates')
     } else {
       const error = await response.json()
-      toast.error(error.error || '创建失败')
-      throw new Error('创建失败')
+      toast.error(error.error || 'Creation failed')
+      throw new Error('Creation failed')
     }
   }
 
@@ -36,7 +36,7 @@ export default function NewTemplatePage() {
         <Link href="/templates">
           <Button variant="ghost" size="icon">←</Button>
         </Link>
-        <h1 className="text-2xl font-bold">新建模板</h1>
+        <h1 className="text-2xl font-bold">New Template</h1>
       </div>
 
       <TemplateForm onSave={handleSave} onCancel={() => router.push('/templates')} />

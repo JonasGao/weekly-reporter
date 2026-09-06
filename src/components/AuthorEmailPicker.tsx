@@ -96,7 +96,7 @@ export function AuthorEmailPicker({
       <div className="bg-card border rounded-xl shadow-xl w-full max-w-lg mx-4 flex flex-col max-h-[80vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b">
-          <h2 className="text-base font-semibold">选择作者邮箱</h2>
+          <h2 className="text-base font-semibold">Select author emails</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl leading-none px-1">
             ✕
           </button>
@@ -110,10 +110,10 @@ export function AuthorEmailPicker({
               className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
             >
               {allSelected ? <CheckSquare className="h-3.5 w-3.5" /> : someSelected ? <Square className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5" />}
-              {allSelected ? '取消全选' : '全选'}
+              {allSelected ? 'Clear all' : 'Select all'}
             </button>
             <span className="text-muted-foreground">
-              已选 {selected.size} / {authors.length}
+              Selected {selected.size} / {authors.length}
             </span>
           </div>
         </div>
@@ -123,11 +123,11 @@ export function AuthorEmailPicker({
           {loading ? (
             <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              获取作者列表中…
+              Loading authors…
             </div>
           ) : authors.length === 0 ? (
             <div className="text-center py-12 text-sm text-muted-foreground">
-              未找到作者信息，请先填写仓库路径/token
+              No author information found. Enter a repository path/token first.
             </div>
           ) : (
             <div className="divide-y">
@@ -162,10 +162,10 @@ export function AuthorEmailPicker({
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t bg-muted/30">
           <Button size="sm" variant="outline" onClick={onClose}>
-            取消
+            Cancel
           </Button>
           <Button size="sm" onClick={handleConfirm} disabled={selected.size === 0}>
-            确认选择 ({selected.size})
+            Confirm selection ({selected.size})
           </Button>
         </div>
       </div>

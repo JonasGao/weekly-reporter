@@ -50,7 +50,7 @@ export function SnippetCard({ snippet, onSelect }: SnippetCardProps) {
               {snippet.isBuiltIn && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Lock className="h-3 w-3" />
-                  <span>内置</span>
+                  <span>Built-in</span>
                 </div>
               )}
             </div>
@@ -62,7 +62,7 @@ export function SnippetCard({ snippet, onSelect }: SnippetCardProps) {
             size="icon-sm"
             onClick={handleCopy}
             className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-            aria-label="复制片段"
+            aria-label="Copy snippet"
           >
             {copied ? (
               <Check className="h-4 w-4 text-green-600" />

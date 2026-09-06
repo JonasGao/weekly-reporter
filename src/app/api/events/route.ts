@@ -90,7 +90,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Error fetching events:', error)
     return NextResponse.json(
-      { error: '获取事件列表失败', code: 'FETCH_ERROR' },
+      { error: 'Failed to fetch events', code: 'FETCH_ERROR' },
       { status: 500 }
     )
   }
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     // Validate content is required and non-empty
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
       return NextResponse.json(
-        { error: '内容不能为空', code: 'INVALID_CONTENT' },
+        { error: 'Content is required', code: 'INVALID_CONTENT' },
         { status: 400 }
       )
     }
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
       const parsedDate = new Date(eventTime)
       if (isNaN(parsedDate.getTime())) {
         return NextResponse.json(
-          { error: '时间格式无效', code: 'INVALID_EVENT_TIME' },
+          { error: 'Invalid event time', code: 'INVALID_EVENT_TIME' },
           { status: 400 }
         )
       }
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating event:', error)
     return NextResponse.json(
-      { error: '创建事件失败', code: 'CREATE_ERROR' },
+      { error: 'Failed to create event', code: 'CREATE_ERROR' },
       { status: 500 }
     )
   }

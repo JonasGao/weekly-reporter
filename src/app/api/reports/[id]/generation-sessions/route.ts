@@ -18,12 +18,12 @@ function failure(error: unknown) {
     return NextResponse.json({ error: error.message, code: error.code }, { status: error.status })
   }
   console.error('generation sessions route error:', error)
-  return NextResponse.json({ error: '生成会话操作失败', code: 'GENERATION_SESSION_ERROR' }, { status: 500 })
+  return NextResponse.json({ error: 'Generation session operation failed', code: 'GENERATION_SESSION_ERROR' }, { status: 500 })
 }
 
 export async function GET(request: Request, { params }: RouteContext) {
   const reportId = reportIdFrom((await params).id)
-  if (reportId == null) return NextResponse.json({ error: '无效的周报ID', code: 'INVALID_ID' }, { status: 400 })
+  if (reportId == null) return NextResponse.json({ error: 'Invalid report ID', code: 'INVALID_ID' }, { status: 400 })
   const value = new URL(request.url).searchParams.get('variant')
   const variant: AudienceVariant | undefined = value === 'leadership' || value === 'personal' ? value : undefined
   try {
@@ -35,12 +35,12 @@ export async function GET(request: Request, { params }: RouteContext) {
 
 export async function POST(request: Request, { params }: RouteContext) {
   const reportId = reportIdFrom((await params).id)
-  if (reportId == null) return NextResponse.json({ error: '无效的周报ID', code: 'INVALID_ID' }, { status: 400 })
+  if (reportId == null) return NextResponse.json({ error: 'Invalid report ID', code: 'INVALID_ID' }, { status: 400 })
   try {
     const body = await request.json()
     const variant = body.variant === 'leadership' || body.variant === 'personal' ? body.variant : null
     if (!variant || typeof body.templateId !== 'string' || !body.templateId) {
-      return NextResponse.json({ error: '必须选择受众版本和模板', code: 'INVALID_INPUT' }, { status: 400 })
+      return NextResponse.json({ error: 'Select an audience variant and template', code: 'INVALID_INPUT' }, { status: 400 })
     }
     const session = await createGenerationSession({
       reportId,

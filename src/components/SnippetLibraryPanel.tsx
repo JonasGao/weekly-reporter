@@ -26,8 +26,8 @@ const snippetCache = {
 
 export function SnippetLibraryPanel({ onSelectSnippet }: SnippetLibraryPanelProps) {
   const [snippets, setSnippets] = useState<SentenceSnippet[]>([])
-  const [categories, setCategories] = useState<string[]>(['全部'])
-  const [selectedCategory, setSelectedCategory] = useState('全部')
+  const [categories, setCategories] = useState<string[]>(['All'])
+  const [selectedCategory, setSelectedCategory] = useState('All')
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState<number | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -67,7 +67,7 @@ export function SnippetLibraryPanel({ onSelectSnippet }: SnippetLibraryPanelProp
         signal: abortControllerRef.current.signal,
       })
       
-      if (!response.ok) throw new Error('获取片段失败')
+      if (!response.ok) throw new Error('Failed to load snippets')
       
       const data = await response.json()
       const fetchedSnippets = data.snippets || []
@@ -82,7 +82,7 @@ export function SnippetLibraryPanel({ onSelectSnippet }: SnippetLibraryPanelProp
       // Ignore abort errors
       if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Failed to fetch snippets:', error)
-        toast.error('获取片段库失败')
+        toast.error('Failed to load snippet library')
       }
     } finally {
       setLoading(false)
@@ -91,7 +91,7 @@ export function SnippetLibraryPanel({ onSelectSnippet }: SnippetLibraryPanelProp
   }
 
   const extractCategories = (snippetList: SentenceSnippet[]) => {
-    const uniqueCategories = new Set(['全部'])
+    const uniqueCategories = new Set(['All'])
     snippetList.forEach((snippet: SentenceSnippet) => {
       if (snippet.category) {
         uniqueCategories.add(snippet.category)
@@ -100,7 +100,7 @@ export function SnippetLibraryPanel({ onSelectSnippet }: SnippetLibraryPanelProp
     setCategories(Array.from(uniqueCategories))
   }
 
-  const filteredSnippets = selectedCategory === '全部'
+  const filteredSnippets = selectedCategory === 'All'
     ? snippets
     : snippets.filter(s => s.category === selectedCategory)
 
@@ -108,27 +108,27 @@ export function SnippetLibraryPanel({ onSelectSnippet }: SnippetLibraryPanelProp
     try {
       await navigator.clipboard.writeText(snippet.content)
       setCopiedId(snippet.id)
-      toast.success('已复制到剪贴板')
+      toast.success('Copied to clipboard')
       setTimeout(() => setCopiedId(null), 2000)
     } catch (error) {
-      toast.error('复制失败')
+      toast.error('Copy failed')
     }
   }
 
   const handleClick = (snippet: SentenceSnippet) => {
     onSelectSnippet?.(snippet.content)
-    toast.success('已插入片段')
+    toast.success('Snippet inserted')
   }
 
   return (
     <div className="space-y-4">
       <div>
         <label className="text-sm font-medium text-foreground mb-2 block">
-          分类筛选
+          Filter by category
         </label>
         <Select value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as string)}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="选择分类" />
+            <SelectValue placeholder="Select a category" />
           </SelectTrigger>
           <SelectContent>
             {categories.map((category) => (
@@ -143,21 +143,21 @@ export function SnippetLibraryPanel({ onSelectSnippet }: SnippetLibraryPanelProp
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium text-foreground">
-            句子片段
+            Snippets
           </label>
           <span className="text-xs text-muted-foreground">
-            {filteredSnippets.length} 条片段
+            {filteredSnippets.length} snippets
           </span>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="text-sm text-muted-foreground">加载中...</div>
+            <div className="text-sm text-muted-foreground">Loading...</div>
           </div>
         ) : filteredSnippets.length === 0 ? (
           <div className="flex items-center justify-center py-8">
             <div className="text-sm text-muted-foreground">
-              {selectedCategory === '全部' ? '暂无片段' : '该分类暂无片段'}
+              {selectedCategory === 'All' ? 'No snippets' : 'No snippets in this category'}
             </div>
           </div>
         ) : (
@@ -179,7 +179,7 @@ export function SnippetLibraryPanel({ onSelectSnippet }: SnippetLibraryPanelProp
                         handleCopy(snippet)
                       }}
                       className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
-                      aria-label="复制"
+                      aria-label="Copy"
                     >
                       {copiedId === snippet.id ? (
                         <Check className="h-3.5 w-3.5 text-green-600" />

@@ -27,18 +27,18 @@ interface AddSnippetDialogProps {
 }
 
 const PRESET_CATEGORIES = [
-  '通用',
-  '成果展示',
-  '问题解决',
-  '团队协作',
-  '学习成长',
-  '项目进展',
-  '技术突破',
-  '其他',
+  'General',
+  'Achievements',
+  'Problem solving',
+  'Teamwork',
+  'Learning',
+  'Project progress',
+  'Technical breakthroughs',
+  'Other',
 ]
 
 export function AddSnippetDialog({ open, onClose, onAdd }: AddSnippetDialogProps) {
-  const [category, setCategory] = useState('通用')
+  const [category, setCategory] = useState('General')
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -47,12 +47,12 @@ export function AddSnippetDialog({ open, onClose, onAdd }: AddSnippetDialogProps
 
     // Validation
     if (!content.trim()) {
-      toast.error('请输入片段内容')
+      toast.error('Please enter snippet content')
       return
     }
 
     if (content.length > 500) {
-      toast.error('内容长度不能超过500个字符')
+      toast.error('Content must be 500 characters or fewer')
       return
     }
 
@@ -70,19 +70,19 @@ export function AddSnippetDialog({ open, onClose, onAdd }: AddSnippetDialogProps
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || '添加失败')
+        throw new Error(error.error || 'Add failed')
       }
 
       const data = await response.json()
       onAdd(data.snippet)
-      toast.success('片段已添加')
+      toast.success('Snippet added')
       
       // Reset form
       setContent('')
-      setCategory('通用')
+      setCategory('General')
       onClose()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '添加失败')
+      toast.error(error instanceof Error ? error.message : 'Add failed')
     } finally {
       setSubmitting(false)
     }
@@ -90,7 +90,7 @@ export function AddSnippetDialog({ open, onClose, onAdd }: AddSnippetDialogProps
 
   const handleClose = () => {
     setContent('')
-    setCategory('通用')
+    setCategory('General')
     onClose()
   }
 
@@ -98,15 +98,15 @@ export function AddSnippetDialog({ open, onClose, onAdd }: AddSnippetDialogProps
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>添加句子片段</DialogTitle>
+          <DialogTitle>Add snippet</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="category">分类</Label>
+            <Label htmlFor="category">Category</Label>
             <Select value={category} onValueChange={(value) => setCategory(value as string)}>
               <SelectTrigger id="category">
-                <SelectValue placeholder="选择分类" />
+                <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
                 {PRESET_CATEGORIES.map((cat) => (
@@ -120,7 +120,7 @@ export function AddSnippetDialog({ open, onClose, onAdd }: AddSnippetDialogProps
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="content">内容</Label>
+              <Label htmlFor="content">Content</Label>
               <span className={`text-xs ${content.length > 500 ? 'text-destructive' : 'text-muted-foreground'}`}>
                 {content.length}/500
               </span>
@@ -129,7 +129,7 @@ export function AddSnippetDialog({ open, onClose, onAdd }: AddSnippetDialogProps
               id="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="输入要保存的句子片段..."
+              placeholder="Enter a snippet to save..."
               className="w-full min-h-[120px] px-3 py-2 text-sm border border-input rounded-lg bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all"
               rows={5}
             />
@@ -137,10 +137,10 @@ export function AddSnippetDialog({ open, onClose, onAdd }: AddSnippetDialogProps
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>
-              取消
+              Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? '添加中...' : '添加'}
+              {submitting ? 'Adding...' : 'Add'}
             </Button>
           </DialogFooter>
         </form>

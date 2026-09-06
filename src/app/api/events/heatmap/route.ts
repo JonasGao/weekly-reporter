@@ -40,7 +40,7 @@ export async function GET(request?: Request) {
   } catch (error) {
     console.error('Error fetching heatmap data:', error)
     return NextResponse.json(
-      { error: '获取热力图数据失败', code: 'FETCH_ERROR' },
+      { error: 'Failed to fetch heatmap data', code: 'FETCH_ERROR' },
       { status: 500 }
     )
   }

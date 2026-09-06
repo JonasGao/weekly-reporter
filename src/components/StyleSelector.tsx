@@ -93,7 +93,7 @@ export function StyleSelector({ value, onChange, templateId }: StyleSelectorProp
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-foreground">
-          AI 风格
+          AI style
         </label>
         <span className="text-xs text-muted-foreground">
           {currentLabel}
@@ -105,7 +105,7 @@ export function StyleSelector({ value, onChange, templateId }: StyleSelectorProp
         disabled={loading || styles.length === 0}
       >
         <SelectTrigger className="w-full">
-          <SelectValue placeholder="选择 AI 风格" />
+          <SelectValue placeholder="Select an AI style" />
         </SelectTrigger>
         <SelectContent>
           {styles.map((style) => (

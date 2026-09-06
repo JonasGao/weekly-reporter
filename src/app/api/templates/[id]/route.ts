@@ -15,7 +15,7 @@ export async function GET(
     
     if (template.length === 0) {
       return NextResponse.json(
-        { error: '模板不存在', code: 'TEMPLATE_NOT_FOUND' },
+        { error: 'Template not found', code: 'TEMPLATE_NOT_FOUND' },
         { status: 404 }
       )
     }
@@ -23,7 +23,7 @@ export async function GET(
     return NextResponse.json({ template: template[0] })
   } catch {
     return NextResponse.json(
-      { error: '获取模板失败', code: 'FETCH_ERROR' },
+      { error: 'Failed to load template', code: 'FETCH_ERROR' },
       { status: 500 }
     )
   }
@@ -42,7 +42,7 @@ export async function PUT(
     
     if (template.length === 0) {
       return NextResponse.json(
-        { error: '模板不存在', code: 'TEMPLATE_NOT_FOUND' },
+        { error: 'Template not found', code: 'TEMPLATE_NOT_FOUND' },
         { status: 404 }
       )
     }
@@ -73,12 +73,12 @@ export async function PUT(
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
-        { error: '数据验证失败', code: 'VALIDATION_ERROR' },
+      { error: 'Validation failed', code: 'VALIDATION_ERROR' },
         { status: 400 }
       )
     }
     return NextResponse.json(
-      { error: '更新模板失败', code: 'UPDATE_ERROR' },
+      { error: 'Failed to update template', code: 'UPDATE_ERROR' },
       { status: 500 }
     )
   }
@@ -95,17 +95,17 @@ export async function DELETE(
     
     if (template.length === 0) {
       return NextResponse.json(
-        { error: '模板不存在', code: 'TEMPLATE_NOT_FOUND' },
+        { error: 'Template not found', code: 'TEMPLATE_NOT_FOUND' },
         { status: 404 }
       )
     }
     
     await db.delete(templates).where(eq(templates.id, parseInt(id)))
     
-    return NextResponse.json({ success: true, message: '模板已删除' })
+    return NextResponse.json({ success: true, message: 'Template deleted' })
   } catch {
     return NextResponse.json(
-      { error: '删除模板失败', code: 'DELETE_ERROR' },
+      { error: 'Failed to delete template', code: 'DELETE_ERROR' },
       { status: 500 }
     )
   }

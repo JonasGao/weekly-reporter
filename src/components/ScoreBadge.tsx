@@ -31,7 +31,7 @@ export function ScoreBadge({ scoreStatus, scoreOverall, scoreError, onRetry }: S
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <Clock className="h-4 w-4" />
-          <span>待评分</span>
+          <span>Awaiting score</span>
         </div>
         {onRetry && (
           <Button
@@ -56,7 +56,7 @@ export function ScoreBadge({ scoreStatus, scoreOverall, scoreError, onRetry }: S
     return (
       <div className="flex items-center gap-1 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span>评分中</span>
+        <span>Scoring</span>
       </div>
     )
   }
@@ -66,7 +66,7 @@ export function ScoreBadge({ scoreStatus, scoreOverall, scoreError, onRetry }: S
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 text-sm text-destructive">
           <AlertCircle className="h-4 w-4" />
-          <span>评分失败</span>
+          <span>Scoring failed</span>
         </div>
         {onRetry && (
           <Button
@@ -91,7 +91,7 @@ export function ScoreBadge({ scoreStatus, scoreOverall, scoreError, onRetry }: S
     return (
       <div className="flex items-center gap-1 text-sm text-green-500">
         <CheckCircle className="h-4 w-4" />
-        <span>{scoreOverall}分</span>
+        <span>{scoreOverall}</span>
       </div>
     )
   }

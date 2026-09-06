@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RefreshCw, RotateCcw, Download, Trash2, Edit, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Briefcase, User } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatSystemDate, formatSystemDateTime, formatSystemRelativeTime } from '@/lib/time-format'
 
 interface CollectSource {
   id: number
@@ -124,7 +125,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       const res = await fetch(`/api/collect/sources?${params}`)
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: '未知错误' }))
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
         throw new Error(errorData.error || `HTTP ${res.status}`)
       }
 
@@ -133,7 +134,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       setTotal(data.total || 0)
     } catch (error) {
       console.error('Failed to fetch sources:', error)
-      toast.error(error instanceof Error ? error.message : '获取采集源列表失败')
+      toast.error(error instanceof Error ? error.message : 'Failed to load sources')
     } finally {
       setLoading(false)
     }
@@ -173,7 +174,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       case 'git-remote-gitee':
         return 'Gitee'
       case 'git-local':
-        return '本地'
+        return 'Local'
       default:
         return type
     }
@@ -181,14 +182,8 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
   function relativeTime(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime()
-    const mins = Math.floor(diff / 60000)
-    if (mins < 1) return '刚刚'
-    if (mins < 60) return `${mins}分钟前`
-    const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours}小时前`
-    const days = Math.floor(hours / 24)
-    if (days < 30) return `${days}天前`
-    return new Date(dateStr).toLocaleDateString()
+    if (diff < 30 * 24 * 60 * 60 * 1000) return formatSystemRelativeTime(dateStr)
+    return formatSystemDate(dateStr)
   }
 
   function getBranchNames(config: CollectSource['config']): string[] {
@@ -204,7 +199,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       return max
     }, 0)
     if (maxCursor) {
-      return new Date(maxCursor).toLocaleString()
+      return formatSystemDateTime(maxCursor)
     }
     return null
   }
@@ -226,26 +221,26 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       const data = await res.json()
 
       if (data.result?.status === 'success') {
-        toast.success(`${data.result.eventsCount} 条事件已同步`)
+        toast.success(`${data.result.eventsCount} events synced`)
         if (data.result.warnings?.length) {
           toast.warning(data.result.warnings.join('\n'))
         }
       } else if (data.result?.autoDisabled) {
-        toast.error('路径不存在，已自动标记为不可用')
+        toast.error('Path not found; source marked unavailable')
       } else {
-        toast.error(data.error || '同步失败')
+        toast.error(data.error || 'Sync failed')
       }
 
       fetchSources()
     } catch (error) {
-      toast.error('同步失败')
+      toast.error('Sync failed')
     } finally {
       setSyncingIds(prev => { const n = new Set(prev); n.delete(sourceId); return n })
     }
   }
 
   async function handleResync(sourceId: number) {
-    if (!confirm('重新同步将拉取全部历史 commit（已存在的不会重复入库），确定继续？')) return
+    if (!confirm('Resync will fetch all historical commits without duplicating existing records. Continue?')) return
     setSyncingIds(prev => new Set(prev).add(sourceId))
     try {
       const res = await fetch('/api/collect/git-remote/sync', {
@@ -256,19 +251,19 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       const data = await res.json()
 
       if (data.result?.status === 'success') {
-        toast.success(`重新同步完成，新增 ${data.result.eventsCount} 条事件`)
+        toast.success(`Resync complete. Added ${data.result.eventsCount} events`)
         if (data.result.warnings?.length) {
           toast.warning(data.result.warnings.join('\n'))
         }
       } else if (data.result?.autoDisabled) {
-        toast.error('路径不存在，已自动标记为不可用')
+        toast.error('Path not found; source marked unavailable')
       } else {
-        toast.error(data.error || '重新同步失败')
+        toast.error(data.error || 'Resync failed')
       }
 
       fetchSources()
     } catch (error) {
-      toast.error('重新同步失败')
+      toast.error('Resync failed')
     } finally {
       setSyncingIds(prev => { const n = new Set(prev); n.delete(sourceId); return n })
     }
@@ -285,12 +280,12 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       const data = await res.json()
 
       if (res.ok && data.result?.status === 'success') {
-        toast.success('仓库 Fetch 完成')
+        toast.success('Repository fetch complete')
       } else {
-        toast.error(data.error || '仓库 Fetch 失败')
+        toast.error(data.error || 'Repository fetch failed')
       }
     } catch {
-      toast.error('仓库 Fetch 失败')
+      toast.error('Repository fetch failed')
     } finally {
       setFetchingIds(prev => { const n = new Set(prev); n.delete(sourceId); return n })
     }
@@ -309,18 +304,18 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       })
       if (!res.ok) {
         setSources(prev => prev.map(s => s.id === sourceId ? { ...s, status: currentStatus as any, enabled: currentStatus === 'enabled' } : s))
-        toast.error('更新状态失败')
+        toast.error('Failed to update status')
       }
     } catch {
       setSources(prev => prev.map(s => s.id === sourceId ? { ...s, status: currentStatus as any, enabled: currentStatus === 'enabled' } : s))
-      toast.error('更新状态失败')
+      toast.error('Failed to update status')
     } finally {
       setTogglingIds(prev => { const n = new Set(prev); n.delete(sourceId); return n })
     }
   }
 
   async function handleDelete(sourceId: number) {
-    if (!confirm('确定要删除此采集源吗？')) return
+    if (!confirm('Delete this source?')) return
 
     try {
       const res = await fetch(`/api/collect/sources/${sourceId}`, {
@@ -329,17 +324,17 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       const data = await res.json()
 
       if (data.success) {
-        toast.success('删除成功')
+        toast.success('Deleted successfully')
         if (sources.length === 1 && page > 1) {
           setPage(page - 1)
         } else {
           fetchSources()
         }
       } else {
-        toast.error(data.error || '删除失败')
+        toast.error(data.error || 'Delete failed')
       }
     } catch (error) {
-      toast.error('删除失败')
+      toast.error('Delete failed')
     }
   }
 
@@ -380,14 +375,14 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       const data = await res.json()
 
       if (data.success) {
-        toast.success(`成功更新 ${data.updatedCount} 个采集源的项目类型`)
+        toast.success(`Updated project scope for ${data.updatedCount} sources`)
         setSelectedIds(new Set())
         fetchSources()
       } else {
-        toast.error(data.error || '更新失败')
+        toast.error(data.error || 'Update failed')
       }
     } catch (error) {
-      toast.error('更新失败')
+      toast.error('Update failed')
     } finally {
       setBulkUpdating(false)
     }
@@ -395,7 +390,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return
-    if (!confirm(`确定要删除选中的 ${selectedIds.size} 个采集源吗？`)) return
+    if (!confirm(`Delete the ${selectedIds.size} selected sources?`)) return
 
     try {
       setBulkUpdating(true)
@@ -408,7 +403,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       const data = await res.json()
 
       if (data.success) {
-        toast.success(`成功删除 ${data.deletedCount} 个采集源`)
+        toast.success(`Deleted ${data.deletedCount} sources`)
         if (selectedIds.size >= sources.length && page > 1) {
           setSelectedIds(new Set())
           setPage(page - 1)
@@ -417,10 +412,10 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
           fetchSources()
         }
       } else {
-        toast.error(data.error || '删除失败')
+        toast.error(data.error || 'Delete failed')
       }
     } catch {
-      toast.error('删除失败')
+      toast.error('Delete failed')
     } finally {
       setBulkUpdating(false)
     }
@@ -461,7 +456,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
   }
 
   if (loading && sources.length === 0) {
-    return <div className="text-center py-8">加载中...</div>
+    return <div className="text-center py-8">Loading...</div>
   }
 
   return (
@@ -472,7 +467,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
           <Input
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder="搜索名称…"
+            placeholder="Search by name…"
             className="h-8 pl-8 text-sm"
           />
           {searchInput && (
@@ -484,13 +479,13 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="类型筛选">
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="Filter by type">
           {[
-            { value: '', label: '全部' },
+            { value: '', label: 'All' },
             { value: 'git-remote-github', label: 'GitHub' },
             { value: 'git-remote-gitlab', label: 'GitLab' },
             { value: 'git-remote-gitee', label: 'Gitee' },
-            { value: 'git-local', label: '本地' },
+            { value: 'git-local', label: 'Local' },
           ].map(option => (
             <label
               key={option.value}
@@ -517,12 +512,12 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             </label>
           ))}
         </div>
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="同步状态筛选">
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="Filter by sync status">
           {[
-            { value: '', label: '全部' },
-            { value: 'success', label: '成功' },
-            { value: 'failure', label: '失败' },
-            { value: 'never', label: '未同步' },
+            { value: '', label: 'All' },
+            { value: 'success', label: 'Success' },
+            { value: 'failure', label: 'Failed' },
+            { value: 'never', label: 'Never synced' },
           ].map(option => (
             <label
               key={option.value}
@@ -549,12 +544,12 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             </label>
           ))}
         </div>
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="采集源状态筛选">
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="Filter by source status">
           {[
-            { value: '', label: '全部' },
-            { value: 'enabled', label: '启用' },
-            { value: 'disabled', label: '禁用' },
-            { value: 'unavailable', label: '不可用' },
+            { value: '', label: 'All' },
+            { value: 'enabled', label: 'Enabled' },
+            { value: 'disabled', label: 'Disabled' },
+            { value: 'unavailable', label: 'Unavailable' },
           ].map(option => (
             <label
               key={option.value}
@@ -581,11 +576,11 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
             </label>
           ))}
         </div>
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="项目范围筛选">
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="Filter by project scope">
           {[
-            { value: '', label: '全部' },
-            { value: 'work', label: '工作' },
-            { value: 'personal', label: '个人' },
+            { value: '', label: 'All' },
+            { value: 'work', label: 'Work' },
+            { value: 'personal', label: 'Personal' },
           ].map(option => (
             <label
               key={option.value}
@@ -614,7 +609,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
         </div>
         {(searchTerm || typeFilter || syncStatusFilter || sourceStatusFilter || scopeFilter) && (
           <span className="text-xs text-muted-foreground">
-            找到 {total} 个结果
+            {total} results found
           </span>
         )}
       </div>
@@ -622,16 +617,16 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       {total === 0 && !loading ? (
         !searchTerm && !typeFilter && !syncStatusFilter && !sourceStatusFilter && !scopeFilter ? (
           <div className="border rounded-lg py-8 text-center">
-            <p className="text-muted-foreground mb-4">暂无采集源</p>
+            <p className="text-muted-foreground mb-4">No sources yet</p>
             <Link href="/collect/new">
               <Button variant="outline">
-                添加采集源
+                Add source
               </Button>
             </Link>
           </div>
         ) : (
           <div className="text-center py-12 text-muted-foreground text-sm">
-            没有找到
+            No results found
           </div>
         )
       ) : (
@@ -648,27 +643,27 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                   />
                 </th>
                 <th className="sticky left-10 z-10 bg-muted-30-solid px-3 py-2.5 text-left min-w-[150px]">
-                  <SortHeader column="name" label="名称" />
+                  <SortHeader column="name" label="Name" />
                 </th>
                 <th className="px-3 py-2.5 text-left min-w-[90px]">
-                  <SortHeader column="type" label="类型" />
+                  <SortHeader column="type" label="Type" />
                 </th>
-                <th className="px-3 py-2.5 text-left min-w-[140px]">仓库</th>
-                <th className="px-3 py-2.5 text-left min-w-[120px]">分支</th>
-                <th className="px-3 py-2.5 text-left min-w-[100px]">别名</th>
-                <th className="px-3 py-2.5 text-left min-w-[150px]">邮箱</th>
+                <th className="px-3 py-2.5 text-left min-w-[140px]">Repository</th>
+                <th className="px-3 py-2.5 text-left min-w-[120px]">Branches</th>
+                <th className="px-3 py-2.5 text-left min-w-[100px]">Aliases</th>
+                <th className="px-3 py-2.5 text-left min-w-[150px]">Emails</th>
                 <th className="px-3 py-2.5 text-left min-w-[80px]">
-                  <SortHeader column="projectScope" label="项目范围" />
+                  <SortHeader column="projectScope" label="Project scope" />
                 </th>
                 <th className="px-3 py-2.5 text-left min-w-[90px]">
-                  <SortHeader column="status" label="状态" />
+                  <SortHeader column="status" label="Status" />
                 </th>
-                <th className="px-3 py-2.5 text-left min-w-[80px]">同步</th>
+                <th className="px-3 py-2.5 text-left min-w-[80px]">Sync</th>
                 <th className="px-3 py-2.5 text-left min-w-[100px]">
-                  <SortHeader column="lastSyncAt" label="最近同步" />
+                  <SortHeader column="lastSyncAt" label="Last sync" />
                 </th>
-                <th className="px-3 py-2.5 text-left min-w-[140px]">同步至</th>
-                <th className="sticky right-0 z-10 border-l bg-muted-30-solid px-3 py-2.5 text-left min-w-[120px]">操作</th>
+                <th className="px-3 py-2.5 text-left min-w-[140px]">Synced through</th>
+                <th className="sticky right-0 z-10 border-l bg-muted-30-solid px-3 py-2.5 text-left min-w-[120px]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -724,12 +719,12 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                       {source.projectScope === 'work' ? (
                         <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                           <Briefcase className="h-3 w-3" />
-                          工作项目
+                          Work project
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
                           <User className="h-3 w-3" />
-                          个人项目
+                          Personal project
                         </span>
                       )}
                     </td>
@@ -744,7 +739,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                             ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 cursor-not-allowed'
                             : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 cursor-pointer'
                         } ${isToggling ? 'opacity-50 pointer-events-none' : ''}`}
-                        title={sourceStatus === 'enabled' ? '点击禁用' : sourceStatus === 'unavailable' ? '路径不可用，需手动恢复' : '点击启用'}
+                        title={sourceStatus === 'enabled' ? 'Click to disable' : sourceStatus === 'unavailable' ? 'Path unavailable; restore manually' : 'Click to enable'}
                       >
                         {isToggling ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -755,7 +750,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                         ) : (
                           <ToggleLeft className="h-3 w-3" />
                         )}
-                        {sourceStatus === 'enabled' ? '启用' : sourceStatus === 'unavailable' ? '不可用' : '禁用'}
+                        {sourceStatus === 'enabled' ? 'Enabled' : sourceStatus === 'unavailable' ? 'Unavailable' : 'Disabled'}
                       </button>
                     </td>
                     <td className="px-3 py-2.5">
@@ -772,7 +767,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                         source.lastSyncStatus === 'failure' ? 'text-red-600 dark:text-red-400 font-medium' :
                         source.lastSyncStatus === 'success' ? 'text-green-700 dark:text-green-400' : ''
                       }`}>
-                        {source.lastSyncAt ? relativeTime(source.lastSyncAt) : '未同步'}
+                        {source.lastSyncAt ? relativeTime(source.lastSyncAt) : 'Never synced'}
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
@@ -786,7 +781,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                           className="h-7 px-2 text-xs"
                           disabled={isSourceBusy || source.config.authorEmails.length === 0}
                           onClick={() => handleSync(source.id)}
-                          title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : '同步'}
+                          title={source.config.authorEmails.length === 0 ? 'Configure emails first' : 'Sync'}
                         >
                           {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                         </Button>
@@ -794,7 +789,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                           size="sm"
                           variant="outline"
                           className="h-7 w-7 p-0"
-                          title={source.config.authorEmails.length === 0 ? '请先配置邮箱' : '重新同步（拉取全部历史，不重复入库）'}
+                          title={source.config.authorEmails.length === 0 ? 'Configure emails first' : 'Resync (fetch all history without duplicates)'}
                           disabled={isSourceBusy || source.config.authorEmails.length === 0}
                           onClick={() => handleResync(source.id)}
                         >
@@ -805,8 +800,8 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                             size="sm"
                             variant="outline"
                             className="h-7 w-7 p-0"
-                            title="手动 Fetch"
-                            aria-label="手动 Fetch"
+                            title="Manual fetch"
+                            aria-label="Manual fetch"
                             disabled={isSourceBusy}
                             onClick={() => handleFetch(source.id)}
                           >
@@ -834,7 +829,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4 px-1">
           <span className="text-xs text-muted-foreground">
-            共 {total} 个，第 {page}/{totalPages} 页
+            {total} total · Page {page} of {totalPages}
           </span>
           <div className="flex gap-1">
             <Button
@@ -884,7 +879,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       {selectedIds.size > 0 && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-background border rounded-lg shadow-lg px-4 py-3 flex items-center gap-4 z-50">
           <span className="text-sm font-medium">
-            已选择 {selectedIds.size} 项
+            {selectedIds.size} selected
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -892,28 +887,28 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
               disabled={bulkUpdating}
               className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              设为工作项目
+              Set as work
             </button>
             <button
               onClick={() => handleBulkUpdateScope('personal')}
               disabled={bulkUpdating}
               className="px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              设为个人项目
+              Set as personal
             </button>
             <button
               onClick={handleBulkDelete}
               disabled={bulkUpdating}
               className="px-3 py-1.5 text-sm bg-destructive/10 text-destructive rounded-md hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              删除
+              Delete
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
               disabled={bulkUpdating}
               className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
             >
-              取消
+              Cancel
             </button>
           </div>
         </div>

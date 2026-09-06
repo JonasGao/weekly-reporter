@@ -19,15 +19,15 @@ function failure(error: unknown) {
     return NextResponse.json({ error: error.message, code: error.code }, { status: error.status })
   }
   console.error('generation session route error:', error)
-  return NextResponse.json({ error: '生成会话操作失败', code: 'GENERATION_SESSION_ERROR' }, { status: 500 })
+  return NextResponse.json({ error: 'Generation session operation failed', code: 'GENERATION_SESSION_ERROR' }, { status: 500 })
 }
 
 export async function GET(_request: Request, { params }: RouteContext) {
   const ids = idsFrom(await params)
-  if (!ids) return NextResponse.json({ error: '无效的ID', code: 'INVALID_ID' }, { status: 400 })
+  if (!ids) return NextResponse.json({ error: 'Invalid ID', code: 'INVALID_ID' }, { status: 400 })
   try {
     const session = await getGenerationSessionDetail(ids.reportId, ids.sessionId)
-    if (!session) return NextResponse.json({ error: '生成会话不存在', code: 'SESSION_NOT_FOUND' }, { status: 404 })
+    if (!session) return NextResponse.json({ error: 'Generation session not found', code: 'SESSION_NOT_FOUND' }, { status: 404 })
     return NextResponse.json(session)
   } catch (error) {
     return failure(error)
@@ -36,11 +36,11 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
 export async function PATCH(request: Request, { params }: RouteContext) {
   const ids = idsFrom(await params)
-  if (!ids) return NextResponse.json({ error: '无效的ID', code: 'INVALID_ID' }, { status: 400 })
+  if (!ids) return NextResponse.json({ error: 'Invalid ID', code: 'INVALID_ID' }, { status: 400 })
   try {
     const body = await request.json()
     if (typeof body.title !== 'string') {
-      return NextResponse.json({ error: '会话标题不能为空', code: 'INVALID_TITLE' }, { status: 400 })
+      return NextResponse.json({ error: 'Session title is required', code: 'INVALID_TITLE' }, { status: 400 })
     }
     return NextResponse.json(await renameGenerationSession(ids.reportId, ids.sessionId, body.title))
   } catch (error) {

@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ reports: results, total, page, pageSize })
   } catch (error) {
     console.error('[/api/reports] GET error:', error)
-    return NextResponse.json({ error: '获取周报列表失败', code: 'FETCH_ERROR' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch reports', code: 'FETCH_ERROR' }, { status: 500 })
   }
 }
 
@@ -72,9 +72,9 @@ export async function POST(request: Request) {
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json({ error: '数据验证失败', code: 'VALIDATION_ERROR', details: error }, { status: 400 })
+      return NextResponse.json({ error: 'Validation failed', code: 'VALIDATION_ERROR', details: error }, { status: 400 })
     }
     console.error('[/api/reports] POST error:', error)
-    return NextResponse.json({ error: '创建周报失败', code: 'CREATE_ERROR' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to create report', code: 'CREATE_ERROR' }, { status: 500 })
   }
 }

@@ -23,6 +23,7 @@ import {
   buildSourceOverview,
   FINAL_REPORT_TOOL_RULES,
 } from './context'
+import { isEmptySourceDraft } from '@/lib/reports/source-draft'
 
 const MAX_PROPOSAL_CHARACTERS = 200_000
 
@@ -90,19 +91,19 @@ export async function createGenerationSession(input: {
     getTemplateSelection(input.templateId),
     getSystemPrompt('generate'),
   ])
-  if (!bundle) error('周报不存在', 'REPORT_NOT_FOUND', 404)
-  if (!template) error('模板不存在', 'TEMPLATE_NOT_FOUND', 404)
+  if (!bundle) error('Report not found', 'REPORT_NOT_FOUND', 404)
+  if (!template) error('Template not found', 'TEMPLATE_NOT_FOUND', 404)
 
   const reportVariant = bundle.variants.find((item) => item.variant === input.variant)
-  if (!reportVariant) error('周报版本不存在', 'VARIANT_NOT_FOUND', 404)
-  if (reportVariant.sourceRevision === 0 || reportVariant.sourceDraft === '- 本周暂无事件') {
-    error('没有可用于生成终版的事件', 'EMPTY_SOURCE_DRAFT', 400)
+  if (!reportVariant) error('Report variant not found', 'VARIANT_NOT_FOUND', 404)
+  if (reportVariant.sourceRevision === 0 || isEmptySourceDraft(reportVariant.sourceDraft)) {
+    error('No events are available to generate the final report', 'EMPTY_SOURCE_DRAFT', 400)
   }
 
   const styleKey = input.styleOverride || template.aiStyle || 'formal'
   const style = await getAIStyle(styleKey)
   const now = new Date()
-  const timeLabel = new Intl.DateTimeFormat('zh-CN', {
+  const timeLabel = new Intl.DateTimeFormat(undefined, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -189,12 +190,12 @@ export async function getGenerationSessionDetail(reportId: number, sessionId: nu
 
 export async function renameGenerationSession(reportId: number, sessionId: number, title: string) {
   const trimmed = title.trim()
-  if (!trimmed) error('会话标题不能为空', 'INVALID_TITLE', 400)
+  if (!trimmed) error('Session title is required', 'INVALID_TITLE', 400)
   const updated = await getDb().update(generationSessions).set({
     title: trimmed.slice(0, 120),
     updatedAt: new Date(),
   }).where(and(eq(generationSessions.id, sessionId), eq(generationSessions.reportId, reportId))).returning()
-  if (!updated[0]) error('生成会话不存在', 'SESSION_NOT_FOUND', 404)
+  if (!updated[0]) error('Generation session not found', 'SESSION_NOT_FOUND', 404)
   return updated[0]
 }
 
@@ -203,11 +204,11 @@ export async function archiveGenerationSession(reportId: number, sessionId: numb
   const working = await db.query.generationTurns.findFirst({
     where: and(eq(generationTurns.sessionId, sessionId), eq(generationTurns.status, 'working')),
   })
-  if (working) error('AI 仍在生成，请先停止当前轮次', 'TURN_IN_PROGRESS', 409)
+  if (working) error('AI is still generating; stop the current turn first', 'TURN_IN_PROGRESS', 409)
   const now = new Date()
   const updated = await db.update(generationSessions).set({ status: 'archived', archivedAt: now, updatedAt: now })
     .where(and(eq(generationSessions.id, sessionId), eq(generationSessions.reportId, reportId))).returning()
-  if (!updated[0]) error('生成会话不存在', 'SESSION_NOT_FOUND', 404)
+  if (!updated[0]) error('Generation session not found', 'SESSION_NOT_FOUND', 404)
   return updated[0]
 }
 
@@ -217,20 +218,20 @@ export function startGenerationTurn(input: {
   userMessage: string
 }) {
   const userMessage = input.userMessage.trim()
-  if (!userMessage) error('消息不能为空', 'EMPTY_MESSAGE', 400)
-  if (input.session.status !== 'active') error('会话已归档', 'SESSION_ARCHIVED', 409)
+  if (!userMessage) error('Message is required', 'EMPTY_MESSAGE', 400)
+  if (input.session.status !== 'active') error('Session is archived', 'SESSION_ARCHIVED', 409)
 
   const db = getDb()
   const now = new Date()
   return db.transaction((tx) => {
     const currentVariant = tx.select().from(reportVariants).where(eq(reportVariants.id, input.session.reportVariantId)).get()
     if (!currentVariant || currentVariant.sourceRevision !== input.session.sourceRevision) {
-      error('原稿已更新，请开启新会话', 'SOURCE_REVISION_CONFLICT', 409)
+      error('The source draft has changed; start a new session', 'SOURCE_REVISION_CONFLICT', 409)
     }
     const active = tx.select().from(generationTurns).where(
       and(eq(generationTurns.sessionId, input.session.id), eq(generationTurns.status, 'working')),
     ).get()
-    if (active) error('当前会话已有生成中的轮次', 'TURN_IN_PROGRESS', 409)
+    if (active) error('This session already has a turn in progress', 'TURN_IN_PROGRESS', 409)
 
     const turn = tx.insert(generationTurns).values({
       sessionId: input.session.id,
@@ -271,7 +272,7 @@ export async function finishGenerationTurn(turnId: number, status: 'completed' |
   })
   if (statusPart) {
     await db.update(generationMessageParts).set({
-      content: status === 'completed' ? '完成' : status === 'aborted' ? '已停止' : '生成失败',
+      content: status === 'completed' ? 'Completed' : status === 'aborted' ? 'Stopped' : 'Generation failed',
       data: { status },
     }).where(eq(generationMessageParts.id, statusPart.id))
   }
@@ -289,21 +290,21 @@ export async function createGenerationProposal(input: {
 }): Promise<GenerationProposal> {
   const content = input.content.trim()
   const summary = input.summary.map((item) => item.trim()).filter(Boolean)
-  if (!content) error('候选终版不能为空', 'EMPTY_PROPOSAL', 400)
-  if (content.length > MAX_PROPOSAL_CHARACTERS) error('候选终版内容过长', 'PROPOSAL_TOO_LARGE', 400)
+  if (!content) error('Proposal content is required', 'EMPTY_PROPOSAL', 400)
+  if (content.length > MAX_PROPOSAL_CHARACTERS) error('Proposal content is too long', 'PROPOSAL_TOO_LARGE', 400)
 
   const db = getDb()
   return db.transaction((tx) => {
     const currentVariant = tx.select().from(reportVariants).where(eq(reportVariants.id, input.session.reportVariantId)).get()
     if (!currentVariant || currentVariant.sourceRevision !== input.session.sourceRevision) {
-      error('原稿已更新，不能提交基于旧原稿的候选终版', 'SOURCE_REVISION_CONFLICT', 409)
+      error('The source draft changed; this proposal is based on an older version', 'SOURCE_REVISION_CONFLICT', 409)
     }
     const turn = tx.select().from(generationTurns).where(eq(generationTurns.id, input.turnId)).get()
     if (!turn || turn.sessionId !== input.session.id || turn.status !== 'working') {
-      error('当前生成轮次已结束', 'TURN_NOT_ACTIVE', 409)
+      error('The current generation turn has ended', 'TURN_NOT_ACTIVE', 409)
     }
     const existingForTurn = tx.select().from(generationProposals).where(eq(generationProposals.turnId, input.turnId)).get()
-    if (existingForTurn) error('每轮最多提交一个候选终版', 'PROPOSAL_LIMIT', 409)
+    if (existingForTurn) error('Only one proposal may be submitted per turn', 'PROPOSAL_LIMIT', 409)
 
     tx.update(generationProposals).set({ status: 'superseded' })
       .where(and(eq(generationProposals.sessionId, input.session.id), eq(generationProposals.status, 'pending'))).run()
@@ -337,15 +338,15 @@ export async function acceptGenerationProposal(input: {
     const session = tx.select().from(generationSessions).where(
       and(eq(generationSessions.id, input.sessionId), eq(generationSessions.reportId, input.reportId)),
     ).get()
-    if (!session) error('生成会话不存在', 'SESSION_NOT_FOUND', 404)
+    if (!session) error('Generation session not found', 'SESSION_NOT_FOUND', 404)
     const proposal = tx.select().from(generationProposals).where(
       and(eq(generationProposals.id, input.proposalId), eq(generationProposals.sessionId, input.sessionId)),
     ).get()
-    if (!proposal) error('候选终版不存在', 'PROPOSAL_NOT_FOUND', 404)
-    if (proposal.status === 'superseded') error('该候选终版已被更新版本替代', 'PROPOSAL_SUPERSEDED', 409)
+    if (!proposal) error('Proposal not found', 'PROPOSAL_NOT_FOUND', 404)
+    if (proposal.status === 'superseded') error('This proposal has been superseded', 'PROPOSAL_SUPERSEDED', 409)
     const currentVariant = tx.select().from(reportVariants).where(eq(reportVariants.id, session.reportVariantId)).get()
     if (!currentVariant || currentVariant.sourceRevision !== session.sourceRevision || proposal.sourceRevision !== session.sourceRevision) {
-      error('原稿已更新，请基于最新原稿开启新会话', 'SOURCE_REVISION_CONFLICT', 409)
+      error('The source draft changed; start a new session from the latest draft', 'SOURCE_REVISION_CONFLICT', 409)
     }
 
     const updatedVariant = tx.update(reportVariants).set({

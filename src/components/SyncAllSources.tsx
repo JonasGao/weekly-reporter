@@ -45,14 +45,14 @@ export function SyncAllSourcesProvider({ children }: { children: ReactNode }) {
         if (!Array.isArray(data.results)) {
           throw new Error(
             !response.ok
-              ? data.error || `同步失败: ${response.status} ${response.statusText}`
-              : '同步响应格式无效',
+              ? data.error || `Sync failed: ${response.status} ${response.statusText}`
+              : 'Invalid sync response format',
           )
         }
         const results = data.results as SyncResult[]
         if (!response.ok && results.length === 0) {
           throw new Error(
-            data.error || `同步失败: ${response.status} ${response.statusText}`,
+            data.error || `Sync failed: ${response.status} ${response.statusText}`,
           )
         }
         setCompletionVersion((version) => version + 1)
@@ -95,7 +95,7 @@ export function SyncAllSourcesButton() {
     try {
       const results = await runSyncAll()
       if (results.length === 0) {
-        toast.info('没有符合条件的采集源可同步')
+        toast.info('No eligible sources to sync')
         return
       }
       const failedSources = results.filter((result) => result.status === 'failed')
@@ -107,14 +107,14 @@ export function SyncAllSourcesButton() {
       if (failedSources.length > 0) {
         const firstFailure = failedSources[0]
         const branchFailureSuffix = failedBranches.length > 0
-          ? `，另有 ${failedBranches.length} 个分支失败`
+          ? `; ${failedBranches.length} more branches failed`
           : ''
         toast.error(
-          `同步完成：成功 ${results.length - failedSources.length} 个，失败 ${failedSources.length} 个${branchFailureSuffix}`,
+          `Sync complete: ${results.length - failedSources.length} succeeded, ${failedSources.length} failed${branchFailureSuffix}`,
           {
-            description: `${firstFailure.sourceName}：${firstFailure.error ?? '同步失败'}`,
+          description: `${firstFailure.sourceName}: ${firstFailure.error ?? 'Sync failed'}`,
             action: {
-              label: '查看详情',
+              label: 'View details',
               onClick: () => router.push('/collect'),
             },
           },
@@ -123,19 +123,19 @@ export function SyncAllSourcesButton() {
       }
       if (failedBranches.length > 0) {
         const firstFailure = failedBranches[0]
-        toast.warning(`同步完成，但有 ${failedBranches.length} 个分支失败`, {
-          description: `${firstFailure.sourceName} / ${firstFailure.branch.name}：${firstFailure.branch.error ?? '同步失败'}`,
+        toast.warning(`Sync complete, but ${failedBranches.length} branches failed`, {
+          description: `${firstFailure.sourceName} / ${firstFailure.branch.name}: ${firstFailure.branch.error ?? 'Sync failed'}`,
           action: {
-            label: '查看详情',
+              label: 'View details',
             onClick: () => router.push('/collect'),
           },
         })
         return
       }
       const eventsCount = results.reduce((total, result) => total + result.eventsCount, 0)
-      toast.success(`同步完成：成功 ${results.length} 个，新增 ${eventsCount} 条事件`)
+      toast.success(`Sync complete: ${results.length} succeeded, ${eventsCount} new events`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '同步失败')
+      toast.error(error instanceof Error ? error.message : 'Sync failed')
     }
   }
 
@@ -145,8 +145,8 @@ export function SyncAllSourcesButton() {
       variant="ghost"
       size="icon"
       disabled={isSyncing}
-      aria-label="同步全部采集源"
-      title="同步全部采集源"
+      aria-label="Sync all sources"
+      title="Sync all sources"
       onClick={handleSync}
     >
       {isSyncing ? (
@@ -168,14 +168,14 @@ export function CollectPageSyncButton({
   const { isSyncing, runSyncAll } = useSyncAllSources()
 
   async function handleSync() {
-    if (!window.confirm('确定要同步所有已启用的采集源吗？')) return
+    if (!window.confirm('Sync all enabled sources?')) return
 
     onStart?.()
     try {
       const results = await runSyncAll()
       if (results.length > 0) onResults(results)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '同步失败')
+      toast.error(error instanceof Error ? error.message : 'Sync failed')
     }
   }
 
@@ -191,7 +191,7 @@ export function CollectPageSyncButton({
       ) : (
         <RefreshCw className="h-4 w-4 mr-2" />
       )}
-      {isSyncing ? '同步中...' : '全部同步'}
+      {isSyncing ? 'Syncing...' : 'Sync all'}
     </Button>
   )
 }

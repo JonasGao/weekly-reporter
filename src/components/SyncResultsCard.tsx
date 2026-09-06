@@ -51,7 +51,7 @@ export function SyncResultsCard({ results, onClose, onSourceChanged }: SyncResul
   }
 
   const handleDeleteBranch = async (sourceId: number, branchName: string) => {
-    if (!confirm(`确定从采集源中删除分支 ${branchName} 吗？`)) return
+    if (!confirm(`Remove branch ${branchName} from this source?`)) return
 
     const key = `${sourceId}-${branchName}`
     setDeletingBranches(prev => new Set(prev).add(key))
@@ -65,7 +65,7 @@ export function SyncResultsCard({ results, onClose, onSourceChanged }: SyncResul
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || '删除分支失败')
+        throw new Error(data.error || 'Failed to remove branch')
       }
 
       // 从本地结果中移除该分支
@@ -85,9 +85,9 @@ export function SyncResultsCard({ results, onClose, onSourceChanged }: SyncResul
       // 通知父组件刷新列表
       onSourceChanged?.()
 
-      toast.success(`分支 ${branchName} 已删除`)
+      toast.success(`Branch ${branchName} removed`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '删除分支失败')
+      toast.error(error instanceof Error ? error.message : 'Failed to remove branch')
     } finally {
       setDeletingBranches(prev => {
         const next = new Set(prev)
@@ -101,15 +101,15 @@ export function SyncResultsCard({ results, onClose, onSourceChanged }: SyncResul
     <Card className="mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-3">
-          <span>同步结果</span>
+          <span>Sync results</span>
           <div className="flex gap-2">
             <Badge variant="default" className="bg-green-600">
-              {successCount} 成功
+              {successCount} succeeded
             </Badge>
             <Badge
               variant={failedCount > 0 ? 'destructive' : 'secondary'}
             >
-              {failedCount} 失败
+              {failedCount} failed
             </Badge>
           </div>
         </CardTitle>
@@ -179,11 +179,11 @@ function SyncResultRow({ result, expanded, onToggle, deletingBranches, onDeleteB
                 >
                   {expanded ? (
                     <>
-                      收起 <ChevronUp className="h-3 w-3 ml-1" />
+                      Collapse <ChevronUp className="h-3 w-3 ml-1" />
                     </>
                   ) : (
                     <>
-                      展开 <ChevronDown className="h-3 w-3 ml-1" />
+                      Expand <ChevronDown className="h-3 w-3 ml-1" />
                     </>
                   )}
                 </Button>
@@ -207,7 +207,7 @@ function SyncResultRow({ result, expanded, onToggle, deletingBranches, onDeleteB
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm">{sourceName}</div>
           <div className="text-sm text-muted-foreground mt-1">
-            同步成功，但部分分支失败
+            Sync succeeded, but some branches failed
           </div>
           <div className="mt-2 space-y-1.5">
             {branches.map((branch) => {
@@ -246,7 +246,7 @@ function SyncResultRow({ result, expanded, onToggle, deletingBranches, onDeleteB
                       className="h-5 w-5 shrink-0 hover:text-destructive"
                       onClick={() => onDeleteBranch(result.sourceId, branch.name)}
                       disabled={isDeleting}
-                      title="删除此分支"
+                      title="Remove this branch"
                     >
                       {isDeleting ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -274,7 +274,7 @@ function SyncResultRow({ result, expanded, onToggle, deletingBranches, onDeleteB
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm">{sourceName}</div>
           <div className="text-sm text-muted-foreground mt-1">
-            同步成功，但部分路径失败
+            Sync succeeded, but some paths failed
           </div>
           <ul className="mt-2 space-y-1">
             {warnings.map((warning, idx) => (

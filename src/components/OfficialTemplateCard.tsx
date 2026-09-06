@@ -19,7 +19,7 @@ export function OfficialTemplateCard({ template, onClone, onSaveAs, onView }: Of
           <p className="text-sm text-muted-foreground">{template.description}</p>
           {template.tags.length > 0 && (
             <div className="text-xs text-muted-foreground">
-              标签: {template.tags.join(', ')}
+              Tags: {template.tags.join(', ')}
             </div>
           )}
         </div>
@@ -31,21 +31,21 @@ export function OfficialTemplateCard({ template, onClone, onSaveAs, onView }: Of
           size="sm"
           onClick={() => onView(template.id)}
         >
-          查看详情
+          View details
         </Button>
         <Button
           variant="outline"
           size="sm"
           onClick={() => onClone(template.id)}
         >
-          快速克隆
+          Quick clone
         </Button>
         <Button
           variant="outline"
           size="sm"
           onClick={() => onSaveAs(template.id)}
         >
-          另存为
+          Save as
         </Button>
       </div>
     </div>

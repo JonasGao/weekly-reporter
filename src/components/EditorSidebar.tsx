@@ -42,7 +42,7 @@ export function EditorSidebar({
     <div className="h-full flex flex-col bg-background border-l border-border">
       {/* Header with Style Selector */}
       <div className="p-4 border-b border-border space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">编辑助手</h2>
+        <h2 className="text-lg font-semibold text-foreground">Editor Assistant</h2>
         <StyleSelector
           value={styleOverride}
           onChange={handleStyleChange}
@@ -60,11 +60,11 @@ export function EditorSidebar({
           <TabsList className="w-full">
             <TabsTrigger value="ai" className="flex-1 gap-1.5">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>AI 助手</span>
+              <span>AI Assistant</span>
             </TabsTrigger>
             <TabsTrigger value="snippets" className="flex-1 gap-1.5">
               <BookOpen className="h-3.5 w-3.5" />
-              <span>片段库</span>
+              <span>Snippet Library</span>
             </TabsTrigger>
           </TabsList>
         </div>

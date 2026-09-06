@@ -16,6 +16,13 @@ const GIT_SOURCES = new Set([
   'git-remote-gitee',
 ])
 
+export const EMPTY_SOURCE_DRAFT = '- No events this week'
+const LEGACY_EMPTY_SOURCE_DRAFT = '- 本周暂无事件'
+
+export function isEmptySourceDraft(value: string): boolean {
+  return value === EMPTY_SOURCE_DRAFT || value === LEGACY_EMPTY_SOURCE_DRAFT
+}
+
 export interface DraftEvent {
   id?: number
   eventTime: Date
@@ -83,7 +90,7 @@ export function buildSourceDraft(
   const draftEvents = toDraftEvents(events, sourceScopes).filter((event) => isIncluded(event, variant))
 
   if (draftEvents.length === 0) {
-    return '- 本周暂无事件'
+    return EMPTY_SOURCE_DRAFT
   }
 
   const gitEvents = draftEvents.filter((event) => isGitEvent(event) && event.metadata?.repo)
@@ -141,7 +148,7 @@ export function buildSourceDraft(
     }
   }
 
-  return lines.length > 0 ? lines.join('\n') : '- 本周暂无事件'
+  return lines.length > 0 ? lines.join('\n') : EMPTY_SOURCE_DRAFT
 }
 
 export function classifyEventForVariants(

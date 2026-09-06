@@ -1,12 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { formatDistanceToNow, format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Edit2, Trash2, FileText, GitBranch } from 'lucide-react'
 import type { RawEvent } from '@/lib/db/schema'
+import { formatSystemDateTime, formatSystemRelativeTime } from '@/lib/time-format'
 
 interface EventCardProps {
   event: RawEvent
@@ -45,16 +44,14 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
     const date = eventTime instanceof Date ? eventTime : new Date(eventTime)
     const msDiff = new Date().getTime() - date.getTime()
     const twoHoursMs = 2 * 60 * 60 * 1000
-    if (msDiff <= twoHoursMs) {
-      return formatDistanceToNow(date, { addSuffix: true, locale: zhCN })
-    }
-    return format(date, 'yyyy-MM-dd HH:mm')
+    if (msDiff <= twoHoursMs) return formatSystemRelativeTime(date)
+    return formatSystemDateTime(date)
   }
 
   const handleDelete = async () => {
     if (!onDelete) return
 
-    if (confirm('确认删除此记录？')) {
+    if (confirm('Delete this record?')) {
       setLoading(true)
       try {
         await onDelete(event.id)
@@ -85,10 +82,10 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
                 />
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleSubmit} disabled={loading}>
-                    保存
+                    Save
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={loading}>
-                    取消
+                    Cancel
                   </Button>
                 </div>
               </div>
@@ -103,7 +100,9 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
                 <GitBranch className="h-3 w-3" />
               )}
               <span>
+                <span suppressHydrationWarning>
                 {renderTime(event.eventTime)}
+                </span>
               </span>
               {event.metadata?.repo && (
                 <>
@@ -120,7 +119,7 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
                   <span
                     title={
                       event.metadata?.aliases && event.metadata.aliases.length > 0
-                        ? `别名: ${event.metadata.aliases.join(', ')}`
+                        ? `Aliases: ${event.metadata.aliases.join(', ')}`
                         : undefined
                     }
                   >

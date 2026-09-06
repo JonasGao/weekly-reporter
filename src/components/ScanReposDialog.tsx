@@ -91,7 +91,7 @@ export function ScanReposDialog({
     } catch (error) {
       setSuggestions([])
       setShowSuggestions(false)
-      setFetchError('网络错误，无法获取目录列表')
+      setFetchError('Network error. Unable to load directory list.')
     }
   }, [])
   
@@ -136,7 +136,7 @@ export function ScanReposDialog({
   
   async function handleScan() {
     if (!path.trim()) {
-      toast.error('请输入路径')
+      toast.error('Please enter a path')
       return
     }
     
@@ -151,7 +151,7 @@ export function ScanReposDialog({
       }
       
       if (result.repos.length === 0) {
-        toast.info('未发现 Git 仓库')
+      toast.info('No Git repositories found')
         setScanning(false)
         return
       }
@@ -161,9 +161,9 @@ export function ScanReposDialog({
         authorEmails: [],
       })))
       setStep('result')
-      toast.success(`发现 ${result.repos.length} 个 Git 仓库`)
+      toast.success(`Found ${result.repos.length} Git repositories`)
     } catch (error) {
-      toast.error('扫描失败')
+      toast.error('Scan failed')
     } finally {
       setScanning(false)
     }
@@ -193,7 +193,7 @@ export function ScanReposDialog({
     const selected = repos.filter(r => selectedRepos.has(r.path))
     
     if (selected.length === 0) {
-      toast.error('请选择要添加的仓库')
+      toast.error('Select repositories to add')
       return
     }
     
@@ -202,14 +202,14 @@ export function ScanReposDialog({
       const result = await batchAddSources(selected)
       
       if (result.success) {
-        toast.success(result.addedCount > 0 ? `新建 ${result.addedCount} 个采集源` : '没有需要添加的内容')
+        toast.success(result.addedCount > 0 ? `Created ${result.addedCount} sources` : 'Nothing to add')
         onSuccess()
         onClose()
       } else {
-        toast.error(result.error || '添加失败')
+        toast.error(result.error || 'Add failed')
       }
     } catch (error) {
-      toast.error('添加失败')
+      toast.error('Add failed')
     } finally {
       setAdding(false)
     }
@@ -225,12 +225,12 @@ export function ScanReposDialog({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FolderGit2 className="h-5 w-5" />
-                扫描 Git 仓库
+                Scan Git repositories
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">扫描目录</label>
+                <label className="text-sm font-medium">Directory to scan</label>
                 <div className="relative">
                   <Input
                     ref={inputRef}
@@ -264,7 +264,7 @@ export function ScanReposDialog({
                   <p className="text-xs text-destructive">{fetchError}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  输入路径会自动显示子目录补全，支持模糊搜索和 ~ 开头（如 ~/git）
+                  Enter a path to see subdirectory suggestions. Fuzzy search and paths beginning with ~ are supported (for example, ~/git).
                 </p>
               </div>
             </CardContent>
@@ -273,17 +273,17 @@ export function ScanReposDialog({
                 {scanning ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    扫描中...
+                    Scanning...
                   </>
                 ) : (
                   <>
                     <Scan className="h-4 w-4 mr-2" />
-                    扫描
+                    Scan
                   </>
                 )}
               </Button>
               <Button variant="outline" onClick={onClose} disabled={scanning}>
-                取消
+                Cancel
               </Button>
             </CardFooter>
           </>
@@ -292,7 +292,7 @@ export function ScanReposDialog({
         {step === 'result' && (
           <>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">扫描结果 <span className="text-sm font-normal text-muted-foreground">— 找到 {repos.length} 个仓库</span></CardTitle>
+              <CardTitle className="text-base">Scan results <span className="text-sm font-normal text-muted-foreground">— {repos.length} repositories found</span></CardTitle>
             </CardHeader>
             <CardContent className="pb-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-[55vh] overflow-y-auto pr-1">
@@ -313,7 +313,7 @@ export function ScanReposDialog({
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-xs truncate leading-tight">
                         {repo.name}
-                        {repo.alreadyAdded && <span className="text-muted-foreground font-normal ml-1">(已添加)</span>}
+                        {repo.alreadyAdded && <span className="text-muted-foreground font-normal ml-1">(Added)</span>}
                       </p>
                       <p className="text-[11px] text-muted-foreground truncate leading-tight">{repo.path}</p>
                     </div>
@@ -324,21 +324,21 @@ export function ScanReposDialog({
             <CardFooter className="gap-2 pt-2">
               <Button size="sm" variant="outline" onClick={handleSelectAll}>
                 {repos.filter(r => !r.alreadyAdded).every(r => selectedRepos.has(r.path)) && repos.some(r => !r.alreadyAdded)
-                  ? '取消全选' : '全选'}
+                  ? 'Clear all' : 'Select all'}
               </Button>
               <div className="flex-1" />
               <Button size="sm" onClick={handleBatchAdd} disabled={adding || selectedRepos.size === 0}>
                 {adding ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    添加中...
+                    Adding...
                   </>
                 ) : (
-                  `批量添加 (${selectedRepos.size})`
+                  `Add selected (${selectedRepos.size})`
                 )}
               </Button>
               <Button size="sm" variant="outline" onClick={onClose} disabled={adding}>
-                取消
+                Cancel
               </Button>
             </CardFooter>
           </>

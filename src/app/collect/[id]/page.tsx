@@ -18,7 +18,7 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
       const data = await res.json()
       
       if (!res.ok) {
-        toast.error(data.error || '获取采集源失败')
+        toast.error(data.error || 'Failed to load source')
         router.push('/collect')
         return
       }
@@ -41,7 +41,7 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
         enabled: data.enabled,
       })
     } catch (error) {
-      toast.error('获取采集源失败')
+      toast.error('Failed to load source')
       router.push('/collect')
     } finally {
       setLoading(false)
@@ -52,7 +52,7 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
     params.then(p => {
       const sourceId = parseInt(p.id)
       if (isNaN(sourceId)) {
-        toast.error('无效的采集源ID')
+        toast.error('Invalid source ID')
         router.push('/collect')
         return
       }
@@ -64,7 +64,7 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
   if (loading) {
     return (
       <main className="container mx-auto py-8 px-4 max-w-2xl">
-        <div className="text-center">加载中...</div>
+        <div className="text-center">Loading...</div>
       </main>
     )
   }
@@ -75,7 +75,7 @@ export default function EditCollectSourcePage({ params }: { params: Promise<{ id
 
   return (
     <main className="container mx-auto py-8 px-4 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">编辑采集源</h1>
+      <h1 className="text-2xl font-bold mb-6">Edit Source</h1>
       <CollectSourceForm sourceId={id} initialData={initialData} />
     </main>
   )

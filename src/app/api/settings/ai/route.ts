@@ -24,7 +24,7 @@ export async function GET() {
   } catch (error) {
     console.error('GET /api/settings/ai error:', error)
     return NextResponse.json(
-      { error: '获取 AI 配置失败', code: 'FETCH_ERROR' },
+      { error: 'Failed to load AI settings', code: 'FETCH_ERROR' },
       { status: 500 }
     )
   }
@@ -37,7 +37,7 @@ export async function PUT(request: Request) {
 
     if (!apiUrl || typeof apiUrl !== 'string') {
       return NextResponse.json(
-        { error: 'API URL 不能为空', code: 'INVALID_INPUT' },
+        { error: 'API URL is required', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
@@ -46,7 +46,7 @@ export async function PUT(request: Request) {
       new URL(apiUrl)
     } catch {
       return NextResponse.json(
-        { error: 'API URL 格式无效', code: 'INVALID_INPUT' },
+        { error: 'Invalid API URL', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
@@ -61,7 +61,7 @@ export async function PUT(request: Request) {
 
     if (!effectiveApiKey || typeof effectiveApiKey !== 'string') {
       return NextResponse.json(
-        { error: 'API Key 不能为空', code: 'INVALID_INPUT' },
+        { error: 'API key is required', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
@@ -72,14 +72,14 @@ export async function PUT(request: Request) {
 
     if (!effectiveModel || typeof effectiveModel !== 'string') {
       return NextResponse.json(
-        { error: '模型名称不能为空', code: 'INVALID_INPUT' },
+        { error: 'Model name is required', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
 
     if (protocol && !['openai', 'openai-compatible', 'anthropic'].includes(protocol)) {
       return NextResponse.json(
-        { error: '协议格式无效', code: 'INVALID_INPUT' },
+        { error: 'Invalid protocol', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
@@ -101,7 +101,7 @@ export async function PUT(request: Request) {
   } catch (error) {
     console.error('PUT /api/settings/ai error:', error)
     return NextResponse.json(
-      { error: '保存 AI 配置失败', code: 'SAVE_ERROR' },
+      { error: 'Failed to save AI settings', code: 'SAVE_ERROR' },
       { status: 500 }
     )
   }
@@ -115,7 +115,7 @@ export async function DELETE() {
   } catch (error) {
     console.error('DELETE /api/settings/ai error:', error)
     return NextResponse.json(
-      { error: '删除 AI 配置失败', code: 'DELETE_ERROR' },
+      { error: 'Failed to delete AI settings', code: 'DELETE_ERROR' },
       { status: 500 }
     )
   }

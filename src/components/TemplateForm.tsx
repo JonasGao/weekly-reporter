@@ -30,7 +30,7 @@ export function TemplateForm({ template, onSave, onCancel }: TemplateFormProps) 
     e.preventDefault()
 
     if (!name.trim() || !content.trim()) {
-      toast.error('请填写模板名称和内容')
+      toast.error('Please enter a template name and content')
       return
     }
 
@@ -43,9 +43,9 @@ export function TemplateForm({ template, onSave, onCancel }: TemplateFormProps) 
         description: description.trim() || undefined,
         tags: tags.trim() || undefined,
       })
-      toast.success('模板已保存')
+      toast.success('Template saved')
     } catch (error) {
-      toast.error('保存失败')
+      toast.error('Save failed')
     } finally {
       setSaving(false)
     }
@@ -54,46 +54,46 @@ export function TemplateForm({ template, onSave, onCancel }: TemplateFormProps) 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="name">模板名称</Label>
+        <Label htmlFor="name">Template name</Label>
         <Input
           id="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="例如：开发周报模板"
+          placeholder="e.g. Development weekly report"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">简介</Label>
+        <Label htmlFor="description">Description</Label>
         <Input
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="例如：适合技术研发岗位"
+          placeholder="e.g. For engineering teams"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="tags">标签</Label>
+        <Label htmlFor="tags">Tags</Label>
         <Input
           id="tags"
           value={tags}
           onChange={(e) => setTags(e.target.value)}
-          placeholder="例如：开发,技术,研发"
+          placeholder="e.g. development, engineering"
         />
       </div>
 
       <div className="space-y-2">
-        <Label>模板内容</Label>
+        <Label>Template content</Label>
         <MilkdownEditor value={content} onChange={setContent} />
       </div>
 
       <div className="flex justify-end gap-4">
         <Button type="button" variant="outline" onClick={onCancel}>
-          取消
+          Cancel
         </Button>
         <Button type="submit" disabled={saving}>
-          {saving ? '保存中...' : '保存'}
+          {saving ? 'Saving...' : 'Save'}
         </Button>
       </div>
     </form>

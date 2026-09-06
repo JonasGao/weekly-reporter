@@ -19,19 +19,19 @@ export async function GET(
   try {
     const reportId = Number.parseInt((await params).id, 10)
     if (Number.isNaN(reportId)) {
-      return NextResponse.json({ error: '无效的周报ID', code: 'INVALID_ID' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid report ID', code: 'INVALID_ID' }, { status: 400 })
     }
 
     const bundle = await getReportBundle(reportId)
     if (!bundle) {
-      return NextResponse.json({ error: '周报不存在', code: 'NOT_FOUND' }, { status: 404 })
+      return NextResponse.json({ error: 'Report not found', code: 'NOT_FOUND' }, { status: 404 })
     }
 
     const variants = bundle.variants.length > 0 ? bundle.variants : [{
       id: -bundle.id,
       reportId: bundle.id,
       variant: 'personal' as const,
-      sourceDraft: '- 本周暂无事件',
+      sourceDraft: '- No events this week',
       finalContent: bundle.content,
       finalStatus: 'current' as const,
       templateId: null,
@@ -59,7 +59,7 @@ export async function GET(
     })
   } catch (error) {
     console.error('GET /api/reports/[id] error:', error)
-    return NextResponse.json({ error: '获取周报失败', code: 'FETCH_ERROR' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch report', code: 'FETCH_ERROR' }, { status: 500 })
   }
 }
 
@@ -70,13 +70,13 @@ export async function PUT(
   try {
     const reportId = Number.parseInt((await params).id, 10)
     if (Number.isNaN(reportId)) {
-      return NextResponse.json({ error: '无效的周报ID', code: 'INVALID_ID' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid report ID', code: 'INVALID_ID' }, { status: 400 })
     }
     const body = await request.json()
     const db = getDb()
     const existing = await db.query.reports.findFirst({ where: eq(reports.id, reportId) })
     if (!existing) {
-      return NextResponse.json({ error: '周报不存在', code: 'NOT_FOUND' }, { status: 404 })
+      return NextResponse.json({ error: 'Report not found', code: 'NOT_FOUND' }, { status: 404 })
     }
 
     const updated = await db.update(reports).set({
@@ -86,7 +86,7 @@ export async function PUT(
 
     return NextResponse.json(updated[0])
   } catch {
-    return NextResponse.json({ error: '更新周报失败', code: 'UPDATE_ERROR' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to update report', code: 'UPDATE_ERROR' }, { status: 500 })
   }
 }
 
@@ -97,13 +97,13 @@ export async function DELETE(
   try {
     const reportId = Number.parseInt((await params).id, 10)
     if (Number.isNaN(reportId)) {
-      return NextResponse.json({ error: '无效的周报ID', code: 'INVALID_ID' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid report ID', code: 'INVALID_ID' }, { status: 400 })
     }
 
     const db = getDb()
     const existing = await db.query.reports.findFirst({ where: eq(reports.id, reportId) })
     if (!existing) {
-      return NextResponse.json({ error: '周报不存在', code: 'NOT_FOUND' }, { status: 404 })
+      return NextResponse.json({ error: 'Report not found', code: 'NOT_FOUND' }, { status: 404 })
     }
 
     const sessionRows = await db.select({ id: generationSessions.id })
@@ -115,7 +115,7 @@ export async function DELETE(
         .where(and(eq(generationProposals.sessionId, session.id), eq(generationProposals.status, 'accepted')))
         .limit(1)
       if (acceptedProposal.length > 0) {
-        return NextResponse.json({ error: '周报包含已确认终版的生成审计记录，请保留记录或先归档会话', code: 'AUDIT_RECORD_REQUIRED' }, { status: 409 })
+        return NextResponse.json({ error: 'This report contains generation audit records for an accepted final version. Keep the report or archive its sessions first.', code: 'AUDIT_RECORD_REQUIRED' }, { status: 409 })
       }
     }
 
@@ -137,6 +137,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch {
-    return NextResponse.json({ error: '删除周报失败', code: 'DELETE_ERROR' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete report', code: 'DELETE_ERROR' }, { status: 500 })
   }
 }

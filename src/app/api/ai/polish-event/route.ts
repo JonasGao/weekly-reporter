@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
     if (!body.eventContent || typeof body.eventContent !== 'string') {
       return NextResponse.json(
-        { error: '事件内容不能为空', code: 'INVALID_INPUT' },
+        { error: 'Event content is required', code: 'INVALID_INPUT' },
         { status: 400 }
       )
     }
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       polishedContent,
       style: styleConfig.label,
-      message: '事件润色成功',
+      message: 'Event polished successfully',
     })
   } catch (error) {
     console.error('POST /api/ai/polish-event error:', error)
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       )
     }
     return NextResponse.json(
-      { error: '事件润色失败', code: 'POLISH_ERROR', details: String(error) },
+      { error: 'Failed to polish event', code: 'POLISH_ERROR', details: String(error) },
       { status: 500 }
     )
   }
