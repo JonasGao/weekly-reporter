@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, fireEvent, waitFor } from '@testing-library/react'
 import { ActivityHeatmap, type HeatmapData } from './ActivityHeatmap'
 
 vi.mock('next/navigation', () => ({
@@ -7,8 +7,27 @@ vi.mock('next/navigation', () => ({
 }))
 
 describe('ActivityHeatmap', () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(374)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   const makeData = (entries: Array<[string, number]>): HeatmapData[] =>
     entries.map(([date, count]) => ({ date, count }))
+
+  it('uses the measured container width after the initial client render', async () => {
+    const { container } = render(
+      <ActivityHeatmap data={[]} selectedDate={null} onDateSelect={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      const grid = container.querySelector('div[style*="grid-template-columns"]')
+      expect(grid?.getAttribute('style')).toContain('repeat(29, 10px)')
+    })
+  })
 
   it('should render cells for each day in data', () => {
     const data = makeData([
@@ -87,10 +106,9 @@ describe('ActivityHeatmap', () => {
       <ActivityHeatmap data={data} selectedDate={null} onDateSelect={vi.fn()} />
     )
 
-    // Month labels should contain month numbers or Chinese characters
-    const text = container.textContent || ''
-    // At least some month indication should be present
-    expect(text).toMatch(/\d+月|[1-9]/)
+    // At least one locale-formatted month label should be present.
+    const labels = container.querySelectorAll('div.relative > span.absolute')
+    expect(labels.length).toBeGreaterThan(0)
   })
 
   it('should highlight selected date', () => {
