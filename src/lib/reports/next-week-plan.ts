@@ -5,6 +5,7 @@ export type NextWeekPlanParseResult =
       warning?: string
       sectionCount: number
       sectionLevel: 2 | 3
+      rawText: string
     }
   | {
       status: 'missing'
@@ -13,10 +14,12 @@ export type NextWeekPlanParseResult =
   | {
       status: 'empty'
       reason: string
+      rawText: string
     }
   | {
       status: 'failed'
       reason: string
+      rawText: string
     }
 
 interface Heading {
@@ -26,6 +29,7 @@ interface Heading {
 
 interface PlanSection {
   heading: Heading
+  rawHeading: string
   lines: string[]
 }
 
@@ -101,7 +105,7 @@ export function parseNextWeekPlan(content: string): NextWeekPlanParseResult {
     if (!heading || (heading.level !== 2 && heading.level !== 3)) continue
     if (heading.title.toLocaleLowerCase() !== NEXT_WEEK_PLAN_TITLE.toLocaleLowerCase()) continue
 
-    sections.push({ heading, lines: sectionLines(lines, index, heading) })
+    sections.push({ heading, rawHeading: line, lines: sectionLines(lines, index, heading) })
   }
 
   if (sections.length === 0) {
@@ -130,10 +134,12 @@ export function parseNextWeekPlan(content: string): NextWeekPlanParseResult {
       ? {
           status: 'failed',
           reason: 'The “下周计划” section contains no recognizable -, * or + unordered list.',
+          rawText: [first.rawHeading, ...first.lines].join('\n').trimEnd(),
         }
       : {
           status: 'empty',
           reason: 'The “下周计划” section is present but contains no plan items.',
+          rawText: [first.rawHeading, ...first.lines].join('\n').trimEnd(),
         }
   }
 
@@ -142,6 +148,7 @@ export function parseNextWeekPlan(content: string): NextWeekPlanParseResult {
     items,
     sectionCount: sections.length,
     sectionLevel: first.heading.level as 2 | 3,
+    rawText: [first.rawHeading, ...first.lines].join('\n').trimEnd(),
     ...(sections.length > 1
       ? { warning: `Found ${sections.length} matching “下周计划” sections; only the first was used.` }
       : {}),

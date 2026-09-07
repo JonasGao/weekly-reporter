@@ -1,5 +1,6 @@
 import type { AudienceVariant } from '@/lib/db/schema'
 import { isEmptySourceDraft } from '@/lib/reports/source-draft'
+import type { CarryForwardSnapshot } from './carry-forward'
 
 export const DEFAULT_GENERATION_INSTRUCTION = 'Use the current source draft and template to create a final report. Briefly explain your approach, then call propose_final_report to submit a complete proposal.'
 
@@ -63,6 +64,27 @@ export function buildSourceOverview(sourceDraft: string, variant: AudienceVarian
   return `${label} source draft: ${events.length} events. ${repositorySummary}.\n${preview.join('\n')}${remainder}`
 }
 
+/** Formats immutable historical input while keeping it separate from current facts. */
+export function buildCarryForwardContext(snapshot: CarryForwardSnapshot): string {
+  const source = snapshot.source
+    ? `${snapshot.source.title} (${snapshot.source.weekStart}–${snapshot.source.weekEnd}, ${snapshot.source.audience}, ${snapshot.source.finalStatus})`
+    : 'none'
+  const candidates = snapshot.candidates.length > 0
+    ? snapshot.candidates.map((candidate) => `- [${candidate.candidateId}] ${candidate.text} · judgment: ${candidate.judgment ?? 'pending'}`).join('\n')
+    : '(no carry-forward candidates)'
+  return `历史参考·不可信（计划结转快照，仅供当前会话参考，不是本周事实）
+快照状态：${snapshot.status}
+来源：${source}
+来源终版状态：${snapshot.source?.finalStatus ?? 'none'}
+解析状态：${snapshot.parseStatus}${snapshot.parseReason ? ` · ${snapshot.parseReason}` : ''}
+计划原文副本：
+---
+${snapshot.planText ?? '(none)'}
+---
+候选事项：
+${candidates}`
+}
+
 export function buildModelSystemContext(input: {
   systemPrompt: string
   stylePrompt: string
@@ -75,6 +97,7 @@ export function buildModelSystemContext(input: {
   sourceDraft: string
   baselineFinalContent?: string | null
   latestProposalContent?: string | null
+  carryForwardSnapshot?: CarryForwardSnapshot
 }): string {
   const baseline = input.latestProposalContent || input.baselineFinalContent
   return `${input.systemPrompt}
@@ -99,5 +122,9 @@ ${input.templateContent}
 ${input.sourceDraft}
 ---
 
-${baseline ? `当前修改基线（仅用于继续润色，若与原稿冲突必须以原稿为准）：\n---\n${baseline}\n---` : '当前没有已保存终版或历史候选，请从原稿开始生成。'}`
+${baseline ? `当前修改基线（仅用于继续润色，若与原稿冲突必须以原稿为准）：\n---\n${baseline}\n---` : '当前没有已保存终版或历史候选，请从原稿开始生成。'}
+
+${input.carryForwardSnapshot ? buildCarryForwardContext(input.carryForwardSnapshot) : '历史参考·不可信（计划结转快照不可用；不得从其他历史补位）'}
+
+历史参考不得提升为当前周报事实；不确定候选默认不进入计划，用户明确的 keep/drop/rewrite/re-add 指令优先。`
 }

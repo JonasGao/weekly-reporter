@@ -98,6 +98,9 @@ export async function prepareGenerationTurn(input: {
     getReportBundle(input.reportId),
   ])
   if (!detail) throw new GenerationServiceError('生成会话不存在', 'SESSION_NOT_FOUND', 404)
+  if (!detail.sourceIsCurrent) {
+    throw new GenerationServiceError('The source draft has changed; start a new session from the latest draft', 'SOURCE_REVISION_CONFLICT', 409)
+  }
   if (!config) throw new GenerationServiceError('AI_API_KEY 未配置', 'AI_NOT_CONFIGURED', 400)
   if (!bundle) throw new GenerationServiceError('周报不存在', 'REPORT_NOT_FOUND', 404)
 
@@ -115,7 +118,7 @@ export async function prepareGenerationTurn(input: {
     throw new GenerationServiceError('会话上下文接近上限，请从当前终版创建新会话后继续。', 'CONTEXT_LIMIT', 409)
   }
 
-  const turn = startGenerationTurn({ session: detail, config, userMessage: input.userMessage })
+  const turn = startGenerationTurn({ session: detail as unknown as GenerationSession, config, userMessage: input.userMessage })
   const refreshed = await getGenerationSessionDetail(input.reportId, input.sessionId)
   if (!refreshed) throw new GenerationServiceError('生成会话不存在', 'SESSION_NOT_FOUND', 404)
   return { detail: refreshed, config, bundle, turn }
@@ -216,6 +219,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
           sourceDraft: input.detail.sourceDraftSnapshot,
           baselineFinalContent: input.detail.baselineFinalContent,
           latestProposalContent: latestProposal?.content,
+          carryForwardSnapshot: input.detail.carryForwardSnapshot,
         })
         const model = createModelFromConfig(input.config)
         const proposalHolder: { current: GenerationProposal | null } = { current: null }
@@ -237,7 +241,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
               execute: async ({ content, summary }) => {
                 if (proposalHolder.current) throw new Error('本轮已经提交过候选终版')
                 proposalHolder.current = await createGenerationProposal({
-                  session: input.detail as GenerationSession,
+                  session: input.detail as unknown as GenerationSession,
                   turnId: input.turn.id,
                   content,
                   summary,

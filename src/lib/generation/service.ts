@@ -24,6 +24,11 @@ import {
   FINAL_REPORT_TOOL_RULES,
 } from './context'
 import { isEmptySourceDraft } from '@/lib/reports/source-draft'
+import {
+  createCarryForwardSnapshot,
+  normalizeCarryForwardSnapshot,
+  serializeCarryForwardSnapshot,
+} from './carry-forward'
 
 const MAX_PROPOSAL_CHARACTERS = 200_000
 
@@ -103,6 +108,7 @@ export async function createGenerationSession(input: {
   const styleKey = input.styleOverride || template.aiStyle || 'formal'
   const style = await getAIStyle(styleKey)
   const now = new Date()
+  const carryForwardSnapshot = await createCarryForwardSnapshot(bundle, input.variant, now)
   const timeLabel = new Intl.DateTimeFormat(undefined, {
     month: '2-digit',
     day: '2-digit',
@@ -132,6 +138,7 @@ export async function createGenerationSession(input: {
       systemPrompt: buildEffectiveGenerationSystemPrompt(basePrompt),
       toolRules: FINAL_REPORT_TOOL_RULES,
       baselineFinalContent: reportVariant.finalContent,
+      carryForwardSnapshot: serializeCarryForwardSnapshot(carryForwardSnapshot),
       createdAt: now,
       updatedAt: now,
     }).returning().get()
@@ -160,7 +167,12 @@ export async function listGenerationSessions(reportId: number, variant?: Audienc
       db.select().from(generationTurns).where(eq(generationTurns.sessionId, session.id)).orderBy(desc(generationTurns.id)).limit(1),
       db.select().from(generationProposals).where(eq(generationProposals.sessionId, session.id)).orderBy(desc(generationProposals.id)).limit(1),
     ])
-    return { ...session, latestTurn: latestTurn[0] ?? null, latestProposal: latestProposal[0] ?? null }
+    return {
+      ...session,
+      carryForwardSnapshot: normalizeCarryForwardSnapshot(session.carryForwardSnapshot),
+      latestTurn: latestTurn[0] ?? null,
+      latestProposal: latestProposal[0] ?? null,
+    }
   }))
 }
 
@@ -180,6 +192,7 @@ export async function getGenerationSessionDetail(reportId: number, sessionId: nu
 
   return {
     ...session,
+    carryForwardSnapshot: normalizeCarryForwardSnapshot(session.carryForwardSnapshot),
     messages,
     turns,
     proposals,

@@ -5,6 +5,7 @@ import {
   GenerationServiceError,
   listGenerationSessions,
 } from '@/lib/generation/service'
+import { normalizeCarryForwardSnapshot } from '@/lib/generation/carry-forward'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -48,7 +49,10 @@ export async function POST(request: Request, { params }: RouteContext) {
       templateId: body.templateId,
       styleOverride: typeof body.styleOverride === 'string' ? body.styleOverride : undefined,
     })
-    return NextResponse.json(session, { status: 201 })
+    return NextResponse.json({
+      ...session,
+      carryForwardSnapshot: normalizeCarryForwardSnapshot(session.carryForwardSnapshot),
+    }, { status: 201 })
   } catch (error) {
     return failure(error)
   }

@@ -120,6 +120,8 @@ export const generationSessions = sqliteTable('generation_sessions', {
   systemPrompt: text('system_prompt').notNull(),
   toolRules: text('tool_rules').notNull(),
   baselineFinalContent: text('baseline_final_content'),
+  /** JSON snapshot of the exact previous-cycle plan reference, nullable for legacy sessions. */
+  carryForwardSnapshot: text('carry_forward_snapshot'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
   archivedAt: integer('archived_at', { mode: 'timestamp' }),

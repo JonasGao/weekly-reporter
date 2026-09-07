@@ -58,6 +58,11 @@ describe('generation session lifecycle', () => {
       'source-overview',
     ])
     expect(detail?.sourceDraftSnapshot).toContain('完成会话持久化')
+    expect(detail?.carryForwardSnapshot).toMatchObject({
+      status: 'no-source',
+      source: null,
+      candidates: [],
+    })
 
     const turn = startGenerationTurn({
       session,

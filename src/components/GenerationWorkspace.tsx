@@ -33,6 +33,7 @@ import {
   type StreamingMarkdown,
 } from '@/lib/generation/streaming-markdown'
 import type { AudienceVariant, ReportVariant } from '@/lib/db/schema'
+import type { CarryForwardSnapshot } from '@/lib/generation/carry-forward'
 
 interface TemplateOption {
   id: string
@@ -99,6 +100,7 @@ interface SessionDetail extends SessionSummary {
   systemPrompt: string
   toolRules: string
   baselineFinalContent: string | null
+  carryForwardSnapshot: CarryForwardSnapshot
   messages: MessagePart[]
   turns: Turn[]
   proposals: Proposal[]
@@ -231,7 +233,40 @@ function SystemContextCard({ detail }: { detail: SessionDetail }) {
         <summary className="cursor-pointer text-sm font-medium">Template snapshot · {detail.templateName}</summary>
         <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">{detail.templateContent}</pre>
       </details>
+      <CarryForwardSnapshotCard snapshot={detail.carryForwardSnapshot} />
     </div>
+  )
+}
+
+function CarryForwardSnapshotCard({ snapshot }: { snapshot: CarryForwardSnapshot }) {
+  const source = snapshot.source
+  return (
+    <details className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3" open>
+      <summary className="cursor-pointer text-sm font-medium">Plan carry-forward snapshot · 历史参考·不可信</summary>
+      <div className="mt-3 space-y-3 text-xs leading-5 text-muted-foreground">
+        <p>This immutable historical reference is not a fact of the current report.</p>
+        <dl className="grid gap-x-3 gap-y-1 sm:grid-cols-[auto_1fr]">
+          <dt>Snapshot status</dt><dd className="font-medium text-foreground">{snapshot.status}</dd>
+          <dt>Parse status</dt><dd>{snapshot.parseStatus}{snapshot.parseReason ? ` · ${snapshot.parseReason}` : ''}</dd>
+          <dt>Source</dt><dd>{source ? `${source.title} · ${source.weekStart} – ${source.weekEnd} · ${source.audience} · ${source.finalStatus}` : 'No exact previous-cycle source'}</dd>
+          <dt>Proposal reference</dt><dd>{source?.acceptedProposalId ?? 'none'}</dd>
+        </dl>
+        {snapshot.parseWarning && <p className="text-amber-500">{snapshot.parseWarning}</p>}
+        <div>
+          <p className="mb-1 font-medium text-foreground">Plan source copy</p>
+          <pre className="whitespace-pre-wrap break-words rounded border border-border bg-background p-2">{snapshot.planText ?? '(none)'}</pre>
+        </div>
+        <div>
+          <p className="mb-1 font-medium text-foreground">Candidates ({snapshot.candidates.length})</p>
+          {snapshot.candidates.length > 0 ? (
+            <ul className="space-y-1">
+              {snapshot.candidates.map((candidate) => <li key={candidate.candidateId}>[{candidate.candidateId}] {candidate.text} · {candidate.judgment ?? 'pending judgment'}</li>)}
+            </ul>
+          ) : <p>(none)</p>}
+        </div>
+        {snapshot.reason && <p>Reason: {snapshot.reason}</p>}
+      </div>
+    </details>
   )
 }
 

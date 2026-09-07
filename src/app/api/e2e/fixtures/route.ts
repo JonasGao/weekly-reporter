@@ -23,8 +23,8 @@ function enabled() {
 
 export async function POST(request: Request) {
   if (!enabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  const body = await request.json().catch(() => null) as { action?: string; marker?: string } | null
-  if (!body || !['historical', 'timeline'].includes(body.action ?? '') || typeof body.marker !== 'string' || !body.marker.trim()) {
+  const body = await request.json().catch(() => null) as { action?: string; marker?: string; mode?: string } | null
+  if (!body || !['historical', 'timeline', 'carry-forward'].includes(body.action ?? '') || typeof body.marker !== 'string' || !body.marker.trim()) {
     return NextResponse.json({ error: 'A marker and historical action are required', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
@@ -32,6 +32,95 @@ export async function POST(request: Request) {
   const db = getDb()
   const now = new Date()
   const rows: FixtureReport[] = []
+  if (body.action === 'carry-forward') {
+    const empty = body.mode === 'empty'
+    const targetWeekStart = empty ? '2027-02-01' : '2027-01-11'
+    const targetWeekEnd = empty ? '2027-02-07' : '2027-01-17'
+    const reportIds: number[] = []
+    const eventIds: number[] = []
+    if (!empty) {
+      const previous = db.insert(reports).values({
+        title: `${marker} previous cycle`,
+        content: `# ${marker} previous cycle`,
+        weekStart: '2027-01-04',
+        weekEnd: '2027-01-10',
+        scoreStatus: 'completed',
+        createdAt: now,
+        updatedAt: now,
+      }).returning().get()
+      db.insert(reportVariants).values([
+        {
+          reportId: previous.id,
+          variant: 'leadership' as const,
+          sourceDraft: `- ${marker} leadership source`,
+          finalContent: `# ${marker} leadership final\n\n## 下周计划\n\n- ${marker} leadership carry`,
+          finalStatus: 'current' as const,
+          sourceRevision: 1,
+          scoreStatus: 'completed' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          reportId: previous.id,
+          variant: 'personal' as const,
+          sourceDraft: `- ${marker} personal source`,
+          finalContent: `# ${marker} personal final\n\n## 下周计划\n\n- ${marker} personal carry`,
+          finalStatus: 'current' as const,
+          sourceRevision: 1,
+          scoreStatus: 'completed' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]).run()
+      reportIds.push(previous.id)
+    } else {
+      const older = db.insert(reports).values({
+        title: `${marker} older cycle`,
+        content: `# ${marker} older cycle`,
+        weekStart: '2027-01-18',
+        weekEnd: '2027-01-24',
+        scoreStatus: 'completed',
+        createdAt: now,
+        updatedAt: now,
+      }).returning().get()
+      db.insert(reportVariants).values({
+        reportId: older.id,
+        variant: 'personal' as const,
+        sourceDraft: `- ${marker} older source`,
+        finalContent: `## 下周计划\n- ${marker} must not backfill`,
+        finalStatus: 'current' as const,
+        sourceRevision: 1,
+        scoreStatus: 'completed' as const,
+        createdAt: now,
+        updatedAt: now,
+      }).run()
+      reportIds.push(older.id)
+    }
+    const event = db.insert(rawEvents).values({
+      eventTime: new Date(`${targetWeekStart}T12:00:00.000Z`),
+      source: 'e2e',
+      content: `${marker} current source fact`,
+      metadata: null,
+      createdAt: now,
+      updatedAt: now,
+    }).returning().get()
+    eventIds.push(event.id)
+    const target = db.insert(reports).values({
+      title: `${marker} target report`,
+      content: `# ${marker} target report`,
+      weekStart: targetWeekStart,
+      weekEnd: targetWeekEnd,
+      scoreStatus: 'completed',
+      createdAt: now,
+      updatedAt: now,
+    }).returning().get()
+    db.insert(reportVariants).values([
+      { reportId: target.id, variant: 'leadership' as const, sourceDraft: `- ${marker} current source fact`, finalStatus: 'none' as const, sourceRevision: 1, scoreStatus: 'pending' as const, createdAt: now, updatedAt: now },
+      { reportId: target.id, variant: 'personal' as const, sourceDraft: `- ${marker} current source fact`, finalStatus: 'none' as const, sourceRevision: 1, scoreStatus: 'pending' as const, createdAt: now, updatedAt: now },
+    ]).run()
+    reportIds.push(target.id)
+    return NextResponse.json({ targetReportId: target.id, reportIds, eventIds }, { status: 201 })
+  }
   if (body.action === 'timeline') {
     const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 })
     const previousWeekEnd = subDays(currentWeekStart, 1)
