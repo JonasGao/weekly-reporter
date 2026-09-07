@@ -33,6 +33,10 @@ vi.mock('@/components/TimelineView', () => ({
   ),
 }))
 
+vi.mock('@/components/TimelinePlanPanel', () => ({
+  TimelinePlanPanel: () => null,
+}))
+
 vi.mock('@/components/SourceFilterPanel', () => ({
   SourceFilterPanel: () => null,
 }))
