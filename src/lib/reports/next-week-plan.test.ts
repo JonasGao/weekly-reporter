@@ -40,5 +40,9 @@ describe('parseNextWeekPlan', () => {
       status: 'found',
       items: ['real'],
     })
+    expect(parseNextWeekPlan('## 下周计划\n```md\n- fake\n```\n- real')).toMatchObject({
+      status: 'found',
+      items: ['real'],
+    })
   })
 })

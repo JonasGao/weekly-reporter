@@ -67,6 +67,7 @@ function sectionLines(lines: string[], headingIndex: number, heading: Heading): 
     const line = lines[index]
     if (isFence(line)) {
       fenced = !fenced
+      content.push(line)
       continue
     }
     if (!fenced) {

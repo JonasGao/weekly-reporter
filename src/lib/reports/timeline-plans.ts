@@ -1,5 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm'
-import { format, isValid, parseISO, startOfWeek, subDays } from 'date-fns'
+import { format, startOfWeek, subDays } from 'date-fns'
 import { getDb } from '@/lib/db'
 import { reportVariants, reports, type AudienceVariant } from '@/lib/db/schema'
 import { parseNextWeekPlan, type TimelinePlanProjection } from './next-week-plan'
@@ -23,11 +23,8 @@ function emptyProjection(
  * Read-only projection of the exact previous cycle's adopted current finals.
  * This function only reads reports/variants and never changes report state.
  */
-export async function getTimelinePlanProjection(now = new Date(), requestedWeekStart?: string): Promise<TimelinePlanResponse> {
-  const requestedDate = requestedWeekStart ? parseISO(`${requestedWeekStart}T00:00:00`) : now
-  const currentWeekStartDate = isValid(requestedDate)
-    ? startOfWeek(requestedDate, { weekStartsOn: 1 })
-    : startOfWeek(now, { weekStartsOn: 1 })
+export async function getTimelinePlanProjection(now = new Date()): Promise<TimelinePlanResponse> {
+  const currentWeekStartDate = startOfWeek(now, { weekStartsOn: 1 })
   const previousWeekEndDate = subDays(currentWeekStartDate, 1)
   const previousWeekStartDate = subDays(currentWeekStartDate, 7)
   const currentWeekStart = format(currentWeekStartDate, 'yyyy-MM-dd')
