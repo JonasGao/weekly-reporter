@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { format, startOfWeek, subDays } from 'date-fns'
 import { getDb } from '@/lib/db'
 import { reportVariants, reports, type AudienceVariant } from '@/lib/db/schema'
@@ -40,15 +40,21 @@ export async function getTimelinePlanProjection(now = new Date()): Promise<Timel
     .orderBy(desc(reports.updatedAt), desc(reports.id))
 
   const plans = {} as Record<AudienceVariant, TimelinePlanProjection>
+  const candidateVariants = candidateReports.length > 0
+    ? await db.select().from(reportVariants)
+      .where(inArray(reportVariants.reportId, candidateReports.map((report) => report.id)))
+    : []
+  const variantsByAudience: Record<AudienceVariant, typeof candidateVariants> = {
+    leadership: candidateVariants.filter((variant) => variant.variant === 'leadership'),
+    personal: candidateVariants.filter((variant) => variant.variant === 'personal'),
+  }
+
   for (const audience of audiences) {
     let source: typeof reports.$inferSelect | undefined
     let variant: typeof reportVariants.$inferSelect | undefined
-
+    const audienceVariants = variantsByAudience[audience]
     for (const report of candidateReports) {
-      const matchingVariant = await db.select().from(reportVariants)
-        .where(and(eq(reportVariants.reportId, report.id), eq(reportVariants.variant, audience)))
-        .limit(1)
-      const row = matchingVariant[0]
+      const row = audienceVariants.find((candidate) => candidate.reportId === report.id)
       if (row?.finalStatus === 'current' && typeof row.finalContent === 'string' && row.finalContent.trim()) {
         source = report
         variant = row
