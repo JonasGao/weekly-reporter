@@ -1,6 +1,7 @@
 import { test, expect } from './app-fixture'
 import type { APIRequestContext } from '@playwright/test'
 import { disposeCarryForward, seedCarryForward } from './carry-forward-fixtures'
+import { SCRIPTED_AI_URL, scriptedInstruction } from './scripted-ai'
 
 async function createSession(request: APIRequestContext, reportId: number, variant: 'leadership' | 'personal') {
   const response = await request.post(`/api/reports/${reportId}/generation-sessions`, {
@@ -8,6 +9,18 @@ async function createSession(request: APIRequestContext, reportId: number, varia
   })
   expect(response.status()).toBe(201)
   return await response.json() as { id: number; carryForwardSnapshot: CarryForwardSnapshot }
+}
+
+function streamProposal(content: string) {
+  return {
+    kind: 'stream' as const,
+    reasoning: '已核对历史参考边界。',
+    text: '已生成带计划结转的候选终版。',
+    toolCalls: [{
+      name: 'propose_final_report',
+      arguments: { content, summary: ['保留当前原稿事实', '提交计划结转候选'] },
+    }],
+  }
 }
 
 interface CarryForwardSnapshot {
@@ -30,6 +43,45 @@ test.describe('计划结转快照', () => {
       expect(personal.carryForwardSnapshot.candidates[0].text).toContain('personal carry')
       expect(leadership.carryForwardSnapshot.candidates[0].text).toContain('leadership carry')
       expect(personal.carryForwardSnapshot.candidates[0].candidateId).toMatch(/^carry-forward-/)
+
+      const aiConfig = await request.put('/api/settings/ai', {
+        data: { protocol: 'openai-compatible', apiUrl: SCRIPTED_AI_URL, apiKey: 'e2e-scripted', model: 'e2e-scripted' },
+      })
+      expect(aiConfig.ok()).toBeTruthy()
+      const acceptedContent = `# ${marker} generated\n\n## 下周计划\n\n- ${marker} personal carried into proposal`
+      const scriptedMessage = scriptedInstruction('请提交完整候选终版', {
+        steps: [
+          streamProposal(acceptedContent),
+          { kind: 'stream', text: '继续编辑但不提交新的候选终版。' },
+          { kind: 'stream', text: '继续编辑但不提交新的候选终版。' },
+        ],
+      })
+      const stream = await request.post(`/api/reports/${fixture.targetReportId}/generation-sessions/${personal.id}/turns`, { data: { message: scriptedMessage } })
+      expect(stream.ok()).toBeTruthy()
+      const streamEvents = (await stream.text()).trim().split('\n').map((line) => JSON.parse(line) as { type: string; proposal?: { id: number } })
+      expect(streamEvents.map((event) => event.type)).toEqual(expect.arrayContaining(['proposal', 'finish']))
+      const proposalId = streamEvents.find((event) => event.type === 'proposal')?.proposal?.id
+      expect(proposalId).toBeTruthy()
+      const beforeAccept = await request.get(`/api/reports/${fixture.targetReportId}/generation-sessions/${personal.id}`)
+      const beforeAcceptDetail = await beforeAccept.json() as { carryForwardSnapshot: CarryForwardSnapshot; proposals: Array<{ id: number }> }
+      const accept = await request.post(`/api/reports/${fixture.targetReportId}/generation-sessions/${personal.id}/proposals/${proposalId}/accept`)
+      expect(accept.ok()).toBeTruthy()
+      const afterAccept = await request.get(`/api/reports/${fixture.targetReportId}/generation-sessions/${personal.id}`)
+      const afterAcceptDetail = await afterAccept.json() as { carryForwardSnapshot: CarryForwardSnapshot; baselineFinalContent: string | null }
+      expect(afterAcceptDetail.carryForwardSnapshot).toEqual(beforeAcceptDetail.carryForwardSnapshot)
+      expect(afterAcceptDetail.baselineFinalContent).toBe(acceptedContent)
+
+      await page.goto(`/edit/${fixture.targetReportId}`)
+      await page.getByRole('button', { name: 'Personal' }).click()
+      await expect(page.getByText(new RegExp(`${marker} personal carry`)).first()).toBeVisible()
+      const composer = page.getByPlaceholder('Ask AI to revise, answer a question, or submit the current version...')
+      await composer.fill('继续编辑当前终版，但不要刷新计划结转快照')
+      await page.getByRole('button', { name: 'Send', exact: true }).click()
+      await expect(page.getByText('继续编辑但不提交新的候选终版。')).toBeVisible({ timeout: 30_000 })
+      await page.reload()
+      await page.getByRole('button', { name: 'Personal' }).click()
+      await expect(page.getByText('继续编辑但不提交新的候选终版。')).toBeVisible({ timeout: 30_000 })
+      await expect(page.getByText(new RegExp(`${marker} personal carried into proposal`)).first()).toBeVisible()
 
       await page.goto(`/edit/${fixture.targetReportId}`)
       await expect(page.getByText('Plan carry-forward snapshot · 历史参考·不可信')).toBeVisible()
