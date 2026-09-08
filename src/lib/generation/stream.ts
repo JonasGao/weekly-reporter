@@ -125,7 +125,7 @@ function toolResultContent(toolName: string, output: unknown, proposal: Generati
 }
 
 function toolErrorOutput(toolName: string, error: unknown): unknown {
-  if (toolName === REPORT_CONTENT_TOOL_NAME) return { ok: false, error: { code: 'QUERY_FAILED', message: safeErrorMessage(error) }, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
+  if (toolName === REPORT_CONTENT_TOOL_NAME) return { ok: false, error: { code: 'INVALID_QUERY', message: safeErrorMessage(error) }, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
   if (toolName !== REPORT_LIST_TOOL_NAME) return { error: safeErrorMessage(error) }
   return {
     ok: false,
