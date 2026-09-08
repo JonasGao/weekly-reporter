@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   findProposal: vi.fn(),
   findSession: vi.fn(),
   returning: vi.fn(),
+  transactionReturning: vi.fn(),
   triggerScoring: vi.fn(),
   triggerLegacyScoring: vi.fn(),
   set: vi.fn(),
@@ -31,6 +32,14 @@ vi.mock('@/lib/db', () => ({
     }),
     insert: () => ({ values: mocks.insert }),
     select: mocks.select,
+    transaction: (callback: (tx: unknown) => unknown) => () => callback({
+      update: () => ({ set: (values: unknown) => {
+        mocks.set(values)
+        return { where: () => ({ returning: () => ({ get: mocks.transactionReturning }), run: vi.fn() }) }
+      } }),
+      select: mocks.select,
+      insert: () => ({ values: mocks.insert }),
+    }),
   }),
 }))
 
@@ -78,6 +87,7 @@ describe('PUT /api/reports/[id]/final', () => {
     mocks.findVariant.mockResolvedValue(existingVariant)
     mocks.triggerScoring.mockResolvedValue({ success: true })
     mocks.triggerLegacyScoring.mockResolvedValue({ success: true })
+    mocks.transactionReturning.mockReturnValue(existingVariant)
   })
 
   it('rejects a preview generated from an outdated source revision', async () => {
@@ -92,7 +102,7 @@ describe('PUT /api/reports/[id]/final', () => {
 
   it('saves and scores the selected audience variant when the revision matches', async () => {
     const updated = { ...existingVariant, finalContent: '新终版', scoreStatus: 'pending' }
-    mocks.returning.mockResolvedValue([updated])
+    mocks.transactionReturning.mockReturnValue(updated)
 
     const response = await PUT(request(2), { params: Promise.resolve({ id: '3' }) })
 
@@ -102,7 +112,7 @@ describe('PUT /api/reports/[id]/final', () => {
   })
 
   it('retains the adopted contract when a direct edit submits different template text', async () => {
-    mocks.returning.mockResolvedValue([{ ...existingVariant, finalContent: '新终版', scoreStatus: 'pending' }])
+    mocks.transactionReturning.mockReturnValue({ ...existingVariant, finalContent: '新终版', scoreStatus: 'pending' })
     const response = await PUT(new Request('http://localhost/api/reports/3/final', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -137,10 +147,16 @@ describe('PUT /api/reports/[id]/final', () => {
   it('records a direct edit after an accepted session without changing its plan records', async () => {
     const sessionVariant = { ...existingVariant, acceptedProposalId: 44 }
     mocks.findVariant.mockResolvedValue(sessionVariant)
-    mocks.returning.mockResolvedValue([{ ...sessionVariant, finalContent: '会话后编辑', scoreStatus: 'pending' }])
+    mocks.transactionReturning.mockReturnValue({ ...sessionVariant, finalContent: '会话后编辑', scoreStatus: 'pending' })
     mocks.findProposal.mockResolvedValue({ id: 44, sessionId: 9 })
     mocks.findSession.mockResolvedValue({ id: 9, reportId: 3 })
-    mocks.select.mockReturnValue({ from: () => ({ where: () => ({ orderBy: () => ({ limit: () => Promise.resolve([{ sequence: 12 }]) }) }) }) })
+    const selection = (value: unknown) => ({
+      from: () => ({ where: () => ({ get: () => value, orderBy: () => ({ limit: () => ({ get: () => value }) }) }) }),
+    })
+    mocks.select
+      .mockReturnValueOnce(selection({ id: 44, sessionId: 9 }))
+      .mockReturnValueOnce(selection({ id: 9, reportId: 3 }))
+      .mockReturnValueOnce(selection({ sequence: 12 }))
     mocks.insert.mockResolvedValue(undefined)
 
     const response = await PUT(request(2), { params: Promise.resolve({ id: '3' }) })

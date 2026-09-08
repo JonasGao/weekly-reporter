@@ -76,46 +76,52 @@ export async function PUT(
       scoredAt: null,
       updatedAt: now,
     } as const
-    const updated = await db.update(reportVariants)
-      .set(finalValues)
-      .where(eq(reportVariants.id, existing.id))
-      .returning()
-
-    if (updated[0]) {
+    const updated = db.transaction((tx) => {
+      const updatedVariant = tx.update(reportVariants)
+        .set(finalValues)
+        .where(eq(reportVariants.id, existing.id))
+        .returning()
+        .get()
+      if (!updatedVariant) return null
       if (variant === 'personal') {
-        await db.update(reports).set({ content: updated[0].finalContent ?? '', updatedAt: now }).where(eq(reports.id, reportId))
+        tx.update(reports).set({ content: updatedVariant.finalContent ?? '', updatedAt: now }).where(eq(reports.id, reportId)).run()
       }
       if (existing.acceptedProposalId != null) {
-        const proposal = await db.query.generationProposals.findFirst({ where: eq(generationProposals.id, existing.acceptedProposalId) })
-        const session = proposal && await db.query.generationSessions.findFirst({
-          where: and(eq(generationSessions.id, proposal.sessionId), eq(generationSessions.reportId, reportId)),
-        })
+        const proposal = tx.select().from(generationProposals).where(eq(generationProposals.id, existing.acceptedProposalId)).get()
+        const session = proposal && tx.select().from(generationSessions).where(
+          and(eq(generationSessions.id, proposal.sessionId), eq(generationSessions.reportId, reportId)),
+        ).get()
         if (session) {
-          const last = await db.select({ sequence: generationMessageParts.sequence })
+          const last = tx.select({ sequence: generationMessageParts.sequence })
             .from(generationMessageParts)
             .where(eq(generationMessageParts.sessionId, session.id))
             .orderBy(desc(generationMessageParts.sequence))
             .limit(1)
-          await db.insert(generationMessageParts).values({
+            .get()
+          tx.insert(generationMessageParts).values({
             sessionId: session.id,
             turnId: null,
-            sequence: (last[0]?.sequence ?? 0) + 1,
+            sequence: (last?.sequence ?? 0) + 1,
             role: 'application',
             partType: 'text',
             content: '会话基线后的用户编辑。',
             data: { event: 'direct-final-edit', variant },
             createdAt: now,
           })
-          await db.update(generationSessions).set({ baselineFinalContent: updated[0].finalContent, updatedAt: now })
+          tx.update(generationSessions).set({ baselineFinalContent: updatedVariant.finalContent, updatedAt: now })
             .where(eq(generationSessions.id, session.id))
+            .run()
         }
       }
-      triggerAsyncVariantScoring(updated[0].id).catch((error) => {
+      return updatedVariant
+    })()
+    if (updated) {
+      triggerAsyncVariantScoring(updated.id).catch((error) => {
         console.error('[reports] Variant scoring failed:', error)
       })
     }
 
-    return NextResponse.json(updated[0])
+    return NextResponse.json(updated)
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to save final version', code: 'SAVE_FINAL_ERROR', details: String(error) },
