@@ -248,9 +248,14 @@ export function mergeProposalPlan(input: {
     if (override.lastRewrite) blockedOverrideText.add(normalizeText(override.lastRewrite))
     if (override.effectiveText) blockedOverrideText.add(normalizeText(override.effectiveText))
   }
+  // Once a drop tombstone is active, semantic matching cannot prove that an
+  // identity-free provider item is unrelated. Exclude all such AI/Markdown/
+  // baseline items until explicit re-add; session overrides remain available.
+  const hasActiveDrop = [...resolvedOverrides.values()].some((override) => !override.effectiveText)
   const explicitItems = (input.plan?.items ?? [])
     .map((item) => ({ ...item, text: cleanText(item.text) }))
     .filter((item) => item.text.length > 0)
+    .filter(() => !hasActiveDrop)
     .filter((item) => !item.candidateId || !resolvedOverrides.has(item.candidateId))
     .filter((item) => !blockedOverrideText.has(normalizeText(item.text)))
     .filter((item) => {
@@ -261,7 +266,7 @@ export function mergeProposalPlan(input: {
   const blockedCarryText = new Set(input.snapshot.candidates
     .filter((candidate) => judgmentByCandidate.get(candidate.candidateId)?.judgment !== 'carry')
     .map((candidate) => candidate.normalizedText))
-  const generatedItems = parsed.status === 'found'
+  const generatedItems = parsed.status === 'found' && !hasActiveDrop
     ? parsed.items
       .map((text) => ({ text: cleanText(text), source: 'current-fact' as const, candidateId: null }))
       .filter((item) => !blockedCarryText.has(normalizeText(item.text)))
@@ -300,7 +305,7 @@ export function mergeProposalPlan(input: {
     }]
   })
   const baselineParsed = input.baselineFinalContent ? parseNextWeekPlan(input.baselineFinalContent) : null
-  const baselineItems = baselineParsed?.status === 'found'
+  const baselineItems = baselineParsed?.status === 'found' && !hasActiveDrop
     ? baselineParsed.items
       .map((text) => ({ text: cleanText(text), source: 'baseline' as const, candidateId: null }))
       .filter((item) => !blockedOverrideText.has(normalizeText(item.text)))
@@ -342,6 +347,7 @@ export function mergeProposalPlan(input: {
   const truncatedCount = Math.max(0, items.length - MAX_PLAN_ITEMS)
   const selected = items.slice(0, MAX_PLAN_ITEMS)
   const warnings = truncatedCount > 0 ? [`下周计划超过 ${MAX_PLAN_ITEMS} 项，已按固定优先级截断 ${truncatedCount} 项。`] : []
+  if (hasActiveDrop) warnings.push('存在持续 drop 覆盖：未绑定会话事项身份的 AI、Markdown 与基线计划项已排除；只有显式 re-add 可解除。')
   if (parsed.status === 'failed') warnings.push(`下周计划章节无法解析：${parsed.reason}`)
   if (input.snapshot.parseWarning) warnings.push(input.snapshot.parseWarning)
   const overrideConclusions: PlanOverrideConclusion[] = [...resolvedOverrides.entries()].map(([itemId, override]) => ({

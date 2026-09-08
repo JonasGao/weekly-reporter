@@ -3,7 +3,7 @@ import { test, expect } from './app-fixture'
 import { disposeCarryForward, seedCarryForward } from './carry-forward-fixtures'
 import { SCRIPTED_AI_URL, scriptedInstruction } from './scripted-ai'
 
-function proposalStep(content: string, candidateId: string) {
+function proposalStep(content: string, candidateId: string, planItem?: string) {
   return {
     kind: 'stream' as const,
     text: '已按当前会话事实提交计划提案。',
@@ -14,7 +14,7 @@ function proposalStep(content: string, candidateId: string) {
         summary: ['应用当前会话的计划覆盖记录'],
         plan: {
           judgments: [{ candidateId, judgment: 'carry', reason: '模型判断该事项仍需推进' }],
-          items: [{ text: content.includes('AI 补充事项') ? 'AI 补充事项' : '模型提交的结转事项', source: 'current-fact' }],
+          items: [{ text: planItem ?? (content.includes('AI 补充事项') ? 'AI 补充事项' : '模型提交的结转事项'), source: 'current-fact' }],
         },
       },
     }],
@@ -49,11 +49,12 @@ test.describe('跨轮次计划覆盖记录', () => {
       const session = await createSession(request, fixture.targetReportId)
       const candidate = session.carryForwardSnapshot.candidates[0]
       const original = candidate.text
+      const paraphrased = '与客户敲定验收日期'
       const content = `# 本周完成\n\n- ${marker} current source fact\n\n## 下周计划\n- ${original}`
       const scenario = scriptedInstruction('验证计划覆盖记录', {
         steps: [
           proposalStep(content, candidate.candidateId),
-          proposalStep(content, candidate.candidateId),
+          proposalStep(content.replace(original, paraphrased), candidate.candidateId, paraphrased),
           proposalStep(`${content}\n- AI 补充事项`, candidate.candidateId),
           proposalStep(content, candidate.candidateId),
         ],
@@ -77,11 +78,17 @@ test.describe('跨轮次计划覆盖记录', () => {
       await expect(review.getByTestId('proposal-markdown-source')).not.toContainText(original)
       await expect(review.getByText(new RegExp(`\\[${candidate.candidateId}\\] drop · excluded · carry-forward`))).toBeVisible()
 
-      await composer.fill('再次生成，不得恢复已 drop 的事项')
+      await candidateRow.getByRole('button', { name: 'Re-add' }).click()
+      await expect(review.getByText('Superseded')).toBeVisible()
+      await expect(review.getByRole('button', { name: 'Accept and save final version' })).toHaveCount(0)
+      await candidateRow.getByRole('button', { name: 'Drop' }).click()
+
+      await composer.fill('再次生成，不得以同义改写恢复已 drop 的事项')
       await page.getByRole('button', { name: 'Send', exact: true }).click()
       await expect(review.getByText('Pending review')).toBeVisible({ timeout: 30_000 })
       await review.getByRole('tab', { name: 'Markdown source' }).click()
       await expect(review.getByTestId('proposal-markdown-source')).not.toContainText(original)
+      await expect(review.getByTestId('proposal-markdown-source')).not.toContainText(paraphrased)
 
       await candidateRow.getByRole('button', { name: 'Re-add' }).click()
       await expect(candidateRow.getByText(/re-add → included/)).toBeVisible()
@@ -107,7 +114,7 @@ test.describe('跨轮次计划覆盖记录', () => {
 
       const beforeReload = await request.get(`/api/reports/${fixture.targetReportId}/generation-sessions/${session.id}`)
       const beforeReloadBody = await beforeReload.json()
-      expect(beforeReloadBody.planOverrides.map((item: { action: string }) => item.action)).toEqual(['keep', 'drop', 're-add', 'rewrite', 'keep'])
+      expect(beforeReloadBody.planOverrides.map((item: { action: string }) => item.action)).toEqual(['keep', 'drop', 're-add', 'drop', 're-add', 'rewrite', 'keep'])
       expect(beforeReloadBody.planOverrides.every((item: { itemId?: string; source?: string; createdAt?: string }) => item.itemId && item.source && item.createdAt)).toBe(true)
       expect(beforeReloadBody.planOverrideState).toEqual(expect.arrayContaining([
         expect.objectContaining({ itemId: candidate.candidateId, effectiveText: rewritten, latestAction: 'rewrite', source: 'carry-forward' }),
@@ -117,7 +124,7 @@ test.describe('跨轮次计划覆盖记录', () => {
       await page.reload()
       await page.getByRole('button', { name: 'Personal' }).click()
       await expect(page.getByRole('region', { name: 'Plan overrides' }).getByText(rewritten, { exact: true })).toBeVisible()
-      await expect(page.getByText('Append-only override history (5)')).toBeVisible()
+      await expect(page.getByText('Append-only override history (7)')).toBeVisible()
       await expect(page.getByRole('complementary', { name: 'Read-only proposal review' }).getByText('Pending review')).toBeVisible()
 
       const isolatedSession = await createSession(request, fixture.targetReportId)

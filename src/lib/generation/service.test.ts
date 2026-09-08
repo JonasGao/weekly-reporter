@@ -91,6 +91,22 @@ describe('generation session lifecycle', () => {
     })
     await finishGenerationTurn(turn.id, 'completed')
 
+    const preAcceptanceOverride = await appendPlanOverride({
+      reportId: report.id,
+      sessionId: session.id,
+      action: 'keep',
+      text: '采用前新增事项',
+    })
+    expect(db.select().from(generationProposals).where(eq(generationProposals.id, proposal.id)).get()?.status).toBe('superseded')
+    await expect(acceptGenerationProposal({
+      reportId: report.id,
+      sessionId: session.id,
+      proposalId: proposal.id,
+    })).rejects.toMatchObject({ code: 'PROPOSAL_SUPERSEDED' })
+
+    db.delete(generationPlanOverrides).where(eq(generationPlanOverrides.id, preAcceptanceOverride.id)).run()
+    db.update(generationProposals).set({ status: 'pending' }).where(eq(generationProposals.id, proposal.id)).run()
+
     expect(db.select().from(reportVariants).where(eq(reportVariants.id, variant.id)).get()?.finalContent).toBeNull()
     expect(proposal.baselineContent).toBe('')
     expect(proposal.publicSummary).toMatchObject({

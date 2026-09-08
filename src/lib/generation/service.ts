@@ -339,6 +339,9 @@ export async function appendPlanOverride(input: {
       source,
       createdAt: now,
     }).returning().get()
+    tx.update(generationProposals).set({ status: 'superseded' }).where(
+      and(eq(generationProposals.sessionId, session.id), eq(generationProposals.status, 'pending')),
+    ).run()
     tx.update(generationSessions).set({ updatedAt: now }).where(eq(generationSessions.id, session.id)).run()
     const records = [...existing, record]
     return {

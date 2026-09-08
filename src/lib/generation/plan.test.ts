@@ -112,6 +112,33 @@ describe('generation plan merge', () => {
     }])
   })
 
+  it.each([
+    ['联系客户确认验收时间', '与客户敲定验收日期'],
+    ['完善权限控制方案', '补齐访问控制设计'],
+    ['修复支付失败问题', '解决付款报错'],
+  ])('treats drop as an identity tombstone for arbitrary paraphrases: %s', (original, paraphrase) => {
+    const carrySnapshot = snapshot()
+    carrySnapshot.candidates[0] = { ...carrySnapshot.candidates[0], text: original, normalizedText: original }
+    const result = mergeProposalPlan({
+      content: `# 周报\n\n## 下周计划\n- ${paraphrase}`,
+      templateContent: '包含下周计划',
+      snapshot: carrySnapshot,
+      plan: {
+        judgments: [
+          { candidateId: 'carry-a', judgment: 'carry', reason: '模型试图用新措辞恢复' },
+          { candidateId: 'carry-b', judgment: 'drop', reason: '已完成' },
+        ],
+        items: [{ text: paraphrase, source: 'current-fact' }],
+      },
+      overrides: [{ id: 1, itemId: 'carry-a', action: 'drop', replacementText: null, source: 'carry-forward', createdAt: new Date('2026-09-08T00:00:00.000Z') }],
+      baselineFinalContent: `## 下周计划\n- ${paraphrase}`,
+    })
+
+    expect(result.content).not.toContain(paraphrase)
+    expect(result.state.items).toEqual([])
+    expect(result.state.warnings.join('\n')).toContain('只有显式 re-add 可解除')
+  })
+
   it('replays rewrite, drop, explicit re-add, and new session items deterministically', () => {
     const overrides = [
       { id: 1, itemId: 'carry-a', action: 'rewrite' as const, replacementText: '完成灰度发布', source: 'carry-forward' as const, createdAt: '2026-09-08T00:00:00.000Z' },
