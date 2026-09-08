@@ -382,3 +382,19 @@ test.describe('AI 查询周报内容', () => {
     })
   })
 })
+
+test.describe('AI 查询周报预算与失败恢复', () => {
+  test('限制单轮历史查询调用次数并保留可继续生成的工具结果', async ({ page, request, reportId, scenario }) => {
+    await withQueryFixture(request, scenario, reportId, async () => {
+      const toolCalls = Array.from({ length: 11 }, () => ({ name: 'query_report_list', arguments: {} }))
+      await openSessionWithScript(page, reportId, scriptedInstruction('验证历史查询调用预算', {
+        steps: [{ kind: 'stream', toolCalls }, { kind: 'stream', text: '预算耗尽后仍可继续生成。' }],
+      }))
+      await expect(page.getByText('预算耗尽后仍可继续生成。')).toBeVisible({ timeout: 30_000 })
+      const detail = await latestSessionDetail(request, reportId)
+      const results = detail.messages.filter((part) => part.partType === 'tool-result' && part.data?.toolName === 'query_report_list').map((part) => part.data?.output)
+      expect(results).toHaveLength(11)
+      expect(results.at(-1)).toMatchObject({ ok: false, error: { code: 'TOOL_BUDGET_EXCEEDED' } })
+    })
+  })
+})

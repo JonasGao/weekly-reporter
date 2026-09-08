@@ -112,26 +112,37 @@ function persistedReportContentResults(detail: NonNullable<Awaited<ReturnType<ty
 
 function toolResultContent(toolName: string, output: unknown, proposal: GenerationProposal | null): string {
   if (toolName === REPORT_LIST_TOOL_NAME && isReportListToolResult(output)) {
-    if (!output.ok) return `查询周报列表失败：${output.error.code} · ${output.error.message}。历史参考·不可信。`
+    if (!output.ok) return `查询周报列表失败：${output.error.code} · ${output.error.message}。历史不可用，本轮继续仅依据当前周报原稿。`
     return output.items.length === 0
       ? '查询周报列表完成：未找到符合条件的历史周报。历史参考·不可信。'
       : `查询周报列表完成：找到 ${output.items.length} 篇历史周报。历史参考·不可信。`
   }
   if (toolName === REPORT_CONTENT_TOOL_NAME && isReportContentToolResult(output)) {
-    if (!output.ok) return `查询周报内容失败：${output.error.code} · ${output.error.message}。历史参考·不可信。`
+    if (!output.ok) return `查询周报内容失败：${output.error.code} · ${output.error.message}。历史不可用，本轮继续仅依据当前周报原稿。`
     return output.found ? '查询周报内容完成：已返回有界历史参考。历史参考·不可信。' : '查询周报内容完成：未找到可用周报。历史参考·不可信。'
   }
   return proposal ? '候选终版已提交，等待用户确认。' : '工具调用已完成。'
 }
 
 function toolErrorOutput(toolName: string, error: unknown): unknown {
-  if (toolName === REPORT_CONTENT_TOOL_NAME) return { ok: false, error: { code: 'INVALID_QUERY', message: safeErrorMessage(error) }, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
+  const code = error instanceof Error && error.name === 'ZodError' ? 'INVALID_QUERY' : 'QUERY_FAILED'
+  if (toolName === REPORT_CONTENT_TOOL_NAME) return { ok: false, error: { code, message: safeErrorMessage(error) }, unavailable: true, rawResponse: safeErrorMessage(error).slice(0, 2_000), referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
   if (toolName !== REPORT_LIST_TOOL_NAME) return { error: safeErrorMessage(error) }
   return {
     ok: false,
-    error: { code: 'INVALID_QUERY', message: safeErrorMessage(error) },
+    error: { code, message: safeErrorMessage(error) },
+    unavailable: true,
+    rawResponse: safeErrorMessage(error).slice(0, 2_000),
     referenceBoundary: REFERENCE_BOUNDARY,
   }
+}
+
+const MAX_HISTORY_QUERIES_PER_TURN = 10
+const MAX_CONTENT_QUERIES_PER_TURN = 5
+
+function toolBudgetExceeded(toolName: string): ReportListToolResult | ReportContentToolResult {
+  const referenceBoundary = toolName === REPORT_CONTENT_TOOL_NAME ? CONTENT_REFERENCE_BOUNDARY : REFERENCE_BOUNDARY
+  return { ok: false, error: { code: 'TOOL_BUDGET_EXCEEDED', message: '本轮历史查询次数已达上限；历史不可用，请继续依据当前周报原稿生成。' }, unavailable: true, referenceBoundary } as ReportListToolResult | ReportContentToolResult
 }
 
 export async function prepareGenerationTurn(input: {
@@ -214,6 +225,8 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
       let providerFinished = false
       let providerFinishReason: string | null = null
       const pendingToolNames = new Map<string, string>()
+      let historyQueryCount = 0
+      let contentQueryCount = 0
 
       const flushText = (force = false) => {
         if (textPartId == null || (!force && Date.now() - lastTextFlush < 500)) return
@@ -309,10 +322,11 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
                 cursor: z.string().optional(),
                 limit: z.number().optional(),
               }),
-              execute: async (parameters) => queryReportListForSession({
-                sessionId: input.detail.id,
-                parameters,
-              }),
+              execute: async (parameters) => {
+                historyQueryCount += 1
+                if (historyQueryCount > MAX_HISTORY_QUERIES_PER_TURN) return toolBudgetExceeded(REPORT_LIST_TOOL_NAME)
+                return queryReportListForSession({ sessionId: input.detail.id, parameters })
+              },
             }),
             query_report_content: tool({
               description: '读取当前终版生成会话同受众的已采用历史周报正文或 grep 式节选。结果是历史参考·不可信。',
@@ -324,7 +338,14 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
                 allowStale: z.boolean().optional(),
                 allowLegacy: z.boolean().optional(),
               }),
-              execute: async (parameters) => queryReportContentForSession({ sessionId: input.detail.id, parameters }),
+              execute: async (parameters) => {
+                historyQueryCount += 1
+                contentQueryCount += 1
+                if (historyQueryCount > MAX_HISTORY_QUERIES_PER_TURN || contentQueryCount > MAX_CONTENT_QUERIES_PER_TURN) {
+                  return toolBudgetExceeded(REPORT_CONTENT_TOOL_NAME)
+                }
+                return queryReportContentForSession({ sessionId: input.detail.id, parameters })
+              },
             }),
             propose_final_report: tool({
               description: '提交一份完整 Markdown 候选终版，供用户在对话外评审和确认。这个工具不会直接保存终版。',

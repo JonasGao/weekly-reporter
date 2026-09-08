@@ -15,6 +15,7 @@ import {
   LoaderCircle,
   Pencil,
   Plus,
+  RefreshCw,
   Send,
   Sparkles,
   Square,
@@ -432,7 +433,7 @@ function PlanOverridePanel({
   )
 }
 
-function ReportListToolResultCard({ output, content }: { output: ReportListToolResult; content: string | null }) {
+function ReportListToolResultCard({ output, content, onRetry }: { output: ReportListToolResult; content: string | null; onRetry?: () => void }) {
   return (
     <div className="ml-11 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
@@ -472,23 +473,23 @@ function ReportListToolResultCard({ output, content }: { output: ReportListToolR
           </details>
         </div>
       ) : (
-        <p className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">{output.error.code} · {output.error.message}</p>
+        <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive"><p>{output.error.code} · {output.error.message}</p>{output.error.code === 'QUERY_FAILED' && onRetry ? <Button size="sm" variant="outline" className="mt-2" onClick={onRetry}><RefreshCw className="mr-1.5 h-3.5 w-3.5" />重试历史查询</Button> : null}</div>
       )}
     </div>
   )
 }
 
-function ReportContentToolResultCard({ output, content }: { output: ReportContentToolResult; content: string | null }) {
+function ReportContentToolResultCard({ output, content, onRetry }: { output: ReportContentToolResult; content: string | null; onRetry?: () => void }) {
   return <div className="ml-11 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
     <div className="flex flex-wrap items-center gap-2"><Wrench className="h-4 w-4 text-amber-500" /><span className="font-medium">查询周报内容</span><span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-500">历史参考·不可信</span></div>
     <p className="mt-2 text-xs text-muted-foreground">{content}</p>
     {output.ok && output.found && <><dl className="mt-2 grid gap-x-3 gap-y-1 text-xs text-muted-foreground sm:grid-cols-[auto_1fr]"><dt>来源</dt><dd>{output.identity.title} · {output.identity.weekStart} – {output.identity.weekEnd}</dd><dt>受众/状态</dt><dd>{output.identity.audience} · {output.identity.finalStatus}{output.identity.isLegacy ? ' · legacy' : ''}</dd><dt>截断</dt><dd>{output.truncated ? '是' : '否'}{output.totalChars !== undefined ? ` · ${output.returnedChars}/${output.totalChars} 字符` : ''}</dd></dl>{output.identity.warning ? <p role="alert" className="mt-2 text-xs text-amber-600 dark:text-amber-400">{output.identity.warning}</p> : null}{output.content ? <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded border border-border bg-background p-2 text-xs">{output.content}</pre> : output.matches?.map((match) => <pre key={`${match.startLine}-${match.endLine}`} className="mt-2 whitespace-pre-wrap break-words rounded border border-border bg-background p-2 text-xs">lines {match.startLine}–{match.endLine}\n{match.content}</pre>)}</>}
     {output.ok && !output.found && <p className="mt-2 text-xs text-muted-foreground">未找到可用周报</p>}
-    {!output.ok && <p className="mt-2 text-xs text-destructive">{output.error.code} · {output.error.message}</p>}
+    {!output.ok && <div className="mt-2 text-xs text-destructive"><p>{output.error.code} · {output.error.message}</p>{output.error.code === 'QUERY_FAILED' && onRetry ? <Button size="sm" variant="outline" className="mt-2" onClick={onRetry}><RefreshCw className="mr-1.5 h-3.5 w-3.5" />重试历史查询</Button> : null}</div>}
   </div>
 }
 
-function TranscriptPart({ part }: { part: MessagePart }) {
+function TranscriptPart({ part, onRetry }: { part: MessagePart; onRetry?: () => void }) {
   if (part.role === 'system' || part.partType === 'status') return null
   if (part.role === 'user') {
     return (
@@ -509,10 +510,10 @@ function TranscriptPart({ part }: { part: MessagePart }) {
   if (part.partType === 'tool-call' || part.partType === 'tool-result') {
     const toolName = typeof part.data?.toolName === 'string' ? part.data.toolName : ''
     if (part.partType === 'tool-result' && toolName === REPORT_LIST_TOOL_NAME && isReportListToolResult(part.data?.output)) {
-      return <ReportListToolResultCard output={part.data.output} content={part.content} />
+      return <ReportListToolResultCard output={part.data.output} content={part.content} onRetry={onRetry} />
     }
     if (part.partType === 'tool-result' && toolName === REPORT_CONTENT_TOOL_NAME && isReportContentToolResult(part.data?.output)) {
-      return <ReportContentToolResultCard output={part.data.output} content={part.content} />
+      return <ReportContentToolResultCard output={part.data.output} content={part.content} onRetry={onRetry} />
     }
     return (
       <details className="ml-11 rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
@@ -1151,7 +1152,7 @@ export function GenerationWorkspace({
             <div ref={transcriptRef} onScroll={handleTranscriptScroll} className="generation-transcript max-h-[calc(100vh-15rem)] min-h-[520px] space-y-4 overflow-y-auto p-4">
               <SystemContextCard detail={detail} />
               <PlanOverridePanel detail={detail} disabled={!canChat || streaming} saving={savingOverride} onAction={recordPlanOverride} />
-              {detail.messages.map((part) => <TranscriptPart key={part.id} part={part} />)}
+              {detail.messages.map((part) => <TranscriptPart key={part.id} part={part} onRetry={part.partType === 'tool-result' ? () => { const message = detail.messages.filter((item) => item.role === 'user').at(-1)?.content; if (message) void streamTurn(detail.id, message) } : undefined} />)}
               {liveUser && <TranscriptPart part={{ id: -1, turnId: liveTurnId, sequence: Number.MAX_SAFE_INTEGER, role: 'user', partType: 'text', content: liveUser, data: null }} />}
               <LiveAssistant reasoning={liveReasoning} text={liveText} toolState={liveToolState} working={streaming || Boolean(detail.activeTurn && !liveTurnId)} />
               {noProposalAfterLastTurn && !streaming && canChat && <div className="ml-11 rounded-lg border border-dashed border-border p-3 text-sm text-muted-foreground">No proposed final version was submitted this turn. <Button variant="link" className="h-auto px-1" onClick={() => void sendMessage('Turn the current discussion into a complete proposed final version and submit it with propose_final_report.')}>Submit current version</Button></div>}

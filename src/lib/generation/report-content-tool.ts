@@ -39,9 +39,10 @@ export function queryReportContentForSession(input: { sessionId: number; paramet
     const reportId = Number(params.reportId)
     const query = params.query?.trim()
     if (params.query !== undefined && (!query || query.length > MAX_QUERY_CHARS)) return invalid('query must contain 1 to 200 characters after trimming')
-    const maxMatches = params.maxMatches ?? 5
-    const contextLines = params.contextLines ?? 2
-    if (!Number.isInteger(maxMatches) || maxMatches < 1 || maxMatches > 10) return invalid('maxMatches must be an integer from 1 to 10')
+    const requestedMaxMatches = params.maxMatches ?? 3
+    const contextLines = params.contextLines ?? 1
+    if (!Number.isInteger(requestedMaxMatches) || requestedMaxMatches < 1 || requestedMaxMatches > 10) return invalid('maxMatches must be an integer from 1 to 10')
+    const maxMatches = Math.min(requestedMaxMatches, 3)
     if (!Number.isInteger(contextLines) || contextLines < 0 || contextLines > 5) return invalid('contextLines must be an integer from 0 to 5')
     const db = getDb()
     const session = db.select({ reportId: generationSessions.reportId, audience: generationSessions.variant }).from(generationSessions).where(eq(generationSessions.id, input.sessionId)).get()

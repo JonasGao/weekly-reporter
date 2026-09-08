@@ -50,7 +50,7 @@ export type ReportContentToolResult = {
   referenceBoundary: typeof CONTENT_REFERENCE_BOUNDARY
 } | {
   ok: false
-  error: { code: 'INVALID_QUERY' | 'NOT_AVAILABLE' | 'QUERY_FAILED'; message: string }
+  error: { code: 'INVALID_QUERY' | 'NOT_AVAILABLE' | 'QUERY_FAILED' | 'TOOL_BUDGET_EXCEEDED'; message: string }
   referenceBoundary: typeof CONTENT_REFERENCE_BOUNDARY
 }
 

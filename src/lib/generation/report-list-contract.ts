@@ -62,7 +62,7 @@ export type ReportListToolResult = {
   referenceBoundary: { label: typeof HISTORICAL_REFERENCE_LABEL; statement: string }
 } | {
   ok: false
-  error: { code: 'INVALID_QUERY' | 'NOT_AVAILABLE' | 'QUERY_FAILED'; message: string }
+  error: { code: 'INVALID_QUERY' | 'NOT_AVAILABLE' | 'QUERY_FAILED' | 'TOOL_BUDGET_EXCEEDED'; message: string }
   referenceBoundary: { label: typeof HISTORICAL_REFERENCE_LABEL; statement: string }
 }
 

@@ -209,6 +209,20 @@ export function buildPublicGenerationSummary(input: {
     historicalText,
   })
   const failureStates: PublicGenerationSummary['failureStates'] = []
+  const toolStatuses: PublicGenerationSummary['toolStatuses'] = []
+  const historyTruncations: PublicGenerationSummary['truncationStates'] = []
+  const recordHistoryTool = (toolName: string, result: ReportListToolResult | ReportContentToolResult) => {
+    if (!result.ok) {
+      toolStatuses.push({ toolName, status: 'failed', detail: result.error.code })
+      failureStates.push({ scope: toolName, code: result.error.code, message: result.error.message })
+      return
+    }
+    const truncated = ('truncated' in result && result.truncated === true) || ('matchesTruncated' in result && result.matchesTruncated === true)
+    toolStatuses.push({ toolName, status: truncated ? 'truncated' : 'succeeded', detail: truncated ? 'bounded-output' : 'none' })
+    if (truncated) historyTruncations.push({ scope: toolName, omittedCount: 1, message: '历史查询结果已达到字符或片段预算，后续节选被省略。' })
+  }
+  for (const result of input.historicalReportListResults ?? []) recordHistoryTool('query_report_list', result)
+  for (const result of input.historicalReportContentResults ?? []) recordHistoryTool('query_report_content', result)
   if (input.carryForwardSnapshot.status === 'parse-failed') {
     failureStates.push({
       scope: 'carry-forward',
@@ -223,7 +237,7 @@ export function buildPublicGenerationSummary(input: {
       message: input.proposalPlanParseFailure,
     })
   }
-  const truncationStates: PublicGenerationSummary['truncationStates'] = []
+  const truncationStates: PublicGenerationSummary['truncationStates'] = [...historyTruncations]
   if (input.planState.truncatedCount > 0) {
     truncationStates.push({
       scope: 'next-week-plan',
@@ -281,7 +295,7 @@ export function buildPublicGenerationSummary(input: {
       sourceUpdatedAt: source.updatedAt,
       trust: 'historical-reference-untrusted',
     } satisfies PublicGenerationSummary['historicalReferences'][number]] : []), ...queriedReferences.values()],
-    toolStatuses: [{ toolName: 'propose_final_report', status: 'succeeded', detail: 'proposal-created' }],
+    toolStatuses: [...toolStatuses, { toolName: 'propose_final_report', status: 'succeeded', detail: 'proposal-created' }],
     failureStates,
     truncationStates,
     changeSummary: changeSummary.values,
