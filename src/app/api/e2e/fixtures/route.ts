@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       weekStart: subDays(targetStart, 21),
       weekEnd: subDays(targetStart, 15),
       variants: [
-        { audience: 'personal', finalStatus: 'current', finalContent: `# ${marker} searchable personal final`, accepted: true },
+        { audience: 'personal', finalStatus: 'current', finalContent: `# ${marker} searchable personal final\n\n${'x'.repeat(41_000)}`, accepted: true },
         { audience: 'leadership', finalStatus: 'none', finalContent: null, accepted: false },
       ],
     })
@@ -117,12 +117,22 @@ export async function POST(request: Request) {
       weekEnd: subDays(targetStart, 43),
       variants: [{ audience: 'personal', finalStatus: 'current', finalContent: `# ${marker} legacy current secret`, accepted: false }],
     })
-    createReport({
+    const staleReportId = createReport({
       title: `${marker} stale excluded`,
       weekStart: subDays(targetStart, 28),
       weekEnd: subDays(targetStart, 22),
       variants: [{ audience: 'personal', finalStatus: 'stale', finalContent: `# ${marker} stale secret`, accepted: true }],
     })
+    const legacyReportId = db.insert(reports).values({
+      title: `${marker} legacy readable`,
+      content: `# ${marker} legacy readable content\n\n${marker} legacy grep target`,
+      weekStart: format(subDays(targetStart, 56), 'yyyy-MM-dd'),
+      weekEnd: format(subDays(targetStart, 50), 'yyyy-MM-dd'),
+      scoreStatus: 'completed',
+      createdAt: now,
+      updatedAt: now,
+    }).returning().get().id
+    reportIds.push(legacyReportId)
     createReport({
       title: `${marker} none excluded`,
       weekStart: subDays(targetStart, 35),
@@ -141,6 +151,8 @@ export async function POST(request: Request) {
       sameAudienceReportId,
       crossAudienceReportId,
       currentLegacyReportId,
+      staleReportId,
+      legacyReportId,
     }, { status: 201 })
   }
   if (body.action === 'carry-forward') {

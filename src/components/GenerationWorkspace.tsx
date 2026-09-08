@@ -45,6 +45,7 @@ import {
   REPORT_LIST_TOOL_NAME,
   type ReportListToolResult,
 } from '@/lib/generation/report-list-contract'
+import { isReportContentToolResult, REPORT_CONTENT_TOOL_NAME, type ReportContentToolResult } from '@/lib/generation/report-content-contract'
 
 interface TemplateOption {
   id: string
@@ -168,9 +169,10 @@ const REVEAL_CHARACTERS_PER_SECOND = 160
 
 function toolStatusMessage(eventType: 'tool-input-delta' | 'tool-call' | 'tool-result', toolName: string): string {
   const reportList = toolName === REPORT_LIST_TOOL_NAME
-  if (eventType === 'tool-input-delta') return reportList ? 'Preparing report list query...' : 'Preparing proposed final version...'
-  if (eventType === 'tool-call') return reportList ? 'Querying same-audience historical reports...' : 'Calling propose_final_report...'
-  return reportList ? 'Historical report list query completed.' : 'Proposed final version submitted; awaiting review.'
+  const reportContent = toolName === REPORT_CONTENT_TOOL_NAME
+  if (eventType === 'tool-input-delta') return reportList ? 'Preparing report list query...' : reportContent ? 'Preparing report content query...' : 'Preparing proposed final version...'
+  if (eventType === 'tool-call') return reportList ? 'Querying same-audience historical reports...' : reportContent ? 'Reading same-audience historical report...' : 'Calling propose_final_report...'
+  return reportList ? 'Historical report list query completed.' : reportContent ? 'Historical report content query completed.' : 'Proposed final version submitted; awaiting review.'
 }
 const FOLLOW_BOTTOM_THRESHOLD = 64
 
@@ -475,6 +477,16 @@ function ReportListToolResultCard({ output, content }: { output: ReportListToolR
   )
 }
 
+function ReportContentToolResultCard({ output, content }: { output: ReportContentToolResult; content: string | null }) {
+  return <div className="ml-11 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+    <div className="flex flex-wrap items-center gap-2"><Wrench className="h-4 w-4 text-amber-500" /><span className="font-medium">查询周报内容</span><span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-500">历史参考·不可信</span></div>
+    <p className="mt-2 text-xs text-muted-foreground">{content}</p>
+    {output.ok && output.found && <><dl className="mt-2 grid gap-x-3 gap-y-1 text-xs text-muted-foreground sm:grid-cols-[auto_1fr]"><dt>来源</dt><dd>{output.identity.title} · {output.identity.weekStart} – {output.identity.weekEnd}</dd><dt>受众/状态</dt><dd>{output.identity.audience} · {output.identity.finalStatus}{output.identity.isLegacy ? ' · legacy' : ''}</dd><dt>截断</dt><dd>{output.truncated ? '是' : '否'}{output.totalChars !== undefined ? ` · ${output.returnedChars}/${output.totalChars} 字符` : ''}</dd></dl>{output.content ? <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded border border-border bg-background p-2 text-xs">{output.content}</pre> : output.matches?.map((match) => <pre key={`${match.startLine}-${match.endLine}`} className="mt-2 whitespace-pre-wrap break-words rounded border border-border bg-background p-2 text-xs">lines {match.startLine}–{match.endLine}\n{match.content}</pre>)}</>}
+    {output.ok && !output.found && <p className="mt-2 text-xs text-muted-foreground">未找到可用周报</p>}
+    {!output.ok && <p className="mt-2 text-xs text-destructive">{output.error.code} · {output.error.message}</p>}
+  </div>
+}
+
 function TranscriptPart({ part }: { part: MessagePart }) {
   if (part.role === 'system' || part.partType === 'status') return null
   if (part.role === 'user') {
@@ -497,6 +509,9 @@ function TranscriptPart({ part }: { part: MessagePart }) {
     const toolName = typeof part.data?.toolName === 'string' ? part.data.toolName : ''
     if (part.partType === 'tool-result' && toolName === REPORT_LIST_TOOL_NAME && isReportListToolResult(part.data?.output)) {
       return <ReportListToolResultCard output={part.data.output} content={part.content} />
+    }
+    if (part.partType === 'tool-result' && toolName === REPORT_CONTENT_TOOL_NAME && isReportContentToolResult(part.data?.output)) {
+      return <ReportContentToolResultCard output={part.data.output} content={part.content} />
     }
     return (
       <details className="ml-11 rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">

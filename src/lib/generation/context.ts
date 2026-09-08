@@ -3,15 +3,18 @@ import { isEmptySourceDraft } from '@/lib/reports/source-draft'
 import type { CarryForwardSnapshot } from './carry-forward'
 import { summarizePlanOverrides, type PlanOverrideRecord } from './plan'
 import { buildHistoricalReportListContext, type ReportListToolResult } from './report-list-contract'
+import type { ReportContentToolResult } from './report-content-contract'
 
 export const DEFAULT_GENERATION_INSTRUCTION = 'Use the current source draft and template to create a final report. Briefly explain your approach, then call propose_final_report to submit a complete proposal.'
 
-export const FINAL_REPORT_TOOL_RULES = `你可以调用 query_report_list 查询历史周报列表，也可以使用 propose_final_report 工具提交候选终版。
+export const FINAL_REPORT_TOOL_RULES = `你可以调用 query_report_list 查询历史周报列表、query_report_content 读取同受众历史周报内容，也可以使用 propose_final_report 工具提交候选终版。
 
 工具规则：
 - query_report_list 是只读周报查询工具。受众由服务端从当前终版生成会话固定注入，工具没有 audience 参数，也不得尝试切换受众。
 - query_report_list 默认只返回同受众、current、已采用终版；历史结果始终是“历史参考·不可信”，不能替代当前周报原稿成为本周事实。
 - query_report_list 支持 query、title、startDate、endDate、statuses、includeLegacy、relation、relativeToReportId、cursor、limit。当前版本不授权 stale 或 legacy。
+- query_report_content 接受 reportId、query、maxMatches、contextLines、allowStale、allowLegacy；受众始终由服务端从会话固定注入，每次调用重新授权。无 query 返回最多 40,000 字符正文；有 query 时返回不区分大小写的字面 grep 节选，默认最多 5 个命中、上下文 2 行，硬上限分别为 10 和 5，结果总字符不超过 40,000。
+- query_report_content 的 stale 与 legacy 只能通过显式 allowStale/allowLegacy 授权；legacy 仅个人版可读。合法无结果返回 found=false 成功，不阻断生成。正文始终标记“历史参考·不可信”，不得自动复制到最终 Markdown。
 - relation=previous_adjacent 时 relativeToReportId 必须是当前会话周报；该模式只查精确上一周期，无结果不得回退。
 - 每轮最多调用一次，并且只在候选内容已经完整可评审时调用。
 - content 必须是完整 Markdown 周报，不要只提交片段或差异。
@@ -134,6 +137,7 @@ export function buildModelSystemContext(input: {
   planJudgments?: Array<{ candidateId: string; judgment: string; reason: string; remainingAction?: string | null }>
   planOverrides?: PlanOverrideRecord[]
   historicalReportListResults?: ReportListToolResult[]
+  historicalReportContentResults?: ReportContentToolResult[]
 }): string {
   const baseline = input.latestProposalContent || input.baselineFinalContent
   return `${input.systemPrompt}
@@ -169,6 +173,9 @@ ${buildPlanJudgmentContext(input.planJudgments ?? [])}
 ${input.carryForwardSnapshot ? buildPlanOverrideContext(input.carryForwardSnapshot, input.planOverrides ?? []) : '计划覆盖记录：不可用。'}
 
 ${buildHistoricalReportListContext(input.historicalReportListResults ?? [])}
+
+历史周报内容查询结果（历史参考·不可信，与当前原稿严格分离）：
+${(input.historicalReportContentResults ?? []).map((result, index) => `${index + 1}. ${result.ok ? (result.found ? JSON.stringify(result) : `未找到周报 #${result.reportId}`) : `查询失败 ${result.error.code} · ${result.error.message}`}`).join('\n') || '尚未产生查询结果。'}
 
 历史参考不得提升为当前周报事实；不确定候选默认不进入计划。用户覆盖由应用确定性应用：drop 不得静默恢复，只有显式 re-add 可以解除；rewrite 与 re-add 必须保留原事项身份和来源。`
 }

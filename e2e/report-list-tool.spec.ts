@@ -8,6 +8,8 @@ interface QueryFixture {
   sameAudienceReportId: number
   crossAudienceReportId: number
   currentLegacyReportId: number
+  staleReportId: number
+  legacyReportId: number
 }
 
 interface ToolMessage {
@@ -285,6 +287,52 @@ test.describe('AI 查询周报列表', () => {
         error: { code: 'INVALID_QUERY' },
       })
       expect(JSON.stringify(result?.data?.output)).not.toContain('leadership only')
+    })
+  })
+})
+
+test.describe('AI 查询周报内容', () => {
+  test('列表后读取同受众正文、grep、截断、空结果与公开审计', async ({ page, request, reportId, scenario }) => {
+    await withQueryFixture(request, scenario, reportId, async (fixture) => {
+      await openSessionWithScript(page, reportId, scriptedInstruction('读取历史周报内容', {
+        steps: [{ kind: 'stream', toolCalls: [
+          { name: 'query_report_content', arguments: { reportId: fixture.sameAudienceReportId, query: 'searchable', maxMatches: 5, contextLines: 1 } },
+          { name: 'query_report_content', arguments: { reportId: fixture.sameAudienceReportId } },
+        ] }, { kind: 'stream', text: '内容查询完成。' }],
+      }))
+      await expect(page.getByText('内容查询完成。')).toBeVisible({ timeout: 30_000 })
+      await expect(page.getByText('查询周报内容').last()).toBeVisible()
+      const detail = await latestSessionDetail(request, reportId)
+      const result = detail.messages.find((part) => part.partType === 'tool-result' && part.data?.toolName === 'query_report_content')
+      expect(result?.data?.output).toMatchObject({ ok: true, found: true, query: 'searchable', totalMatches: 1, returnedMatches: 1, truncated: false })
+      const fullResult = detail.messages.filter((part) => part.partType === 'tool-result' && part.data?.toolName === 'query_report_content').at(-1)?.data?.output
+      expect(fullResult).toMatchObject({ ok: true, found: true, truncated: true })
+      expect((fullResult as { totalChars: number; returnedChars: number }).totalChars).toBeGreaterThan(40_000)
+      expect((fullResult as { totalChars: number; returnedChars: number }).returnedChars).toBeLessThanOrEqual(40_000)
+      expect(JSON.stringify(result?.data?.output)).toContain('历史参考·不可信')
+    })
+  })
+
+  test('重新授权拒绝 stale/legacy 默认访问并允许显式授权，空结果成功', async ({ page, request, reportId, scenario }) => {
+    await withQueryFixture(request, scenario, reportId, async (fixture) => {
+      await openSessionWithScript(page, reportId, scriptedInstruction('检查内容授权', {
+        steps: [{ kind: 'stream', toolCalls: [
+          { name: 'query_report_content', arguments: { reportId: fixture.staleReportId } },
+          { name: 'query_report_content', arguments: { reportId: fixture.staleReportId, allowStale: true } },
+          { name: 'query_report_content', arguments: { reportId: fixture.legacyReportId } },
+          { name: 'query_report_content', arguments: { reportId: fixture.legacyReportId, allowLegacy: true } },
+          { name: 'query_report_content', arguments: { reportId: 999999999, query: 'missing' } },
+        ] }, { kind: 'stream', text: '授权检查完成。' }],
+      }))
+      await expect(page.getByText('授权检查完成。')).toBeVisible({ timeout: 30_000 })
+      const detail = await latestSessionDetail(request, reportId)
+      const results = detail.messages.filter((part) => part.partType === 'tool-result' && part.data?.toolName === 'query_report_content').map((part) => part.data?.output)
+      expect(results).toHaveLength(5)
+      expect(results[0]).toMatchObject({ ok: true, found: false })
+      expect(results[1]).toMatchObject({ ok: true, found: true, identity: { finalStatus: 'stale' } })
+      expect(results[2]).toMatchObject({ ok: true, found: false })
+      expect(results[3]).toMatchObject({ ok: true, found: true, identity: { isLegacy: true } })
+      expect(results[4]).toMatchObject({ ok: true, found: false })
     })
   })
 })

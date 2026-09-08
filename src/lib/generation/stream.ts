@@ -25,6 +25,8 @@ import {
   type ReportListToolResult,
 } from './report-list-tool'
 import { isReportListToolResult, REPORT_LIST_TOOL_NAME, REFERENCE_BOUNDARY } from './report-list-contract'
+import { isReportContentToolResult, REPORT_CONTENT_TOOL_NAME, CONTENT_REFERENCE_BOUNDARY, type ReportContentToolResult } from './report-content-contract'
+import { queryReportContentForSession } from './report-content-tool'
 
 export type GenerationStreamEvent =
   | { type: 'start'; turnId: number; protocol: string; model: string }
@@ -101,6 +103,13 @@ function persistedReportListResults(detail: NonNullable<Awaited<ReturnType<typeo
   })
 }
 
+function persistedReportContentResults(detail: NonNullable<Awaited<ReturnType<typeof getGenerationSessionDetail>>>): ReportContentToolResult[] {
+  return detail.messages.flatMap((part) => {
+    if (part.partType !== 'tool-result' || part.data?.toolName !== REPORT_CONTENT_TOOL_NAME) return []
+    return isReportContentToolResult(part.data.output) ? [part.data.output] : []
+  })
+}
+
 function toolResultContent(toolName: string, output: unknown, proposal: GenerationProposal | null): string {
   if (toolName === REPORT_LIST_TOOL_NAME && isReportListToolResult(output)) {
     if (!output.ok) return `查询周报列表失败：${output.error.code} · ${output.error.message}。历史参考·不可信。`
@@ -108,10 +117,15 @@ function toolResultContent(toolName: string, output: unknown, proposal: Generati
       ? '查询周报列表完成：未找到符合条件的历史周报。历史参考·不可信。'
       : `查询周报列表完成：找到 ${output.items.length} 篇历史周报。历史参考·不可信。`
   }
+  if (toolName === REPORT_CONTENT_TOOL_NAME && isReportContentToolResult(output)) {
+    if (!output.ok) return `查询周报内容失败：${output.error.code} · ${output.error.message}。历史参考·不可信。`
+    return output.found ? '查询周报内容完成：已返回有界历史参考。历史参考·不可信。' : '查询周报内容完成：未找到可用周报。历史参考·不可信。'
+  }
   return proposal ? '候选终版已提交，等待用户确认。' : '工具调用已完成。'
 }
 
 function toolErrorOutput(toolName: string, error: unknown): unknown {
+  if (toolName === REPORT_CONTENT_TOOL_NAME) return { ok: false, error: { code: 'QUERY_FAILED', message: safeErrorMessage(error) }, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
   if (toolName !== REPORT_LIST_TOOL_NAME) return { error: safeErrorMessage(error) }
   return {
     ok: false,
@@ -267,6 +281,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
           planJudgments: input.detail.planJudgments,
           planOverrides: input.detail.planOverrides,
           historicalReportListResults: persistedReportListResults(input.detail),
+          historicalReportContentResults: persistedReportContentResults(input.detail),
         })
         const model = createModelFromConfig(input.config)
         const proposalHolder: { current: GenerationProposal | null } = { current: null }
@@ -298,6 +313,18 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
                 sessionId: input.detail.id,
                 parameters,
               }),
+            }),
+            query_report_content: tool({
+              description: '读取当前终版生成会话同受众的已采用历史周报正文或 grep 式节选。结果是历史参考·不可信。',
+              inputSchema: z.strictObject({
+                reportId: z.number().optional(),
+                query: z.string().optional(),
+                maxMatches: z.number().optional(),
+                contextLines: z.number().optional(),
+                allowStale: z.boolean().optional(),
+                allowLegacy: z.boolean().optional(),
+              }),
+              execute: async (parameters) => queryReportContentForSession({ sessionId: input.detail.id, parameters }),
             }),
             propose_final_report: tool({
               description: '提交一份完整 Markdown 候选终版，供用户在对话外评审和确认。这个工具不会直接保存终版。',
@@ -380,7 +407,9 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
               partType: 'tool-call',
               content: part.toolName === REPORT_LIST_TOOL_NAME
                 ? '调用 查询周报列表。历史参考·不可信。'
-                : '调用 propose_final_report 提交候选终版',
+                : part.toolName === REPORT_CONTENT_TOOL_NAME
+                  ? '调用 查询周报内容。历史参考·不可信。'
+                  : '调用 propose_final_report 提交候选终版',
               data: { toolName: part.toolName, toolCallId: part.toolCallId, input: part.input },
             })
             send({ type: 'tool-call', toolName: part.toolName, toolCallId: part.toolCallId })
