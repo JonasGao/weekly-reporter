@@ -165,6 +165,13 @@ interface DiffLine {
 
 const REVEAL_INTERVAL_MS = 50
 const REVEAL_CHARACTERS_PER_SECOND = 160
+
+function toolStatusMessage(eventType: 'tool-input-delta' | 'tool-call' | 'tool-result', toolName: string): string {
+  const reportList = toolName === REPORT_LIST_TOOL_NAME
+  if (eventType === 'tool-input-delta') return reportList ? 'Preparing report list query...' : 'Preparing proposed final version...'
+  if (eventType === 'tool-call') return reportList ? 'Querying same-audience historical reports...' : 'Calling propose_final_report...'
+  return reportList ? 'Historical report list query completed.' : 'Proposed final version submitted; awaiting review.'
+}
 const FOLLOW_BOTTOM_THRESHOLD = 64
 
 function emptyStreamingMarkdown(): StreamingMarkdown {
@@ -947,9 +954,9 @@ export function GenerationWorkspace({
         if (event.type === 'start') setLiveTurnId(event.turnId)
         else if (event.type === 'reasoning-delta') queueLiveReasoning(event.text)
         else if (event.type === 'text-delta') queueLiveText(event.text)
-        else if (event.type === 'tool-input-delta') setLiveToolState(event.toolName === REPORT_LIST_TOOL_NAME ? 'Preparing report list query...' : 'Preparing proposed final version...')
-        else if (event.type === 'tool-call') setLiveToolState(event.toolName === REPORT_LIST_TOOL_NAME ? 'Querying same-audience historical reports...' : 'Calling propose_final_report...')
-        else if (event.type === 'tool-result') setLiveToolState(event.toolName === REPORT_LIST_TOOL_NAME ? 'Historical report list query completed.' : 'Proposed final version submitted; awaiting review.')
+        else if (event.type === 'tool-input-delta') setLiveToolState(toolStatusMessage(event.type, event.toolName))
+        else if (event.type === 'tool-call') setLiveToolState(toolStatusMessage(event.type, event.toolName))
+        else if (event.type === 'tool-result') setLiveToolState(toolStatusMessage(event.type, event.toolName))
         else if (event.type === 'proposal') setLiveProposal(event.proposal)
         else if (event.type === 'error') throw new Error(event.message)
       }

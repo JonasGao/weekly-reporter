@@ -111,6 +111,12 @@ export async function POST(request: Request) {
         { audience: 'personal', finalStatus: 'none', finalContent: null, accepted: false },
       ],
     })
+    const currentLegacyReportId = createReport({
+      title: `${marker} legacy current excluded`,
+      weekStart: subDays(targetStart, 49),
+      weekEnd: subDays(targetStart, 43),
+      variants: [{ audience: 'personal', finalStatus: 'current', finalContent: `# ${marker} legacy current secret`, accepted: false }],
+    })
     createReport({
       title: `${marker} stale excluded`,
       weekStart: subDays(targetStart, 28),
@@ -134,6 +140,7 @@ export async function POST(request: Request) {
       adjacentReportId,
       sameAudienceReportId,
       crossAudienceReportId,
+      currentLegacyReportId,
     }, { status: 201 })
   }
   if (body.action === 'carry-forward') {

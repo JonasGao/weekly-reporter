@@ -7,6 +7,7 @@ interface QueryFixture {
   adjacentReportId?: number
   sameAudienceReportId: number
   crossAudienceReportId: number
+  currentLegacyReportId: number
 }
 
 interface ToolMessage {
@@ -38,6 +39,22 @@ async function seedQueryFixture(
   return response.json()
 }
 
+async function withQueryFixture<T>(
+  request: APIRequestContext,
+  marker: string,
+  targetReportId: number,
+  callback: (fixture: QueryFixture) => Promise<T>,
+  mode: 'standard' | 'no-adjacent' = 'standard',
+): Promise<T> {
+  const fixture = await seedQueryFixture(request, marker, targetReportId, mode)
+  try {
+    return await callback(fixture)
+  } finally {
+    const cleanup = await request.delete('/api/e2e/fixtures', { data: { reportIds: fixture.reportIds } })
+    expect(cleanup.ok()).toBeTruthy()
+  }
+}
+
 async function openSessionWithScript(
   page: Page,
   reportId: number,
@@ -65,8 +82,7 @@ async function latestSessionDetail(
 
 test.describe('AI 查询周报列表', () => {
   test('默认查询只返回同受众已采用 current 终版并持久化公开审计', async ({ page, request, reportId, scenario }) => {
-    const fixture = await seedQueryFixture(request, scenario, reportId)
-    try {
+    await withQueryFixture(request, scenario, reportId, async (fixture) => {
       await openSessionWithScript(page, reportId, scriptedInstruction('查询可用历史周报列表', {
         steps: [
           {
@@ -107,6 +123,7 @@ test.describe('AI 查询周报列表', () => {
         fixture.sameAudienceReportId,
       ]))
       expect(items.map((item) => item.reportId)).not.toContain(fixture.crossAudienceReportId)
+      expect(items.map((item) => item.reportId)).not.toContain(fixture.currentLegacyReportId)
       for (const item of items) {
         expect(Object.keys(item).sort()).toEqual([
           'audience',
@@ -131,15 +148,11 @@ test.describe('AI 查询周报列表', () => {
       await page.getByRole('button', { name: 'AI chat' }).click()
       await expect(page.getByText('历史参考·不可信', { exact: true }).last()).toBeVisible()
       await expect(page.getByText(new RegExp(`${scenario} previous adjacent`)).last()).toBeVisible()
-    } finally {
-      const cleanup = await request.delete('/api/e2e/fixtures', { data: { reportIds: fixture.reportIds } })
-      expect(cleanup.ok()).toBeTruthy()
-    }
+    })
   })
 
   test('previous_adjacent 只返回会话周报的精确上一周期且不分页', async ({ page, request, reportId, scenario }) => {
-    const fixture = await seedQueryFixture(request, scenario, reportId)
-    try {
+    await withQueryFixture(request, scenario, reportId, async (fixture) => {
       await openSessionWithScript(page, reportId, scriptedInstruction('查询精确上一周期', {
         steps: [
           {
@@ -177,15 +190,11 @@ test.describe('AI 查询周报列表', () => {
         cursor: null,
         limit: 1,
       })
-    } finally {
-      const cleanup = await request.delete('/api/e2e/fixtures', { data: { reportIds: fixture.reportIds } })
-      expect(cleanup.ok()).toBeTruthy()
-    }
+    })
   })
 
   test('previous_adjacent 无精确来源时成功返回空列表且不回退', async ({ page, request, reportId, scenario }) => {
-    const fixture = await seedQueryFixture(request, scenario, reportId, 'no-adjacent')
-    try {
+    await withQueryFixture(request, scenario, reportId, async () => {
       await openSessionWithScript(page, reportId, scriptedInstruction('查询不存在的精确上一周期', {
         steps: [
           {
@@ -204,15 +213,11 @@ test.describe('AI 查询周报列表', () => {
       const detail = await latestSessionDetail(request, reportId)
       const output = detail.messages.find((part) => part.partType === 'tool-result' && part.data?.toolName === 'query_report_list')?.data?.output
       expect(output).toMatchObject({ ok: true, items: [], nextCursor: null, hasMore: false })
-    } finally {
-      const cleanup = await request.delete('/api/e2e/fixtures', { data: { reportIds: fixture.reportIds } })
-      expect(cleanup.ok()).toBeTruthy()
-    }
+    }, 'no-adjacent')
   })
 
   test('query 与 title 条件返回正文命中并规范化筛选', async ({ page, request, reportId, scenario }) => {
-    const fixture = await seedQueryFixture(request, scenario, reportId)
-    try {
+    await withQueryFixture(request, scenario, reportId, async (fixture) => {
       await openSessionWithScript(page, reportId, scriptedInstruction('按标题和正文查询历史周报', {
         steps: [
           {
@@ -257,15 +262,11 @@ test.describe('AI 查询周报列表', () => {
         fixture.adjacentReportId,
         fixture.sameAudienceReportId,
       ]))
-    } finally {
-      const cleanup = await request.delete('/api/e2e/fixtures', { data: { reportIds: fixture.reportIds } })
-      expect(cleanup.ok()).toBeTruthy()
-    }
+    })
   })
 
   test('audience 参数被拒绝且不会改变服务端固定受众', async ({ page, request, reportId, scenario }) => {
-    const fixture = await seedQueryFixture(request, scenario, reportId)
-    try {
+    await withQueryFixture(request, scenario, reportId, async () => {
       await openSessionWithScript(page, reportId, scriptedInstruction('尝试切换历史查询受众', {
         steps: [
           {
@@ -284,9 +285,6 @@ test.describe('AI 查询周报列表', () => {
         error: { code: 'INVALID_QUERY' },
       })
       expect(JSON.stringify(result?.data?.output)).not.toContain('leadership only')
-    } finally {
-      const cleanup = await request.delete('/api/e2e/fixtures', { data: { reportIds: fixture.reportIds } })
-      expect(cleanup.ok()).toBeTruthy()
-    }
+    })
   })
 })

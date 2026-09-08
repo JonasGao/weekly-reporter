@@ -233,6 +233,7 @@ export function queryReportListForSession(input: {
       eq(reportVariants.variant, session.audience),
       eq(reportVariants.finalStatus, 'current'),
       isNotNull(reportVariants.finalContent),
+      isNotNull(reportVariants.acceptedProposalId),
     )).orderBy(desc(reports.weekEnd), desc(reports.id)).all() as AuthorizedReportRow[]
 
     const expectedPreviousEnd = format(subDays(parseISO(relativeReport.weekStart), 1), 'yyyy-MM-dd')
