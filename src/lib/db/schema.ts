@@ -19,6 +19,7 @@ export type GenerationMessagePartType =
   | 'error'
   | 'proposal-accepted'
 export type GenerationProposalStatus = 'pending' | 'accepted' | 'superseded'
+export type PlanJudgment = 'carry' | 'drop' | 'uncertain'
 
 export const reports = sqliteTable('reports', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -119,6 +120,7 @@ export const generationSessions = sqliteTable('generation_sessions', {
   temperature: text('temperature').notNull(),
   systemPrompt: text('system_prompt').notNull(),
   toolRules: text('tool_rules').notNull(),
+  planPolicy: text('plan_policy').$type<'forbidden' | 'required'>(),
   baselineFinalContent: text('baseline_final_content'),
   /** JSON snapshot of the exact previous-cycle plan reference, nullable for legacy sessions. */
   carryForwardSnapshot: text('carry_forward_snapshot'),
@@ -173,12 +175,30 @@ export const generationProposals = sqliteTable('generation_proposals', {
   summary: text('summary', { mode: 'json' }).notNull().$type<string[]>(),
   sourceRevision: integer('source_revision').notNull(),
   status: text('status').notNull().default('pending').$type<GenerationProposalStatus>(),
+  planState: text('plan_state', { mode: 'json' }).$type<Record<string, unknown>>(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   acceptedAt: integer('accepted_at', { mode: 'timestamp' }),
 })
 
 export type GenerationProposal = typeof generationProposals.$inferSelect
 export type NewGenerationProposal = typeof generationProposals.$inferInsert
+
+/** First-session-only, publicly explained judgments for carry-forward candidates. */
+export const generationPlanJudgments = sqliteTable('generation_plan_judgments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').notNull(),
+  candidateId: text('candidate_id').notNull(),
+  judgment: text('judgment').notNull().$type<PlanJudgment>(),
+  reason: text('reason').notNull(),
+  remainingAction: text('remaining_action'),
+  turnId: integer('turn_id'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+}, (table) => ({
+  sessionCandidateUnique: uniqueIndex('generation_plan_judgments_session_candidate_unique').on(table.sessionId, table.candidateId),
+}))
+
+export type GenerationPlanJudgment = typeof generationPlanJudgments.$inferSelect
+export type NewGenerationPlanJudgment = typeof generationPlanJudgments.$inferInsert
 
 /** @deprecated 改用 string，风格现在是数据库实体，不再硬编码 key */
 export type AIStyle = string

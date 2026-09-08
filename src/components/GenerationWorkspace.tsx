@@ -34,6 +34,7 @@ import {
 } from '@/lib/generation/streaming-markdown'
 import type { AudienceVariant, ReportVariant } from '@/lib/db/schema'
 import { LEGACY_NO_SNAPSHOT, type CarryForwardSnapshot } from '@/lib/generation/carry-forward-snapshot'
+import type { PlanState } from '@/lib/generation/plan'
 
 interface TemplateOption {
   id: string
@@ -88,6 +89,7 @@ interface Proposal {
   status: 'pending' | 'accepted' | 'superseded'
   createdAt: string | Date
   acceptedAt?: string | Date | null
+  planState?: PlanState | null
 }
 
 interface SessionDetail extends SessionSummary {
@@ -99,6 +101,7 @@ interface SessionDetail extends SessionSummary {
   aiStylePrompt: string
   systemPrompt: string
   toolRules: string
+  planPolicy?: 'forbidden' | 'required' | null
   baselineFinalContent: string | null
   carryForwardSnapshot: CarryForwardSnapshot
   messages: MessagePart[]
@@ -106,6 +109,7 @@ interface SessionDetail extends SessionSummary {
   proposals: Proposal[]
   sourceIsCurrent: boolean
   activeTurn: Turn | null
+  planJudgments?: Array<{ candidateId: string; judgment: string; reason: string; remainingAction: string | null }>
 }
 
 type StreamEvent =
@@ -234,6 +238,9 @@ function SystemContextCard({ detail }: { detail: SessionDetail }) {
         <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">{detail.templateContent}</pre>
       </details>
       <CarryForwardSnapshotCard snapshot={detail.carryForwardSnapshot} />
+      <div className="mt-2 rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+        Template plan contract: {detail.planPolicy === 'forbidden' ? '章节禁止' : '允许/需要下周计划（缺少时追加）'}
+      </div>
     </div>
   )
 }
@@ -389,6 +396,7 @@ function ProposalReview({
           </span>
         </div>
         {proposal.summary.length > 0 && <ul className="mt-3 space-y-1 text-xs text-muted-foreground">{proposal.summary.map((item, index) => <li key={`${index}-${item}`}>• {item}</li>)}</ul>}
+        {proposal.planState && <PlanStateSummary state={proposal.planState} />}
       </div>
       <div className="flex rounded-lg bg-muted p-1">
         {([
@@ -411,6 +419,20 @@ function ProposalReview({
       {editable && proposal.status === 'pending' && <Button className="w-full" onClick={onAccept} disabled={accepting}>{accepting ? <LoaderCircle className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}Accept and save final version</Button>}
       <p className="text-xs text-muted-foreground">The current final version is unchanged until you accept. You can continue improving it in this session after saving.</p>
     </aside>
+  )
+}
+
+function PlanStateSummary({ state }: { state: PlanState }) {
+  return (
+    <details className="mt-3 rounded-lg border border-border bg-muted/20 p-3" open>
+      <summary className="cursor-pointer text-xs font-medium">Next-week plan · {state.status === 'forbidden' ? '章节禁止' : state.status === 'empty' ? '空计划' : `${state.items.length} 项`}</summary>
+      <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+        <p>Section: {state.section}{state.truncatedCount > 0 ? ` · truncated ${state.truncatedCount}` : ''}</p>
+        {state.items.length > 0 && <ul className="list-disc space-y-1 pl-4">{state.items.map((item) => <li key={`${item.source}-${item.candidateId ?? item.text}`}>{item.text} · {item.source}</li>)}</ul>}
+        {state.judgments.length > 0 && <ul className="space-y-1">{state.judgments.map((judgment) => <li key={judgment.candidateId}>[{judgment.candidateId}] {judgment.judgment} · {judgment.reason}</li>)}</ul>}
+        {state.warnings.map((warning) => <p key={warning} role="alert" className="text-amber-600 dark:text-amber-400">{warning}</p>)}
+      </div>
+    </details>
   )
 }
 

@@ -176,6 +176,20 @@
       "when": 1788823113346,
       "tag": "0024_exotic_mimic",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1788900000000,
+      "tag": "0025_plan_generation_preview",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1788901000000,
+      "tag": "0026_plan_template_policy",
+      "breakpoints": true
     }
   ]
 }

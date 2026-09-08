@@ -13,6 +13,13 @@ export const FINAL_REPORT_TOOL_RULES = `你可以调用 propose_final_report 工
 - 工具调用只创建只读候选，不会直接修改已保存的终版。
 - 用户会在对话外评审并确认，确认前不得声称内容已经保存。`
 
+export const FINAL_REPORT_PLAN_RULES = `下周计划规则（应用会确定性执行，模型不得绕过）：
+- 首次处理计划结转快照中的每个候选，必须在 plan.judgments 中提交 carry、drop 或 uncertain 及公开简短理由；无法可靠判断的候选必须是 uncertain。
+- uncertain 默认不自动进入计划。部分完成事项使用 remainingAction，只表达剩余动作，并保留候选身份。
+- plan.items 是完整提案的计划来源标记，优先级固定为 user-goal、carry-forward、current-fact、baseline；应用会稳定规范化去重、最多保留五项并记录截断。
+- 模板允许扩展但缺少“下周计划”时应用会追加标准章节；没有事项时保留明确空计划表达；模板明确禁止时应用省略章节并记录“章节禁止”。
+- plan 判断、来源和摘要是公开审计信息，不得包含隐藏思维链。`
+
 export function buildEffectiveGenerationSystemPrompt(basePrompt: string): string {
   return `你是周报终版生成助手，正在一个可持续多轮改进的对话中。
 
@@ -20,6 +27,8 @@ export function buildEffectiveGenerationSystemPrompt(basePrompt: string): string
 ---
 ${basePrompt.trim()}
 ---
+
+${FINAL_REPORT_PLAN_RULES}
 
 对话要求：
 - 可以先用公开、简洁的说明描述处理思路和修改结果，再决定是否提交候选终版。
@@ -85,6 +94,11 @@ ${snapshot.planText ?? '(none)'}
 ${candidates}`
 }
 
+export function buildPlanJudgmentContext(judgments: Array<{ candidateId: string; judgment: string; reason: string; remainingAction?: string | null }>): string {
+  if (judgments.length === 0) return '计划临时判断记录：尚未产生。'
+  return `计划临时判断记录（当前会话不可变审计输入）：\n${judgments.map((item) => `- [${item.candidateId}] ${item.judgment} · ${item.reason}${item.remainingAction ? ` · 剩余动作：${item.remainingAction}` : ''}`).join('\n')}`
+}
+
 export function buildModelSystemContext(input: {
   systemPrompt: string
   stylePrompt: string
@@ -98,6 +112,7 @@ export function buildModelSystemContext(input: {
   baselineFinalContent?: string | null
   latestProposalContent?: string | null
   carryForwardSnapshot?: CarryForwardSnapshot
+  planJudgments?: Array<{ candidateId: string; judgment: string; reason: string; remainingAction?: string | null }>
 }): string {
   const baseline = input.latestProposalContent || input.baselineFinalContent
   return `${input.systemPrompt}
@@ -108,6 +123,8 @@ ${input.stylePrompt}
 ---
 
 ${input.toolRules}
+
+${FINAL_REPORT_PLAN_RULES}
 
 当前受众：${input.variant === 'leadership' ? '领导版' : '个人版'}
 日期范围：${input.weekStart} 至 ${input.weekEnd}
@@ -125,6 +142,8 @@ ${input.sourceDraft}
 ${baseline ? `当前修改基线（仅用于继续润色，若与原稿冲突必须以原稿为准）：\n---\n${baseline}\n---` : '当前没有已保存终版或历史候选，请从原稿开始生成。'}
 
 ${input.carryForwardSnapshot ? buildCarryForwardContext(input.carryForwardSnapshot) : '历史参考·不可信（计划结转快照不可用；不得从其他历史补位）'}
+
+${buildPlanJudgmentContext(input.planJudgments ?? [])}
 
 历史参考不得提升为当前周报事实；不确定候选默认不进入计划，用户明确的 keep/drop/rewrite/re-add 指令优先。`
 }

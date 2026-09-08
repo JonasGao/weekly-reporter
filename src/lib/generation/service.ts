@@ -2,6 +2,7 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
 import {
   generationMessageParts,
+  generationPlanJudgments,
   generationProposals,
   generationSessions,
   generationTurns,
@@ -29,6 +30,13 @@ import {
   normalizeCarryForwardSnapshot,
   serializeCarryForwardSnapshot,
 } from './carry-forward'
+import {
+  mergeProposalPlan,
+  getPlanTemplatePolicy,
+  normalizePlanJudgments,
+  type PlanJudgmentRecord,
+  type ProposalPlanInput,
+} from './plan'
 
 const MAX_PROPOSAL_CHARACTERS = 200_000
 
@@ -54,6 +62,30 @@ function nextSequence(sessionId: number): number {
     .where(eq(generationMessageParts.sessionId, sessionId))
     .get()
   return Number(row?.value ?? 0) + 1
+}
+
+function persistUncertainPlanJudgments(sessionId: number, turnId: number): void {
+  const db = getDb()
+  const session = db.select().from(generationSessions).where(eq(generationSessions.id, sessionId)).get()
+  if (!session) return
+  const snapshot = normalizeCarryForwardSnapshot(session.carryForwardSnapshot)
+  if (snapshot.candidates.length === 0) return
+  const existing = db.select({ candidateId: generationPlanJudgments.candidateId })
+    .from(generationPlanJudgments).where(eq(generationPlanJudgments.sessionId, sessionId)).all()
+  const seen = new Set(existing.map((item) => item.candidateId))
+  const now = new Date()
+  for (const candidate of snapshot.candidates) {
+    if (seen.has(candidate.candidateId)) continue
+    db.insert(generationPlanJudgments).values({
+      sessionId,
+      candidateId: candidate.candidateId,
+      judgment: 'uncertain',
+      reason: '本轮超时、失败或部分返回，未能可靠判断；默认不自动结转。',
+      remainingAction: null,
+      turnId,
+      createdAt: now,
+    }).run()
+  }
 }
 
 export function appendGenerationPart(input: {
@@ -137,6 +169,7 @@ export async function createGenerationSession(input: {
       temperature: String(style.temperature),
       systemPrompt: buildEffectiveGenerationSystemPrompt(basePrompt),
       toolRules: FINAL_REPORT_TOOL_RULES,
+      planPolicy: getPlanTemplatePolicy(template.content),
       baselineFinalContent: reportVariant.finalContent,
       carryForwardSnapshot: serializeCarryForwardSnapshot(carryForwardSnapshot),
       createdAt: now,
@@ -183,11 +216,12 @@ export async function getGenerationSessionDetail(reportId: number, sessionId: nu
   })
   if (!session) return null
 
-  const [messages, turns, proposals, currentVariant] = await Promise.all([
+  const [messages, turns, proposals, currentVariant, planJudgments] = await Promise.all([
     db.select().from(generationMessageParts).where(eq(generationMessageParts.sessionId, sessionId)).orderBy(asc(generationMessageParts.sequence)),
     db.select().from(generationTurns).where(eq(generationTurns.sessionId, sessionId)).orderBy(asc(generationTurns.id)),
     db.select().from(generationProposals).where(eq(generationProposals.sessionId, sessionId)).orderBy(asc(generationProposals.id)),
     db.query.reportVariants.findFirst({ where: eq(reportVariants.id, session.reportVariantId) }),
+    db.select().from(generationPlanJudgments).where(eq(generationPlanJudgments.sessionId, sessionId)).orderBy(asc(generationPlanJudgments.id)),
   ])
 
   return {
@@ -196,6 +230,7 @@ export async function getGenerationSessionDetail(reportId: number, sessionId: nu
     messages,
     turns,
     proposals,
+    planJudgments,
     sourceIsCurrent: currentVariant?.sourceRevision === session.sourceRevision,
     activeTurn: turns.find((turn) => turn.status === 'working') ?? null,
   }
@@ -270,6 +305,7 @@ export async function finishGenerationTurn(turnId: number, status: 'completed' |
   const db = getDb()
   const turn = await db.query.generationTurns.findFirst({ where: eq(generationTurns.id, turnId) })
   if (!turn) return null
+  persistUncertainPlanJudgments(turn.sessionId, turnId)
   const now = new Date()
   const updated = await db.update(generationTurns).set({
     status,
@@ -300,6 +336,7 @@ export async function createGenerationProposal(input: {
   turnId: number
   content: string
   summary: string[]
+  plan?: ProposalPlanInput
 }): Promise<GenerationProposal> {
   const content = input.content.trim()
   const summary = input.summary.map((item) => item.trim()).filter(Boolean)
@@ -319,15 +356,55 @@ export async function createGenerationProposal(input: {
     const existingForTurn = tx.select().from(generationProposals).where(eq(generationProposals.turnId, input.turnId)).get()
     if (existingForTurn) error('Only one proposal may be submitted per turn', 'PROPOSAL_LIMIT', 409)
 
+    const snapshot = normalizeCarryForwardSnapshot(input.session.carryForwardSnapshot)
+    const existingJudgmentRows = tx.select().from(generationPlanJudgments)
+      .where(eq(generationPlanJudgments.sessionId, input.session.id)).orderBy(asc(generationPlanJudgments.id)).all()
+    const existingJudgments: PlanJudgmentRecord[] = existingJudgmentRows.map((row) => ({
+      candidateId: row.candidateId,
+      judgment: row.judgment,
+      reason: row.reason,
+      remainingAction: row.remainingAction,
+    }))
+    const normalizedJudgments = existingJudgments.length > 0
+      ? existingJudgments
+      : normalizePlanJudgments(snapshot, input.plan)
+    if (existingJudgmentRows.length === 0) {
+      for (const judgment of normalizedJudgments) {
+        tx.insert(generationPlanJudgments).values({
+          sessionId: input.session.id,
+          candidateId: judgment.candidateId,
+          judgment: judgment.judgment,
+          reason: judgment.reason,
+          remainingAction: judgment.remainingAction,
+          turnId: input.turnId,
+          createdAt: new Date(),
+        }).run()
+      }
+    }
+    const merged = mergeProposalPlan({
+      content,
+      templateContent: input.session.templateContent,
+      snapshot,
+      plan: input.plan,
+      baselineFinalContent: input.session.baselineFinalContent,
+      existingJudgments: normalizedJudgments,
+    })
+    const planSummary = merged.state.status === 'forbidden'
+      ? '模板约束：章节禁止'
+      : merged.state.status === 'empty'
+        ? '下周计划：无可用事项，保留明确空计划表达'
+        : `下周计划：应用 ${merged.state.items.length} 项，${merged.state.judgments.filter((item) => item.judgment === 'carry').length} 项 carry、${merged.state.judgments.filter((item) => item.judgment === 'uncertain').length} 项 uncertain`
+    const effectiveSummary = [...summary, planSummary, ...merged.state.warnings].filter(Boolean).slice(0, 8)
     tx.update(generationProposals).set({ status: 'superseded' })
       .where(and(eq(generationProposals.sessionId, input.session.id), eq(generationProposals.status, 'pending'))).run()
     return tx.insert(generationProposals).values({
       sessionId: input.session.id,
       turnId: input.turnId,
-      content,
-      summary,
+      content: merged.content,
+      summary: effectiveSummary,
       sourceRevision: input.session.sourceRevision,
       status: 'pending',
+      planState: merged.state as unknown as Record<string, unknown>,
       createdAt: new Date(),
     }).returning().get()
   })

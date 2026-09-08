@@ -18,6 +18,7 @@ import {
   startGenerationTurn,
   updateGenerationPart,
 } from './service'
+import type { PlanItemInput, PlanJudgmentInput, PlanState, ProposalPlanInput } from './plan'
 
 export type GenerationStreamEvent =
   | { type: 'start'; turnId: number; protocol: string; model: string }
@@ -27,7 +28,7 @@ export type GenerationStreamEvent =
   | { type: 'tool-input-delta'; toolName: string }
   | { type: 'tool-call'; toolName: string; toolCallId: string }
   | { type: 'tool-result'; toolName: string; toolCallId: string }
-  | { type: 'proposal'; proposal: { id: number; content: string; summary: string[]; status: string; sourceRevision: number; createdAt: Date } }
+  | { type: 'proposal'; proposal: { id: number; content: string; summary: string[]; status: string; sourceRevision: number; createdAt: Date; planState?: PlanState | null } }
   | { type: 'finish'; status: 'completed' | 'aborted' }
   | { type: 'error'; message: string }
 
@@ -220,6 +221,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
           baselineFinalContent: input.detail.baselineFinalContent,
           latestProposalContent: latestProposal?.content,
           carryForwardSnapshot: input.detail.carryForwardSnapshot,
+          planJudgments: input.detail.planJudgments,
         })
         const model = createModelFromConfig(input.config)
         const proposalHolder: { current: GenerationProposal | null } = { current: null }
@@ -237,14 +239,47 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
               inputSchema: z.object({
                 content: z.string().min(1).describe('完整的 Markdown 周报候选终版'),
                 summary: z.array(z.string()).describe('面向用户的简短变更摘要'),
+                plan: z.object({
+                  judgments: z.array(z.object({
+                    candidateId: z.string(),
+                    judgment: z.enum(['carry', 'drop', 'uncertain']),
+                    reason: z.string(),
+                    remainingAction: z.string().optional(),
+                  })).optional(),
+                  items: z.array(z.object({
+                    text: z.string(),
+                    source: z.enum(['user-goal', 'carry-forward', 'current-fact', 'baseline']),
+                    candidateId: z.string().optional(),
+                    reason: z.string().optional(),
+                  })).optional(),
+                }).optional(),
+                planJudgments: z.array(z.object({
+                  candidateId: z.string(),
+                  judgment: z.enum(['carry', 'drop', 'uncertain']),
+                  reason: z.string(),
+                  remainingAction: z.string().optional(),
+                })).optional(),
+                planItems: z.array(z.object({
+                  text: z.string(),
+                  source: z.enum(['user-goal', 'carry-forward', 'current-fact', 'baseline']),
+                  candidateId: z.string().optional(),
+                  reason: z.string().optional(),
+                })).optional(),
               }),
-              execute: async ({ content, summary }) => {
+              execute: async ({ content, summary, plan, planJudgments, planItems }) => {
                 if (proposalHolder.current) throw new Error('本轮已经提交过候选终版')
+                const normalizedPlan: ProposalPlanInput | undefined = plan ?? ((planJudgments || planItems)
+                  ? {
+                      judgments: planJudgments as PlanJudgmentInput[] | undefined,
+                      items: planItems as PlanItemInput[] | undefined,
+                    }
+                  : undefined)
                 proposalHolder.current = await createGenerationProposal({
                   session: input.detail as unknown as GenerationSession,
                   turnId: input.turn.id,
                   content,
                   summary,
+                  plan: normalizedPlan,
                 })
                 return { proposalId: proposalHolder.current.id, status: 'ready' }
               },
@@ -297,6 +332,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
                   status: proposal.status,
                   sourceRevision: proposal.sourceRevision,
                   createdAt: proposal.createdAt,
+                  planState: proposal.planState ? (proposal.planState as unknown as PlanState) : null,
                 },
               })
             }

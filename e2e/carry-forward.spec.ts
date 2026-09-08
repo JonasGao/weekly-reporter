@@ -11,14 +11,18 @@ async function createSession(request: APIRequestContext, reportId: number, varia
   return await response.json() as { id: number; carryForwardSnapshot: CarryForwardSnapshot }
 }
 
-function streamProposal(content: string) {
+function streamProposal(content: string, candidateId?: string) {
   return {
     kind: 'stream' as const,
     reasoning: '已核对历史参考边界。',
     text: '已生成带计划结转的候选终版。',
     toolCalls: [{
       name: 'propose_final_report',
-      arguments: { content, summary: ['保留当前原稿事实', '提交计划结转候选'] },
+      arguments: {
+        content,
+        summary: ['保留当前原稿事实', '提交计划结转候选'],
+        ...(candidateId ? { plan: { judgments: [{ candidateId, judgment: 'carry', reason: '仍未完成' }] } } : {}),
+      },
     }],
   }
 }
@@ -51,7 +55,7 @@ test.describe('计划结转快照', () => {
       const acceptedContent = `# ${marker} generated\n\n## 下周计划\n\n- ${marker} personal carried into proposal`
       const scriptedMessage = scriptedInstruction('请提交完整候选终版', {
         steps: [
-          streamProposal(acceptedContent),
+          streamProposal(acceptedContent, personal.carryForwardSnapshot.candidates[0].candidateId),
           { kind: 'stream', text: '继续编辑但不提交新的候选终版。' },
           { kind: 'stream', text: '继续编辑但不提交新的候选终版。' },
         ],
@@ -69,7 +73,8 @@ test.describe('计划结转快照', () => {
       const afterAccept = await request.get(`/api/reports/${fixture.targetReportId}/generation-sessions/${personal.id}`)
       const afterAcceptDetail = await afterAccept.json() as { carryForwardSnapshot: CarryForwardSnapshot; baselineFinalContent: string | null }
       expect(afterAcceptDetail.carryForwardSnapshot).toEqual(beforeAcceptDetail.carryForwardSnapshot)
-      expect(afterAcceptDetail.baselineFinalContent).toBe(acceptedContent)
+      expect(afterAcceptDetail.baselineFinalContent).toContain(`${marker} personal carry`)
+      expect(afterAcceptDetail.baselineFinalContent).toContain(`${marker} personal carried into proposal`)
 
       await page.goto(`/edit/${fixture.targetReportId}`)
       await page.getByRole('button', { name: 'Personal' }).click()
