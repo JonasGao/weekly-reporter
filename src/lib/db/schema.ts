@@ -222,6 +222,27 @@ export const generationPlanOverrides = sqliteTable('generation_plan_overrides', 
 export type GenerationPlanOverride = typeof generationPlanOverrides.$inferSelect
 export type NewGenerationPlanOverride = typeof generationPlanOverrides.$inferInsert
 
+export type HistoricalQueryTrigger = 'automatic' | 'user'
+export const generationQuerySnapshots = sqliteTable('generation_query_snapshots', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').notNull(),
+  toolName: text('tool_name').notNull(),
+  parameters: text('parameters', { mode: 'json' }).notNull().$type<Record<string, unknown>>(),
+  calledAt: integer('called_at', { mode: 'timestamp' }).notNull(),
+  sourceReportId: integer('source_report_id').notNull(),
+  sourceAudience: text('source_audience').notNull().$type<AudienceVariant>(),
+  sourceUpdatedAt: integer('source_updated_at', { mode: 'timestamp' }),
+  result: text('result', { mode: 'json' }).notNull().$type<Record<string, unknown>>(),
+  resultCount: integer('result_count').notNull().default(0),
+  truncated: integer('truncated', { mode: 'boolean' }).notNull().default(false),
+  durationMs: integer('duration_ms').notNull().default(0),
+  errorCode: text('error_code'),
+  trigger: text('trigger').notNull().$type<HistoricalQueryTrigger>(),
+  previousSnapshotId: integer('previous_snapshot_id'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+})
+export type GenerationQuerySnapshot = typeof generationQuerySnapshots.$inferSelect
+
 /** @deprecated 改用 string，风格现在是数据库实体，不再硬编码 key */
 export type AIStyle = string
 

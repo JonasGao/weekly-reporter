@@ -204,6 +204,13 @@
       "when": 1789074000000,
       "tag": "0028_plan_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1788886465697,
+      "tag": "0029_historical_query_snapshots",
+      "breakpoints": true
     }
   ]
 }

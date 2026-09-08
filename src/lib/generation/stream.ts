@@ -27,6 +27,7 @@ import {
 import { isReportListToolResult, REPORT_LIST_TOOL_NAME, REFERENCE_BOUNDARY } from './report-list-contract'
 import { isReportContentToolResult, REPORT_CONTENT_TOOL_NAME, CONTENT_REFERENCE_BOUNDARY, type ReportContentToolResult } from './report-content-contract'
 import { queryReportContentForSession } from './report-content-tool'
+import { persistQuerySnapshot } from './query-snapshots'
 
 export type GenerationStreamEvent =
   | { type: 'start'; turnId: number; protocol: string; model: string }
@@ -325,7 +326,10 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
               execute: async (parameters) => {
                 historyQueryCount += 1
                 if (historyQueryCount > MAX_HISTORY_QUERIES_PER_TURN) return toolBudgetExceeded(REPORT_LIST_TOOL_NAME)
-                return queryReportListForSession({ sessionId: input.detail.id, parameters })
+                const started = Date.now()
+                const output = queryReportListForSession({ sessionId: input.detail.id, parameters })
+                persistQuerySnapshot({ sessionId: input.detail.id, toolName: REPORT_LIST_TOOL_NAME, parameters: parameters as Record<string, unknown>, result: output as unknown as Record<string, unknown>, durationMs: Date.now() - started })
+                return output
               },
             }),
             query_report_content: tool({
@@ -344,7 +348,10 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
                 if (historyQueryCount > MAX_HISTORY_QUERIES_PER_TURN || contentQueryCount > MAX_CONTENT_QUERIES_PER_TURN) {
                   return toolBudgetExceeded(REPORT_CONTENT_TOOL_NAME)
                 }
-                return queryReportContentForSession({ sessionId: input.detail.id, parameters })
+                const started = Date.now()
+                const output = queryReportContentForSession({ sessionId: input.detail.id, parameters })
+                persistQuerySnapshot({ sessionId: input.detail.id, toolName: REPORT_CONTENT_TOOL_NAME, parameters: parameters as Record<string, unknown>, result: output as unknown as Record<string, unknown>, durationMs: Date.now() - started })
+                return output
               },
             }),
             propose_final_report: tool({

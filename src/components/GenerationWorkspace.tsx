@@ -104,6 +104,7 @@ interface Proposal {
   planState?: PlanState | null
   publicSummary?: PublicGenerationSummary | null
   baselineContent?: string | null
+  referenceChanged?: boolean
 }
 
 interface SessionDetail extends SessionSummary {
@@ -126,6 +127,8 @@ interface SessionDetail extends SessionSummary {
   planJudgments?: Array<{ candidateId: string; judgment: string; reason: string; remainingAction: string | null }>
   planOverrides?: PlanOverrideRecord[]
   planOverrideState?: PlanOverrideItemState[]
+  querySnapshots?: Array<{ id: number; toolName: string; calledAt: string | Date; trigger: string; resultCount: number; truncated: boolean; errorCode: string | null; previousSnapshotId: number | null }>
+  historicalReferencesChanged?: boolean
 }
 
 interface PlanOverrideRecord {
@@ -236,7 +239,7 @@ function lineDiff(before: string, after: string): DiffLine[] {
   return output
 }
 
-function SystemContextCard({ detail }: { detail: SessionDetail }) {
+function SystemContextCard({ detail, onRefresh }: { detail: SessionDetail; onRefresh?: () => void }) {
   const blocks = [
     ['Final report system prompt', detail.systemPrompt],
     [`AI style prompt · ${detail.aiStyleLabel}`, detail.aiStylePrompt],
@@ -280,6 +283,14 @@ function SystemContextCard({ detail }: { detail: SessionDetail }) {
         <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">{detail.templateContent}</pre>
       </details>
       <CarryForwardSnapshotCard snapshot={detail.carryForwardSnapshot} />
+      <details className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3" open>
+        <summary className="cursor-pointer text-sm font-medium">Historical query snapshots · 历史参考·不可信</summary>
+        <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+          {detail.historicalReferencesChanged && <p role="alert" className="text-amber-500">参考已变化。请显式启动新一轮生成以产生新提案。</p>}
+          {(detail.querySnapshots ?? []).map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-2"><span>#{snapshot.id} {snapshot.toolName} · {snapshot.resultCount} 项 · {snapshot.trigger}{snapshot.errorCode ? ` · ${snapshot.errorCode}` : ''}{snapshot.truncated ? ' · 截断' : ''}</span>{onRefresh && <Button variant="outline" size="sm" onClick={onRefresh}>刷新</Button>}</div>)}
+          {(detail.querySnapshots ?? []).length === 0 && <p>尚未查询历史周报。</p>}
+        </div>
+      </details>
       <div className="mt-2 rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
         Template plan contract: {detail.planPolicy === 'forbidden' ? '章节禁止' : '允许/需要下周计划（缺少时追加）'}
       </div>
@@ -606,7 +617,7 @@ function ProposalReview({
       <div>
         <div className="flex items-center justify-between gap-3">
           <div><h3 className="font-semibold">Proposed final version</h3><p className="mt-0.5 text-xs text-muted-foreground">Read-only proposal review</p></div>
-          <span className={`rounded-full px-2 py-1 text-xs ${proposal.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-500' : proposal.status === 'superseded' ? 'bg-muted text-muted-foreground' : 'bg-amber-500/10 text-amber-500'}`}>{proposal.status === 'accepted' ? 'Accepted' : proposal.status === 'superseded' ? 'Superseded' : 'Pending review'}</span>
+          <span className={`rounded-full px-2 py-1 text-xs ${proposal.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-500' : proposal.status === 'superseded' ? 'bg-muted text-muted-foreground' : 'bg-amber-500/10 text-amber-500'}`}>{proposal.referenceChanged ? '参考已变化' : proposal.status === 'accepted' ? 'Accepted' : proposal.status === 'superseded' ? 'Superseded' : 'Pending review'}</span>
         </div>
         {!proposal.publicSummary && proposal.summary.length > 0 && <ul className="mt-3 space-y-1 text-xs text-muted-foreground">{proposal.summary.map((item, index) => <li key={`${index}-${item}`}>• {item}</li>)}</ul>}
         {proposal.planState && <PlanStateSummary state={proposal.planState} />}
@@ -1150,7 +1161,7 @@ export function GenerationWorkspace({
             </div>
               {!detail.sourceIsCurrent && <div className="border-b border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-500">The source draft has changed. This session is retained for audit; create a new session from the latest draft.</div>}
             <div ref={transcriptRef} onScroll={handleTranscriptScroll} className="generation-transcript max-h-[calc(100vh-15rem)] min-h-[520px] space-y-4 overflow-y-auto p-4">
-              <SystemContextCard detail={detail} />
+              <SystemContextCard detail={detail} onRefresh={() => { const snapshot = detail.querySnapshots?.at(-1); if (snapshot) void (async () => { const response = await fetch(`/api/reports/${reportId}/generation-sessions/${detail.id}/query-snapshots/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ snapshotId: snapshot.id }) }); if (!response.ok) { toast.error('刷新历史查询失败'); return } await loadDetail(detail.id) })() }} />
               <PlanOverridePanel detail={detail} disabled={!canChat || streaming} saving={savingOverride} onAction={recordPlanOverride} />
               {detail.messages.map((part) => <TranscriptPart key={part.id} part={part} onRetry={part.partType === 'tool-result' ? () => { const message = detail.messages.filter((item) => item.role === 'user').at(-1)?.content; if (message) void streamTurn(detail.id, message) } : undefined} />)}
               {liveUser && <TranscriptPart part={{ id: -1, turnId: liveTurnId, sequence: Number.MAX_SAFE_INTEGER, role: 'user', partType: 'text', content: liveUser, data: null }} />}

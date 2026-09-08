@@ -2,6 +2,7 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
 import {
   generationMessageParts,
+  generationQuerySnapshots,
   generationPlanJudgments,
   generationPlanOverrides,
   generationProposals,
@@ -49,6 +50,10 @@ import {
 } from './public-summary'
 import { isReportListToolResult, REPORT_LIST_TOOL_NAME } from './report-list-contract'
 import { isReportContentToolResult, REPORT_CONTENT_TOOL_NAME } from './report-content-contract'
+import { listQuerySnapshots } from './query-snapshots'
+import { persistQuerySnapshot } from './query-snapshots'
+import { queryReportListForSession } from './report-list-tool'
+import { queryReportContentForSession } from './report-content-tool'
 
 const MAX_PROPOSAL_CHARACTERS = 200_000
 
@@ -241,6 +246,7 @@ export async function getGenerationSessionDetail(reportId: number, sessionId: nu
   ])
 
   const carryForwardSnapshot = normalizeCarryForwardSnapshot(session.carryForwardSnapshot)
+  const querySnapshots = listQuerySnapshots(sessionId)
 
   return {
     ...session,
@@ -250,13 +256,30 @@ export async function getGenerationSessionDetail(reportId: number, sessionId: nu
     proposals: proposals.map((proposal) => ({
       ...proposal,
       publicSummary: normalizePublicGenerationSummary(proposal.publicSummary),
+      referenceChanged: proposal.status === 'pending' && querySnapshots.some((snapshot) => snapshot.trigger === 'user' && snapshot.createdAt > proposal.createdAt),
     })),
     planJudgments,
     planOverrides,
+    querySnapshots,
+    historicalReferencesChanged: proposals.some((proposal) => proposal.status === 'pending' && querySnapshots.some((snapshot) => snapshot.trigger === 'user' && snapshot.createdAt > proposal.createdAt)),
     planOverrideState: summarizePlanOverrides(carryForwardSnapshot, planOverrides),
     sourceIsCurrent: currentVariant?.sourceRevision === session.sourceRevision,
     activeTurn: turns.find((turn) => turn.status === 'working') ?? null,
   }
+}
+
+export async function refreshHistoricalQuery(input: { reportId: number; sessionId: number; snapshotId?: number }) {
+  const db = getDb()
+  const session = db.select().from(generationSessions).where(and(eq(generationSessions.id, input.sessionId), eq(generationSessions.reportId, input.reportId))).get()
+  if (!session) error('Generation session not found', 'SESSION_NOT_FOUND', 404)
+  const previous = db.select().from(generationQuerySnapshots).where(and(eq(generationQuerySnapshots.id, input.snapshotId ?? 0), eq(generationQuerySnapshots.sessionId, input.sessionId))).get()
+  if (!previous) error('Query snapshot not found', 'SNAPSHOT_NOT_FOUND', 404)
+  const started = Date.now()
+  const result = previous.toolName === REPORT_LIST_TOOL_NAME
+    ? queryReportListForSession({ sessionId: input.sessionId, parameters: previous.parameters as never })
+    : queryReportContentForSession({ sessionId: input.sessionId, parameters: previous.parameters as never })
+  const snapshot = persistQuerySnapshot({ sessionId: input.sessionId, toolName: previous.toolName, parameters: previous.parameters, result: result as unknown as Record<string, unknown>, durationMs: Date.now() - started, trigger: 'user', previousSnapshotId: previous.id })
+  return snapshot
 }
 
 function cleanOverrideText(value: string): string {
