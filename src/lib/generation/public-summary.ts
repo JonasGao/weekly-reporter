@@ -88,6 +88,36 @@ export interface PublicGenerationSummary {
   }
 }
 
+type PublicHistoricalReference = PublicGenerationSummary['historicalReferences'][number]
+
+function queriedHistoricalReference(item: {
+  reportId: number
+  title: string
+  audience: AudienceVariant
+  weekStart: string
+  weekEnd: string
+  finalStatus: 'current' | 'stale'
+  isLegacy: boolean
+  warning?: string
+  updatedAt: string
+}): PublicHistoricalReference {
+  return {
+    kind: 'report-query',
+    reportId: item.reportId,
+    title: item.title,
+    audience: item.audience,
+    weekStart: item.weekStart,
+    weekEnd: item.weekEnd,
+    finalStatus: item.finalStatus,
+    isLegacy: item.isLegacy,
+    warning: item.warning,
+    acceptedProposalId: 'none',
+    snapshotCapturedAt: 'none',
+    sourceUpdatedAt: item.updatedAt,
+    trust: 'historical-reference-untrusted',
+  }
+}
+
 const FACT_BOUNDARY_STATEMENT = '当前受众版本的周报原稿是本周已发生工作事实的唯一权威来源；历史参考与公开生成摘要不是本周事实，也不作为评分输入。'
 
 function normalizedAuditText(value: string): string {
@@ -153,34 +183,27 @@ export function buildPublicGenerationSummary(input: {
     maxLength: 280,
     historicalText,
   })
-  const queriedReferences = new Map<string, PublicGenerationSummary['historicalReferences'][number]>()
+  const queriedReferences = new Map<string, PublicHistoricalReference>()
   for (const result of input.historicalReportListResults ?? []) {
     if (!result.ok) continue
     for (const item of result.items) {
       if (item.finalStatus !== 'stale' && !item.isLegacy) continue
-      queriedReferences.set(`${item.reportId}:${item.audience}`, {
-        kind: 'report-query', reportId: item.reportId, title: item.title, audience: item.audience,
-        weekStart: item.weekStart, weekEnd: item.weekEnd, finalStatus: item.finalStatus,
-        isLegacy: item.isLegacy, warning: item.warning, acceptedProposalId: 'none', snapshotCapturedAt: 'none',
-        sourceUpdatedAt: item.updatedAt, trust: 'historical-reference-untrusted',
-      })
+      queriedReferences.set(`${item.reportId}:${item.audience}`, queriedHistoricalReference(item))
     }
   }
   for (const result of input.historicalReportContentResults ?? []) {
     if (!result.ok || !result.found || result.identity.finalStatus === 'none' || (result.identity.finalStatus !== 'stale' && !result.identity.isLegacy)) continue
     const item = result.identity
-    queriedReferences.set(`${item.reportId}:${item.audience}`, {
-      kind: 'report-query', reportId: item.reportId, title: item.title, audience: item.audience,
-      weekStart: item.weekStart, weekEnd: item.weekEnd, finalStatus: item.finalStatus === 'stale' ? 'stale' : 'current',
-      isLegacy: item.isLegacy, warning: item.warning, acceptedProposalId: 'none', snapshotCapturedAt: 'none',
-      sourceUpdatedAt: item.updatedAt, trust: 'historical-reference-untrusted',
-    })
+    queriedReferences.set(`${item.reportId}:${item.audience}`, queriedHistoricalReference({
+      ...item,
+      finalStatus: item.finalStatus === 'stale' ? 'stale' : 'current',
+    }))
   }
   const referenceChanges = [...queriedReferences.values()].map((item) =>
     `历史参考：${item.title} · ${item.weekStart}–${item.weekEnd} · ${item.audience} · ${item.isLegacy ? 'legacy' : item.finalStatus} · ${item.warning ?? '历史参考·不可信'}`,
   )
   const changeSummary = cleanPublicProseList({
-    values: [...input.changeSummary, ...referenceChanges],
+    values: [...referenceChanges, ...input.changeSummary],
     limit: 12,
     maxLength: 280,
     historicalText,

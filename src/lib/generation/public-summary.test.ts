@@ -99,7 +99,7 @@ describe('public generation summary', () => {
   it('records stale and legacy query metadata without copying historical bodies', () => {
     const summary = buildPublicGenerationSummary({
       explicit: { modelHandling: ['used legacy secret body'] },
-      changeSummary: ['Reused stale secret body'],
+      changeSummary: ['Reused stale secret body', ...Array.from({ length: 12 }, (_, index) => `provider change ${index + 1}`)],
       planState,
       carryForwardSnapshot: snapshot,
       templatePolicy: 'required',
@@ -157,6 +157,7 @@ describe('public generation summary', () => {
       expect.stringContaining('过期终版 · 2026-08-10–2026-08-16 · personal · stale'),
       expect.stringContaining('旧版周报 · 2026-08-03–2026-08-09 · personal · legacy'),
     ]))
+    expect(summary.changeSummary).toHaveLength(12)
     expect(JSON.stringify(summary)).not.toContain('stale secret body')
     expect(JSON.stringify(summary)).not.toContain('legacy secret body')
   })
