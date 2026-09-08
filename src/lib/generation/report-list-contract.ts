@@ -23,8 +23,8 @@ export interface AppliedReportListFilters {
   title: string | null
   startDate: string | null
   endDate: string | null
-  statuses: ['current']
-  includeLegacy: false
+  statuses: Array<'current' | 'stale'>
+  includeLegacy: boolean
   relation: ReportListRelation
   relativeToReportId: number | null
   cursor: string | null
@@ -44,10 +44,11 @@ export interface ReportListItem {
   weekStart: string
   weekEnd: string
   audience: AudienceVariant
-  finalStatus: 'current'
-  isLegacy: false
+  finalStatus: 'current' | 'stale'
+  isLegacy: boolean
   updatedAt: string
   contentAvailable: true
+  warning?: string
   matches?: ReportListMatch[]
 }
 
@@ -61,7 +62,7 @@ export type ReportListToolResult = {
   referenceBoundary: { label: typeof HISTORICAL_REFERENCE_LABEL; statement: string }
 } | {
   ok: false
-  error: { code: 'INVALID_QUERY' | 'QUERY_FAILED'; message: string }
+  error: { code: 'INVALID_QUERY' | 'NOT_AVAILABLE' | 'QUERY_FAILED'; message: string }
   referenceBoundary: { label: typeof HISTORICAL_REFERENCE_LABEL; statement: string }
 }
 
@@ -90,7 +91,7 @@ ${results.map((result, index) => {
           const matches = item.matches?.length
             ? `\n${item.matches.map((match) => `  - ${match.field}${match.startLine ? ` lines ${match.startLine}–${match.endLine}` : ''}:\n    ---\n    ${match.content.replaceAll('\n', '\n    ')}\n    ---`).join('\n')}`
             : ''
-          return `- ${item.title} (#${item.reportId}) · ${item.weekStart}–${item.weekEnd} · ${item.audience} · ${item.finalStatus}${matches}`
+          return `- ${item.title} (#${item.reportId}) · ${item.weekStart}–${item.weekEnd} · ${item.audience} · ${item.finalStatus}${item.isLegacy ? ' · legacy' : ''}${item.warning ? ` · 警示：${item.warning}` : ''}${matches}`
         }).join('\n')
       : '- 无结果；不得自动回退到其他周期、状态或受众。'
     return `${index + 1}. appliedFilters=${JSON.stringify(result.appliedFilters)}\n${sources}`

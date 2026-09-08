@@ -11,6 +11,8 @@ interface QueryFixture {
   staleReportId: number
   legacyReportId: number
   longReportId: number
+  noneReportId: number
+  unacceptedReportId: number
 }
 
 interface ToolMessage {
@@ -62,8 +64,10 @@ async function openSessionWithScript(
   page: Page,
   reportId: number,
   instruction: string,
+  variant: 'personal' | 'leadership' = 'personal',
 ) {
   await page.goto(`/edit/${reportId}`)
+  if (variant === 'leadership') await page.getByRole('button', { name: 'Leadership' }).click()
   await page.getByRole('button', { name: 'AI chat' }).click()
   await page.getByLabel('Template').selectOption('official-general')
   await page.getByLabel('Initial instruction (editable)').fill(instruction)
@@ -73,8 +77,9 @@ async function openSessionWithScript(
 async function latestSessionDetail(
   request: APIRequestContext,
   reportId: number,
+  variant: 'personal' | 'leadership' = 'personal',
 ) {
-  const sessionsResponse = await request.get(`/api/reports/${reportId}/generation-sessions?variant=personal`)
+  const sessionsResponse = await request.get(`/api/reports/${reportId}/generation-sessions?variant=${variant}`)
   expect(sessionsResponse.ok()).toBeTruthy()
   const sessions = (await sessionsResponse.json()).sessions as Array<{ id: number }>
   expect(sessions).toHaveLength(1)
@@ -84,6 +89,44 @@ async function latestSessionDetail(
 }
 
 test.describe('AI 查询周报列表', () => {
+  test('显式授权 stale 与 legacy 仅返回个人版并展示警示', async ({ page, request, reportId, scenario }) => {
+    await withQueryFixture(request, scenario, reportId, async (fixture) => {
+      await openSessionWithScript(page, reportId, scriptedInstruction('显式读取过期与旧版历史', {
+        steps: [{ kind: 'stream', toolCalls: [{ name: 'query_report_list', arguments: { statuses: ['current', 'stale'], includeLegacy: true } }] }, { kind: 'stream', text: '已带警示读取历史参考。' }],
+      }))
+      await expect(page.getByText('已带警示读取历史参考。')).toBeVisible({ timeout: 30_000 })
+      await expect(page.getByText('过期终版尚未反映最新周报原稿。').last()).toBeVisible()
+      await expect(page.getByText('旧版周报没有周报原稿和受众生成记录，仅供个人版历史参考。').last()).toBeVisible()
+      const detail = await latestSessionDetail(request, reportId)
+      const output = detail.messages.find((part) => part.partType === 'tool-result' && part.data?.toolName === 'query_report_list')?.data?.output
+      expect(output?.ok).toBe(true)
+      expect(output?.appliedFilters).toMatchObject({ statuses: ['current', 'stale'], includeLegacy: true })
+      const items = output?.items ?? []
+      expect(items).toEqual(expect.arrayContaining([expect.objectContaining({ reportId: fixture.staleReportId, finalStatus: 'stale', warning: expect.stringContaining('过期') }), expect.objectContaining({ reportId: fixture.legacyReportId, isLegacy: true, warning: expect.stringContaining('旧版') })]))
+      expect(JSON.stringify(output)).not.toContain('leadership secret')
+    })
+  })
+
+  test('领导版拒绝 stale/legacy/none/未采用预览与跨受众内容且不泄露正文', async ({ page, request, reportId, scenario }) => {
+    await withQueryFixture(request, scenario, reportId, async (fixture) => {
+      await openSessionWithScript(page, reportId, scriptedInstruction('验证领导版历史授权边界', {
+        steps: [{ kind: 'stream', toolCalls: [
+          { name: 'query_report_content', arguments: { reportId: fixture.staleReportId } },
+          { name: 'query_report_content', arguments: { reportId: fixture.legacyReportId, allowLegacy: true } },
+          { name: 'query_report_content', arguments: { reportId: fixture.noneReportId, allowStale: true } },
+          { name: 'query_report_content', arguments: { reportId: fixture.unacceptedReportId, allowStale: true } },
+          { name: 'query_report_content', arguments: { reportId: fixture.sameAudienceReportId, allowLegacy: true } },
+        ] }, { kind: 'stream', text: '领导版授权边界已验证。' }],
+      }), 'leadership')
+      await expect(page.getByText('领导版授权边界已验证。')).toBeVisible({ timeout: 30_000 })
+      const detail = await latestSessionDetail(request, reportId, 'leadership')
+      const results = detail.messages.filter((part) => part.partType === 'tool-result' && part.data?.toolName === 'query_report_content').map((part) => part.data?.output)
+      expect(results).toHaveLength(5)
+      for (const result of results) expect(result).toMatchObject({ ok: false, error: { code: 'NOT_AVAILABLE' } })
+      expect(JSON.stringify(results)).not.toContain('secret')
+    })
+  })
+
   test('默认查询只返回同受众已采用 current 终版并持久化公开审计', async ({ page, request, reportId, scenario }) => {
     await withQueryFixture(request, scenario, reportId, async (fixture) => {
       await openSessionWithScript(page, reportId, scriptedInstruction('查询可用历史周报列表', {

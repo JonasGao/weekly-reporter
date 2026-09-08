@@ -47,6 +47,8 @@ import {
   normalizePublicGenerationSummary,
   type PublicGenerationSummaryInput,
 } from './public-summary'
+import { isReportListToolResult, REPORT_LIST_TOOL_NAME } from './report-list-contract'
+import { isReportContentToolResult, REPORT_CONTENT_TOOL_NAME } from './report-content-contract'
 
 const MAX_PROPOSAL_CHARACTERS = 200_000
 
@@ -517,6 +519,11 @@ export async function createGenerationProposal(input: {
         : `下周计划：应用 ${merged.state.items.length} 项，${merged.state.judgments.filter((item) => item.judgment === 'carry').length} 项 carry、${merged.state.judgments.filter((item) => item.judgment === 'uncertain').length} 项 uncertain`
     const effectiveSummary = [...summary, planSummary, ...merged.state.warnings].filter(Boolean).slice(0, 8)
     const templatePolicy = storedSession.planPolicy ?? getPlanTemplatePolicy(storedSession.templateContent)
+    const toolResults = tx.select({ data: generationMessageParts.data }).from(generationMessageParts).where(
+      and(eq(generationMessageParts.sessionId, storedSession.id), eq(generationMessageParts.partType, 'tool-result')),
+    ).all()
+    const historicalReportListResults = toolResults.flatMap(({ data }) => data?.toolName === REPORT_LIST_TOOL_NAME && isReportListToolResult(data.output) ? [data.output] : [])
+    const historicalReportContentResults = toolResults.flatMap(({ data }) => data?.toolName === REPORT_CONTENT_TOOL_NAME && isReportContentToolResult(data.output) ? [data.output] : [])
     const publicSummary = buildPublicGenerationSummary({
       explicit: input.publicSummary,
       changeSummary: summary,
@@ -524,6 +531,8 @@ export async function createGenerationProposal(input: {
       carryForwardSnapshot: snapshot,
       templatePolicy,
       proposalPlanParseFailure: merged.proposalPlanParseFailure,
+      historicalReportListResults,
+      historicalReportContentResults,
     })
     tx.update(generationProposals).set({ status: 'superseded' })
       .where(and(eq(generationProposals.sessionId, storedSession.id), eq(generationProposals.status, 'pending'))).run()

@@ -26,6 +26,7 @@ export interface ReportContentIdentity {
   isLegacy: boolean
   updatedAt: string
   historicalReference: typeof CONTENT_REFERENCE_BOUNDARY.label
+  warning?: string
 }
 
 export type ReportContentToolResult = {

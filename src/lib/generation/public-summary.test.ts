@@ -95,4 +95,69 @@ describe('public generation summary', () => {
       expect.objectContaining({ scope: 'proposal-change-summary', omittedCount: 2 }),
     ]))
   })
+
+  it('records stale and legacy query metadata without copying historical bodies', () => {
+    const summary = buildPublicGenerationSummary({
+      explicit: { modelHandling: ['used legacy secret body'] },
+      changeSummary: ['Reused stale secret body'],
+      planState,
+      carryForwardSnapshot: snapshot,
+      templatePolicy: 'required',
+      historicalReportContentResults: [
+        {
+          ok: true,
+          found: true,
+          identity: {
+            reportId: 9,
+            title: '过期终版',
+            audience: 'personal',
+            weekStart: '2026-08-10',
+            weekEnd: '2026-08-16',
+            finalStatus: 'stale',
+            isLegacy: false,
+            updatedAt: '2026-08-17T00:00:00.000Z',
+            historicalReference: '历史参考·不可信',
+            warning: '过期终版尚未反映最新周报原稿。',
+          },
+          content: 'stale secret body',
+          truncated: false,
+          totalChars: 17,
+          returnedChars: 17,
+          referenceBoundary: { label: '历史参考·不可信', statement: 'test boundary' },
+        },
+        {
+          ok: true,
+          found: true,
+          identity: {
+            reportId: 10,
+            title: '旧版周报',
+            audience: 'personal',
+            weekStart: '2026-08-03',
+            weekEnd: '2026-08-09',
+            finalStatus: 'current',
+            isLegacy: true,
+            updatedAt: '2026-08-10T00:00:00.000Z',
+            historicalReference: '历史参考·不可信',
+            warning: '旧版周报没有周报原稿和受众生成记录，仅供个人版历史参考。',
+          },
+          content: 'legacy secret body',
+          truncated: false,
+          totalChars: 18,
+          returnedChars: 18,
+          referenceBoundary: { label: '历史参考·不可信', statement: 'test boundary' },
+        },
+      ],
+    })
+
+    expect(summary.historicalReferences).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'report-query', reportId: 9, finalStatus: 'stale', warning: expect.stringContaining('过期') }),
+      expect.objectContaining({ kind: 'report-query', reportId: 10, isLegacy: true, warning: expect.stringContaining('没有周报原稿和受众生成记录') }),
+    ]))
+    expect(summary.changeSummary).toEqual(expect.arrayContaining([
+      expect.stringContaining('过期终版 · 2026-08-10–2026-08-16 · personal · stale'),
+      expect.stringContaining('旧版周报 · 2026-08-03–2026-08-09 · personal · legacy'),
+    ]))
+    expect(JSON.stringify(summary)).not.toContain('stale secret body')
+    expect(JSON.stringify(summary)).not.toContain('legacy secret body')
+  })
 })

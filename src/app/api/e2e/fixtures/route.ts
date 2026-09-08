@@ -127,7 +127,10 @@ export async function POST(request: Request) {
       title: `${marker} stale excluded`,
       weekStart: subDays(targetStart, 28),
       weekEnd: subDays(targetStart, 22),
-      variants: [{ audience: 'personal', finalStatus: 'stale', finalContent: `# ${marker} stale secret`, accepted: true }],
+      variants: [
+        { audience: 'personal', finalStatus: 'stale', finalContent: `# ${marker} personal stale secret`, accepted: true },
+        { audience: 'leadership', finalStatus: 'stale', finalContent: `# ${marker} leadership stale secret`, accepted: true },
+      ],
     })
     const legacyReportId = db.insert(reports).values({
       title: `${marker} legacy readable`,
@@ -139,17 +142,23 @@ export async function POST(request: Request) {
       updatedAt: now,
     }).returning().get().id
     reportIds.push(legacyReportId)
-    createReport({
+    const noneReportId = createReport({
       title: `${marker} none excluded`,
       weekStart: subDays(targetStart, 35),
       weekEnd: subDays(targetStart, 29),
-      variants: [{ audience: 'personal', finalStatus: 'none', finalContent: null, accepted: false }],
+      variants: [
+        { audience: 'personal', finalStatus: 'none', finalContent: null, accepted: false },
+        { audience: 'leadership', finalStatus: 'none', finalContent: null, accepted: false },
+      ],
     })
-    createReport({
+    const unacceptedReportId = createReport({
       title: `${marker} unaccepted excluded`,
       weekStart: subDays(targetStart, 42),
       weekEnd: subDays(targetStart, 36),
-      variants: [{ audience: 'personal', finalStatus: 'none', finalContent: `# ${marker} unaccepted preview secret`, accepted: false }],
+      variants: [
+        { audience: 'personal', finalStatus: 'none', finalContent: `# ${marker} personal unaccepted preview secret`, accepted: false },
+        { audience: 'leadership', finalStatus: 'none', finalContent: `# ${marker} leadership unaccepted preview secret`, accepted: false },
+      ],
     })
     return NextResponse.json({
       reportIds,
@@ -160,6 +169,8 @@ export async function POST(request: Request) {
       currentLegacyReportId,
       staleReportId,
       legacyReportId,
+      noneReportId,
+      unacceptedReportId,
     }, { status: 201 })
   }
   if (body.action === 'carry-forward') {

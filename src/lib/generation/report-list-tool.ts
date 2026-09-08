@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm'
 import { format, isValid, parseISO, subDays } from 'date-fns'
 import { getDb } from '@/lib/db'
 import { generationSessions, reportVariants, reports, type AudienceVariant } from '@/lib/db/schema'
@@ -29,8 +29,9 @@ interface AuthorizedReportRow {
   weekStart: string
   weekEnd: string
   audience: AudienceVariant
-  finalStatus: 'current'
+  finalStatus: 'current' | 'stale'
   finalContent: string
+  isLegacy: boolean
   updatedAt: Date
 }
 
@@ -85,12 +86,7 @@ function normalizeFilters(
   if (statuses.length === 0 || statuses.some((status) => status !== 'current' && status !== 'stale')) {
     return invalid('statuses must contain current or stale')
   }
-  if (statuses.includes('stale')) {
-    return invalid('stale report authorization is not available for this tool version')
-  }
-  if (input.includeLegacy === true) {
-    return invalid('legacy report authorization is not available for this tool version')
-  }
+  const includeLegacy = input.includeLegacy === true
 
   if (relation === 'previous_adjacent') {
     if (!Number.isInteger(input.relativeToReportId) || input.relativeToReportId !== sessionReportId) {
@@ -127,8 +123,8 @@ function normalizeFilters(
     title,
     startDate,
     endDate,
-    statuses: ['current'],
-    includeLegacy: false,
+    statuses: statuses as Array<'current' | 'stale'>,
+    includeLegacy,
     relation,
     relativeToReportId: null,
     cursor: input.cursor ?? null,
@@ -171,9 +167,11 @@ function baseItem(row: AuthorizedReportRow): ReportListItem {
     weekEnd: row.weekEnd,
     audience: row.audience,
     finalStatus: row.finalStatus,
-    isLegacy: false,
+    isLegacy: row.isLegacy,
     updatedAt: row.updatedAt.toISOString(),
     contentAvailable: true,
+    ...(row.finalStatus === 'stale' ? { warning: '过期终版尚未反映最新周报原稿。' } : {}),
+    ...(row.isLegacy ? { warning: '旧版周报没有周报原稿和受众生成记录，仅供个人版历史参考。' } : {}),
   }
 }
 
@@ -231,15 +229,33 @@ export function queryReportListForSession(input: {
       updatedAt: reportVariants.updatedAt,
     }).from(reportVariants).innerJoin(reports, eq(reportVariants.reportId, reports.id)).where(and(
       eq(reportVariants.variant, session.audience),
-      eq(reportVariants.finalStatus, 'current'),
+      inArray(reportVariants.finalStatus, filters.statuses),
       isNotNull(reportVariants.finalContent),
       isNotNull(reportVariants.acceptedProposalId),
-    )).orderBy(desc(reports.weekEnd), desc(reports.id)).all() as AuthorizedReportRow[]
+    )).orderBy(desc(reports.weekEnd), desc(reports.id)).all().map((row) => ({ ...row, isLegacy: false })) as AuthorizedReportRow[]
+
+    if (filters.includeLegacy) {
+      if (session.audience !== 'personal') {
+        return { ok: false, error: { code: 'NOT_AVAILABLE', message: 'legacy report history is available only to personal generation sessions' }, referenceBoundary: REFERENCE_BOUNDARY } as ReportListToolResult
+      }
+      const modernReportIds = new Set(db.select({ reportId: reportVariants.reportId }).from(reportVariants).all().map((row) => row.reportId))
+      const legacyRows = db.select({
+        reportId: reports.id,
+        title: reports.title,
+        weekStart: reports.weekStart,
+        weekEnd: reports.weekEnd,
+        finalContent: reports.content,
+        updatedAt: reports.updatedAt,
+      }).from(reports).orderBy(desc(reports.weekEnd), desc(reports.id)).all()
+        .filter((row) => !modernReportIds.has(row.reportId) && row.finalContent.trim().length > 0)
+        .map((row) => ({ ...row, audience: 'personal' as const, finalStatus: 'current' as const, isLegacy: true }))
+      authorized.push(...legacyRows)
+    }
 
     const expectedPreviousEnd = format(subDays(parseISO(relativeReport.weekStart), 1), 'yyyy-MM-dd')
     const cursor = filters.cursor ? parseCursor(filters.cursor) : null
     const matchingRows = authorized.filter((row) => {
-      if (filters.relation === 'previous_adjacent' && row.weekEnd !== expectedPreviousEnd) return false
+      if (filters.relation === 'previous_adjacent' && (row.isLegacy || row.weekEnd !== expectedPreviousEnd)) return false
       if (filters.relation === 'overlap') {
         if (filters.startDate && row.weekEnd < filters.startDate) return false
         if (filters.endDate && row.weekStart > filters.endDate) return false
@@ -249,6 +265,8 @@ export function queryReportListForSession(input: {
       if (filters.query && !containsLiteral(row.title, filters.query) && !containsLiteral(row.finalContent, filters.query)) return false
       return true
     })
+
+    matchingRows.sort((a, b) => b.weekEnd.localeCompare(a.weekEnd) || b.reportId - a.reportId)
 
     const hasMore = filters.relation === 'overlap' && matchingRows.length > filters.limit
     const pageRows = matchingRows.slice(0, filters.limit)

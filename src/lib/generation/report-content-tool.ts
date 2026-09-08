@@ -51,15 +51,24 @@ export function queryReportContentForSession(input: { sessionId: number; paramet
     const variant = db.select().from(reportVariants).where(and(eq(reportVariants.reportId, reportId), eq(reportVariants.variant, session.audience))).get()
     const hasModernVariant = Boolean(db.select({ id: reportVariants.id }).from(reportVariants).where(eq(reportVariants.reportId, reportId)).get())
     const isLegacy = !hasModernVariant
+    const unavailable = (message: string): ReportContentToolResult => session.audience === 'leadership'
+      ? { ok: false, error: { code: 'NOT_AVAILABLE', message }, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
+      : { ok: true, found: false, reportId, truncated: false, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
     if (!variant) {
-      if (!isLegacy || session.audience !== 'personal' || params.allowLegacy !== true) return { ok: true, found: false, reportId, truncated: false, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
+      if (!isLegacy || session.audience !== 'personal' || params.allowLegacy !== true) {
+        return unavailable('This historical report is not available for the current audience or authorization')
+      }
     } else {
-      if (variant.finalStatus === 'none' || !variant.finalContent || variant.acceptedProposalId == null) return { ok: true, found: false, reportId, truncated: false, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
-      if (variant.finalStatus === 'stale' && params.allowStale !== true) return { ok: true, found: false, reportId, truncated: false, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
+      if (variant.finalStatus === 'none' || !variant.finalContent || variant.acceptedProposalId == null) {
+        return unavailable('The requested report has no adopted final for this audience')
+      }
+      if (variant.finalStatus === 'stale' && params.allowStale !== true) {
+        return unavailable('The stale final requires explicit authorization')
+      }
     }
     const status = variant?.finalStatus ?? 'current'
     const content = variant?.finalContent ?? report.content
-    const identity = { reportId: report.id, title: report.title, weekStart: report.weekStart, weekEnd: report.weekEnd, audience: session.audience, finalStatus: status, isLegacy, updatedAt: (variant?.updatedAt ?? report.updatedAt).toISOString(), historicalReference: CONTENT_REFERENCE_BOUNDARY.label } as const
+    const identity = { reportId: report.id, title: report.title, weekStart: report.weekStart, weekEnd: report.weekEnd, audience: session.audience, finalStatus: status, isLegacy, updatedAt: (variant?.updatedAt ?? report.updatedAt).toISOString(), historicalReference: CONTENT_REFERENCE_BOUNDARY.label, warning: isLegacy ? '旧版周报没有周报原稿和受众生成记录，仅供个人版历史参考。' : status === 'stale' ? '过期终版尚未反映最新周报原稿。' : undefined } as const
     if (!query) {
       const truncated = content.length > MAX_CONTENT_CHARS
       const marker = '\n[系统截断：正文超过 40,000 字符]'

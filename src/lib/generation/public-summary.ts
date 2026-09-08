@@ -1,6 +1,8 @@
 import type { AudienceVariant } from '@/lib/db/schema'
 import type { CarryForwardSnapshot } from './carry-forward-snapshot'
 import type { PlanJudgment, PlanState } from './plan'
+import type { ReportListToolResult } from './report-list-contract'
+import type { ReportContentToolResult } from './report-content-contract'
 
 export const STRUCTURE_COMPLETENESS_RULE_VERSION = 'next-week-plan-structure/v1' as const
 
@@ -38,13 +40,15 @@ export interface PublicGenerationSummary {
     itemId: string | 'none'
   }>
   historicalReferences: Array<{
-    kind: 'carry-forward'
+    kind: 'carry-forward' | 'report-query'
     reportId: number
     title: string
     audience: AudienceVariant
     weekStart: string
     weekEnd: string
-    finalStatus: 'current'
+    finalStatus: 'current' | 'stale'
+    isLegacy?: boolean
+    warning?: string
     acceptedProposalId: number | 'none'
     snapshotCapturedAt: string | 'none'
     sourceUpdatedAt: string
@@ -132,17 +136,51 @@ export function buildPublicGenerationSummary(input: {
   carryForwardSnapshot: CarryForwardSnapshot
   templatePolicy: 'required' | 'forbidden'
   proposalPlanParseFailure?: string | null
+  historicalReportListResults?: ReportListToolResult[]
+  historicalReportContentResults?: ReportContentToolResult[]
 }): PublicGenerationSummary {
   const source = input.carryForwardSnapshot.source
-  const historicalText = historicalBodyText(input.carryForwardSnapshot)
+  const historicalText = [
+    ...historicalBodyText(input.carryForwardSnapshot),
+    ...(input.historicalReportContentResults ?? []).flatMap((result) => result.ok && result.found
+      ? [result.content, ...(result.matches ?? []).map((match) => match.content)]
+        .filter((value): value is string => Boolean(value?.trim())).map(normalizedAuditText)
+      : []),
+  ]
   const modelHandling = cleanPublicProseList({
     values: input.explicit?.modelHandling,
     limit: 8,
     maxLength: 280,
     historicalText,
   })
+  const queriedReferences = new Map<string, PublicGenerationSummary['historicalReferences'][number]>()
+  for (const result of input.historicalReportListResults ?? []) {
+    if (!result.ok) continue
+    for (const item of result.items) {
+      if (item.finalStatus !== 'stale' && !item.isLegacy) continue
+      queriedReferences.set(`${item.reportId}:${item.audience}`, {
+        kind: 'report-query', reportId: item.reportId, title: item.title, audience: item.audience,
+        weekStart: item.weekStart, weekEnd: item.weekEnd, finalStatus: item.finalStatus,
+        isLegacy: item.isLegacy, warning: item.warning, acceptedProposalId: 'none', snapshotCapturedAt: 'none',
+        sourceUpdatedAt: item.updatedAt, trust: 'historical-reference-untrusted',
+      })
+    }
+  }
+  for (const result of input.historicalReportContentResults ?? []) {
+    if (!result.ok || !result.found || result.identity.finalStatus === 'none' || (result.identity.finalStatus !== 'stale' && !result.identity.isLegacy)) continue
+    const item = result.identity
+    queriedReferences.set(`${item.reportId}:${item.audience}`, {
+      kind: 'report-query', reportId: item.reportId, title: item.title, audience: item.audience,
+      weekStart: item.weekStart, weekEnd: item.weekEnd, finalStatus: item.finalStatus === 'stale' ? 'stale' : 'current',
+      isLegacy: item.isLegacy, warning: item.warning, acceptedProposalId: 'none', snapshotCapturedAt: 'none',
+      sourceUpdatedAt: item.updatedAt, trust: 'historical-reference-untrusted',
+    })
+  }
+  const referenceChanges = [...queriedReferences.values()].map((item) =>
+    `历史参考：${item.title} · ${item.weekStart}–${item.weekEnd} · ${item.audience} · ${item.isLegacy ? 'legacy' : item.finalStatus} · ${item.warning ?? '历史参考·不可信'}`,
+  )
   const changeSummary = cleanPublicProseList({
-    values: input.changeSummary,
+    values: [...input.changeSummary, ...referenceChanges],
     limit: 12,
     maxLength: 280,
     historicalText,
@@ -207,7 +245,7 @@ export function buildPublicGenerationSummary(input: {
       candidateId: item.candidateId ?? 'none',
       itemId: item.itemId ?? 'none',
     })),
-    historicalReferences: source ? [{
+    historicalReferences: [...(source ? [{
       kind: 'carry-forward',
       reportId: source.reportId,
       title: source.title,
@@ -219,7 +257,7 @@ export function buildPublicGenerationSummary(input: {
       snapshotCapturedAt: input.carryForwardSnapshot.capturedAt ?? 'none',
       sourceUpdatedAt: source.updatedAt,
       trust: 'historical-reference-untrusted',
-    }] : [],
+    } satisfies PublicGenerationSummary['historicalReferences'][number]] : []), ...queriedReferences.values()],
     toolStatuses: [{ toolName: 'propose_final_report', status: 'succeeded', detail: 'proposal-created' }],
     failureStates,
     truncationStates,
