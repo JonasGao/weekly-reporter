@@ -49,6 +49,21 @@ export const LEGACY_NO_SNAPSHOT: CarryForwardSnapshot = {
   candidates: [],
 }
 
+function unavailableSnapshot(reason: string): CarryForwardSnapshot {
+  return {
+    version: 1,
+    status: 'no-snapshot',
+    reason,
+    capturedAt: null,
+    source: null,
+    planText: null,
+    parseStatus: 'unavailable',
+    parseReason: reason,
+    parseWarning: null,
+    candidates: [],
+  }
+}
+
 export function normalizeCarryForwardSnapshot(value: string | CarryForwardSnapshot | null | undefined): CarryForwardSnapshot {
   if (!value) return LEGACY_NO_SNAPSHOT
 
@@ -61,18 +76,7 @@ export function normalizeCarryForwardSnapshot(value: string | CarryForwardSnapsh
   } catch {
     // A malformed value is treated as unavailable rather than interpreted as history.
   }
-  return {
-    version: 1,
-    status: 'no-snapshot',
-    reason: 'The stored carry-forward snapshot is unavailable and was not reconstructed.',
-    capturedAt: null,
-    source: null,
-    planText: null,
-    parseStatus: 'unavailable',
-    parseReason: 'The stored carry-forward snapshot is unavailable and was not reconstructed.',
-    parseWarning: null,
-    candidates: [],
-  }
+  return unavailableSnapshot('The stored carry-forward snapshot is unavailable and was not reconstructed.')
 }
 
 export function serializeCarryForwardSnapshot(snapshot: CarryForwardSnapshot): string {
