@@ -114,7 +114,7 @@ export async function PUT(
         }
       }
       return updatedVariant
-    })()
+    })
     if (updated) {
       triggerAsyncVariantScoring(updated.id).catch((error) => {
         console.error('[reports] Variant scoring failed:', error)

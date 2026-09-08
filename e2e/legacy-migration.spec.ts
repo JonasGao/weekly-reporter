@@ -6,12 +6,14 @@ import path from 'node:path'
 import os from 'node:os'
 import { applyDatabaseMigrations } from '../src/lib/db/migrations'
 import { nextServeArgs } from './next-server'
+import { startScriptedAI } from './scripted-ai'
 
 async function startLegacyApplication() {
   const root = await mkdtemp(path.join(os.tmpdir(), 'weekly-reporter-legacy-'))
   const app = path.join(root, 'app')
   const dataHome = path.join(root, 'data')
   const migrations = path.join(root, 'pre-31-migrations')
+  const provider = await startScriptedAI()
   await mkdir(app)
   await mkdir(path.join(dataHome, 'weekly-reporter'), { recursive: true })
   await cp(path.resolve('drizzle'), migrations, { recursive: true })
@@ -27,6 +29,15 @@ async function startLegacyApplication() {
     title, content, week_start, week_end, created_at, updated_at, score_status
   ) VALUES (?, ?, ?, ?, ?, ?, ?)`)
     .run('Pre-migration legacy report', 'Original legacy final', '2026-08-10', '2026-08-16', Date.now(), Date.now(), 'completed')
+  sqlite.prepare(`INSERT INTO ai_config (
+    protocol, api_url, api_key, model, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?)`)
+    .run('openai-compatible', provider.url, 'test-key', 'e2e-scripted', Date.now(), Date.now())
+  sqlite.prepare(`INSERT INTO ai_styles (
+    key, label, system_prompt, temperature, score_structure_weight,
+    score_content_weight, score_value_weight, is_default, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run('formal', 'Formal', '', '0.3', 25, 30, 45, 1, Date.now(), Date.now())
   sqlite.close()
 
   for (const file of ['src', 'public', 'drizzle', 'package.json', 'tsconfig.json', 'next.config.ts', 'postcss.config.mjs']) {
@@ -42,7 +53,7 @@ async function startLegacyApplication() {
   })
   const url = `http://127.0.0.1:${port}`
   await expect.poll(async () => fetch(`${url}/api/reports/1`).then((response) => response.ok).catch(() => false), { timeout: 90_000 }).toBe(true)
-  return { root, child, url }
+  return { root, child, provider, url }
 }
 
 test('启动预置旧版本数据库时保留 legacy 终版且不伪造会话或快照', async ({ request }) => {
@@ -60,8 +71,12 @@ test('启动预置旧版本数据库时保留 legacy 终版且不伪造会话或
 
     await expect.poll(async () => {
       const response = await request.get(`${app.url}/api/reports/1`)
-      return (await response.json() as { content: string }).content
+      return (await response.json() as { content: string; scoreStatus: string }).content
     }).toBe('Edited legacy final')
+    await expect.poll(async () => {
+      const response = await request.get(`${app.url}/api/reports/1`)
+      return (await response.json() as { scoreStatus: string }).scoreStatus
+    }).toBe('completed')
 
     const database = new Database(path.join(app.root, 'data', 'weekly-reporter', 'reports.db'), { readonly: true })
     expect(database.prepare('SELECT COUNT(*) AS count FROM report_variants').get()).toEqual({ count: 0 })
@@ -70,6 +85,7 @@ test('启动预置旧版本数据库时保留 legacy 终版且不伪造会话或
     database.close()
   } finally {
     if (app.child.pid) process.kill(-app.child.pid, 'SIGKILL')
+    await app.provider.close()
     await rm(app.root, { recursive: true, force: true })
   }
 })

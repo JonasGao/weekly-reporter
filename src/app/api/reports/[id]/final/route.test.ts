@@ -32,7 +32,7 @@ vi.mock('@/lib/db', () => ({
     }),
     insert: () => ({ values: mocks.insert }),
     select: mocks.select,
-    transaction: (callback: (tx: unknown) => unknown) => () => callback({
+    transaction: (callback: (tx: unknown) => unknown) => callback({
       update: () => ({ set: (values: unknown) => {
         mocks.set(values)
         return { where: () => ({ returning: () => ({ get: mocks.transactionReturning }), run: vi.fn() }) }
