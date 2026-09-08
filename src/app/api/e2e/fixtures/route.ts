@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       weekStart: subDays(targetStart, 21),
       weekEnd: subDays(targetStart, 15),
       variants: [
-        { audience: 'personal', finalStatus: 'current', finalContent: `# ${marker} searchable personal final\n\n${'x'.repeat(41_000)}`, accepted: true },
+        { audience: 'personal', finalStatus: 'current', finalContent: `# ${marker} searchable personal final`, accepted: true },
         { audience: 'leadership', finalStatus: 'none', finalContent: null, accepted: false },
       ],
     })
@@ -110,6 +110,12 @@ export async function POST(request: Request) {
         { audience: 'leadership', finalStatus: 'current', finalContent: `# ${marker} leadership secret`, accepted: true },
         { audience: 'personal', finalStatus: 'none', finalContent: null, accepted: false },
       ],
+    })
+    const longReportId = createReport({
+      title: `${marker} long content`,
+      weekStart: subDays(targetStart, 63),
+      weekEnd: subDays(targetStart, 57),
+      variants: [{ audience: 'personal', finalStatus: 'current', finalContent: `# ${marker} long content\n\n${'x'.repeat(41_000)}`, accepted: true }],
     })
     const currentLegacyReportId = createReport({
       title: `${marker} legacy current excluded`,
@@ -150,6 +156,7 @@ export async function POST(request: Request) {
       adjacentReportId,
       sameAudienceReportId,
       crossAudienceReportId,
+      longReportId,
       currentLegacyReportId,
       staleReportId,
       legacyReportId,

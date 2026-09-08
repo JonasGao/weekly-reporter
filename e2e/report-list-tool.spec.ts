@@ -10,6 +10,7 @@ interface QueryFixture {
   currentLegacyReportId: number
   staleReportId: number
   legacyReportId: number
+  longReportId: number
 }
 
 interface ToolMessage {
@@ -297,7 +298,7 @@ test.describe('AI 查询周报内容', () => {
       await openSessionWithScript(page, reportId, scriptedInstruction('读取历史周报内容', {
         steps: [{ kind: 'stream', toolCalls: [
           { name: 'query_report_content', arguments: { reportId: fixture.sameAudienceReportId, query: 'searchable', maxMatches: 5, contextLines: 1 } },
-          { name: 'query_report_content', arguments: { reportId: fixture.sameAudienceReportId } },
+          { name: 'query_report_content', arguments: { reportId: fixture.longReportId } },
         ] }, { kind: 'stream', text: '内容查询完成。' }],
       }))
       await expect(page.getByText('内容查询完成。')).toBeVisible({ timeout: 30_000 })
