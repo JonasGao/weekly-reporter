@@ -46,7 +46,7 @@ describe('public generation summary', () => {
   it('keeps all contract fields explicit and removes copied historical body text', () => {
     const summary = buildPublicGenerationSummary({
       explicit: { modelHandling: ['按原稿组织事实。', '引用不得复制的历史计划正文作为事实。'] },
-      changeSummary: [],
+      changeSummary: ['调整本周事实表达。', '变更：不得复制的历史计划正文。'],
       planState,
       carryForwardSnapshot: snapshot,
       templatePolicy: 'required',
@@ -56,7 +56,7 @@ describe('public generation summary', () => {
     expect(summary.planOverrideConclusions).toEqual([])
     expect(summary.failureStates).toEqual([])
     expect(summary.truncationStates).toEqual([])
-    expect(summary.changeSummary).toEqual([])
+    expect(summary.changeSummary).toEqual(['调整本周事实表达。'])
     expect(summary.factBoundary).toMatchObject({
       currentWeekFacts: 'report-source-draft-only',
       historicalReferences: 'untrusted',
@@ -66,5 +66,32 @@ describe('public generation summary', () => {
     })
     expect(JSON.stringify(summary)).not.toContain(snapshot.planText)
     expect(JSON.stringify(summary)).not.toContain(snapshot.candidates[0].text)
+  })
+
+  it('records truncation when provider-authored public prose exceeds its bounds', () => {
+    const summary = buildPublicGenerationSummary({
+      explicit: {
+        modelHandling: [
+          'a'.repeat(281),
+          ...Array.from({ length: 8 }, (_, index) => `handling-${index + 1}`),
+        ],
+      },
+      changeSummary: [
+        'b'.repeat(281),
+        ...Array.from({ length: 12 }, (_, index) => `change-${index + 1}`),
+      ],
+      planState,
+      carryForwardSnapshot: snapshot,
+      templatePolicy: 'required',
+    })
+
+    expect(summary.modelHandling).toHaveLength(8)
+    expect(summary.modelHandling[0]).toHaveLength(280)
+    expect(summary.changeSummary).toHaveLength(12)
+    expect(summary.changeSummary[0]).toHaveLength(280)
+    expect(summary.truncationStates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ scope: 'model-handling', omittedCount: 2 }),
+      expect.objectContaining({ scope: 'proposal-change-summary', omittedCount: 2 }),
+    ]))
   })
 })

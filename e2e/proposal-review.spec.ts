@@ -66,7 +66,13 @@ test.describe('提案评审与公开生成摘要', () => {
           }),
           proposalStep({
             content: secondContent,
-            changes: ['调整本周完成表述', '补充下一步评审计划'],
+            changes: [
+              '调整本周完成表述',
+              '补充下一步评审计划',
+              `不得保留的历史正文：${marker} personal carry`,
+              'c'.repeat(281),
+              ...Array.from({ length: 10 }, (_, index) => `公开变更 ${index + 1}`),
+            ],
             handling: [
               '仅依据当前受众的周报原稿重写本周完成内容。',
               '计划结转仅作为历史参考，不作为本周已发生事实。',
@@ -128,7 +134,6 @@ test.describe('提案评审与公开生成摘要', () => {
         planOverrideConclusions: [],
         toolStatuses: [{ toolName: 'propose_final_report', status: 'succeeded', detail: 'proposal-created' }],
         failureStates: [],
-        changeSummary: ['调整本周完成表述', '补充下一步评审计划'],
         templateSection: { policy: 'required', status: 'present' },
         structureCompleteness: { ruleVersion: 'next-week-plan-structure/v1', status: 'satisfied' },
         factBoundary: {
@@ -139,6 +144,9 @@ test.describe('提案评审与公开生成摘要', () => {
           scoringInput: 'none',
         },
       })
+      expect(proposal.publicSummary.changeSummary).toHaveLength(12)
+      expect(proposal.publicSummary.changeSummary).toEqual(expect.arrayContaining(['调整本周完成表述', '补充下一步评审计划']))
+      expect(proposal.publicSummary.changeSummary[2]).toHaveLength(280)
       expect(proposal.publicSummary.planItems.map((item: { source: string }) => item.source)).toEqual(expect.arrayContaining(['carry-forward', 'this-week-new']))
       expect(proposal.publicSummary.planJudgments[0]).toMatchObject({ candidateId, judgment: 'carry', reason: '上一周期事项仍需继续推进。' })
       expect(proposal.publicSummary.historicalReferences[0]).toMatchObject({
@@ -148,7 +156,9 @@ test.describe('提案评审与公开生成摘要', () => {
         trust: 'historical-reference-untrusted',
       })
       expect(proposal.publicSummary.truncationStates[0]).toMatchObject({ scope: 'next-week-plan', omittedCount: 1 })
+      expect(proposal.publicSummary.truncationStates[1]).toMatchObject({ scope: 'proposal-change-summary', omittedCount: 2 })
       expect(JSON.stringify(proposal.publicSummary)).not.toContain(`${marker} personal final`)
+      expect(JSON.stringify(proposal.publicSummary.changeSummary)).not.toContain(`${marker} personal carry`)
       expect(JSON.stringify(proposal.publicSummary)).not.toContain('这是供应商显式 reasoning')
 
       await page.reload()

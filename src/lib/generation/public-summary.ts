@@ -84,25 +84,36 @@ export interface PublicGenerationSummary {
 
 const FACT_BOUNDARY_STATEMENT = '当前受众版本的周报原稿是本周已发生工作事实的唯一权威来源；历史参考与公开生成摘要不是本周事实，也不作为评分输入。'
 
-function cleanList(values: string[] | undefined, limit: number, maxLength: number): string[] {
-  return (values ?? [])
-    .map((value) => value.replace(/\s+/g, ' ').trim().slice(0, maxLength))
-    .filter(Boolean)
-    .slice(0, limit)
-}
-
 function normalizedAuditText(value: string): string {
   return value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase()
 }
 
-function modelHandlingWithoutHistoricalBody(values: string[] | undefined, snapshot: CarryForwardSnapshot): string[] {
-  const historicalText = [snapshot.planText, ...snapshot.candidates.map((candidate) => candidate.text)]
+function historicalBodyText(snapshot: CarryForwardSnapshot): string[] {
+  return [snapshot.planText, ...snapshot.candidates.map((candidate) => candidate.text)]
     .filter((value): value is string => Boolean(value?.trim()))
     .map(normalizedAuditText)
-  return cleanList(values, 8, 280).filter((item) => {
-    const normalized = normalizedAuditText(item)
-    return !historicalText.some((historical) => historical && normalized.includes(historical))
-  })
+}
+
+function cleanPublicProseList(input: {
+  values: string[] | undefined
+  limit: number
+  maxLength: number
+  historicalText: string[]
+}): { values: string[]; truncatedCount: number } {
+  const safeValues = (input.values ?? [])
+    .map((value) => value.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .filter((item) => {
+      const normalized = normalizedAuditText(item)
+      return !input.historicalText.some((historical) => historical && normalized.includes(historical))
+    })
+  const shortenedValues = safeValues.map((value) => value.slice(0, input.maxLength))
+  const shortenedCount = safeValues.filter((value) => value.length > input.maxLength).length
+  const omittedCount = Math.max(0, shortenedValues.length - input.limit)
+  return {
+    values: shortenedValues.slice(0, input.limit),
+    truncatedCount: shortenedCount + omittedCount,
+  }
 }
 
 function publicSource(source: PlanSource): PublicPlanItemSource {
@@ -127,6 +138,19 @@ export function buildPublicGenerationSummary(input: {
   proposalPlanParseFailure?: string | null
 }): PublicGenerationSummary {
   const source = input.carryForwardSnapshot.source
+  const historicalText = historicalBodyText(input.carryForwardSnapshot)
+  const modelHandling = cleanPublicProseList({
+    values: input.explicit?.modelHandling,
+    limit: 8,
+    maxLength: 280,
+    historicalText,
+  })
+  const changeSummary = cleanPublicProseList({
+    values: input.changeSummary,
+    limit: 12,
+    maxLength: 280,
+    historicalText,
+  })
   const failureStates: PublicGenerationSummary['failureStates'] = []
   if (input.carryForwardSnapshot.status === 'parse-failed') {
     failureStates.push({
@@ -142,10 +166,32 @@ export function buildPublicGenerationSummary(input: {
       message: input.proposalPlanParseFailure,
     })
   }
+  const truncationStates: PublicGenerationSummary['truncationStates'] = []
+  if (input.planState.truncatedCount > 0) {
+    truncationStates.push({
+      scope: 'next-week-plan',
+      omittedCount: input.planState.truncatedCount,
+      message: `下周计划按固定优先级截断 ${input.planState.truncatedCount} 项。`,
+    })
+  }
+  if (modelHandling.truncatedCount > 0) {
+    truncationStates.push({
+      scope: 'model-handling',
+      omittedCount: modelHandling.truncatedCount,
+      message: `模型显式处理说明有 ${modelHandling.truncatedCount} 项被截短或省略。`,
+    })
+  }
+  if (changeSummary.truncatedCount > 0) {
+    truncationStates.push({
+      scope: 'proposal-change-summary',
+      omittedCount: changeSummary.truncatedCount,
+      message: `提案变更摘要有 ${changeSummary.truncatedCount} 项被截短或省略。`,
+    })
+  }
 
   return {
     version: 1,
-    modelHandling: modelHandlingWithoutHistoricalBody(input.explicit?.modelHandling, input.carryForwardSnapshot),
+    modelHandling: modelHandling.values,
     planJudgments: input.planState.judgments.map((item) => ({
       candidateId: item.candidateId,
       judgment: item.judgment,
@@ -173,12 +219,8 @@ export function buildPublicGenerationSummary(input: {
     }] : [],
     toolStatuses: [{ toolName: 'propose_final_report', status: 'succeeded', detail: 'proposal-created' }],
     failureStates,
-    truncationStates: input.planState.truncatedCount > 0 ? [{
-      scope: 'next-week-plan',
-      omittedCount: input.planState.truncatedCount,
-      message: `下周计划按固定优先级截断 ${input.planState.truncatedCount} 项。`,
-    }] : [],
-    changeSummary: cleanList(input.changeSummary, 12, 280),
+    truncationStates,
+    changeSummary: changeSummary.values,
     factBoundary: {
       currentWeekFacts: 'report-source-draft-only',
       historicalReferences: 'untrusted',
