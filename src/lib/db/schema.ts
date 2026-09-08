@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 export type ScoreStatus = 'pending' | 'scoring' | 'completed' | 'failed'
 export type AudienceVariant = 'leadership' | 'personal'
@@ -20,6 +20,8 @@ export type GenerationMessagePartType =
   | 'proposal-accepted'
 export type GenerationProposalStatus = 'pending' | 'accepted' | 'superseded'
 export type PlanJudgment = 'carry' | 'drop' | 'uncertain'
+export type PlanOverrideAction = 'keep' | 'drop' | 'rewrite' | 're-add'
+export type PlanOverrideSource = 'carry-forward' | 'this-week-new'
 
 export const reports = sqliteTable('reports', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -203,6 +205,22 @@ export const generationPlanJudgments = sqliteTable('generation_plan_judgments', 
 
 export type GenerationPlanJudgment = typeof generationPlanJudgments.$inferSelect
 export type NewGenerationPlanJudgment = typeof generationPlanJudgments.$inferInsert
+
+/** User-authored, append-only plan decisions scoped to one generation session. */
+export const generationPlanOverrides = sqliteTable('generation_plan_overrides', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').notNull(),
+  itemId: text('item_id').notNull(),
+  action: text('action').notNull().$type<PlanOverrideAction>(),
+  replacementText: text('replacement_text'),
+  source: text('source').notNull().$type<PlanOverrideSource>(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+}, (table) => ({
+  sessionIndex: index('generation_plan_overrides_session_idx').on(table.sessionId, table.id),
+}))
+
+export type GenerationPlanOverride = typeof generationPlanOverrides.$inferSelect
+export type NewGenerationPlanOverride = typeof generationPlanOverrides.$inferInsert
 
 /** @deprecated 改用 string，风格现在是数据库实体，不再硬编码 key */
 export type AIStyle = string

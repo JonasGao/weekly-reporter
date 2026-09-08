@@ -1,6 +1,6 @@
 import type { AudienceVariant } from '@/lib/db/schema'
 import type { CarryForwardSnapshot } from './carry-forward-snapshot'
-import type { PlanJudgment, PlanSource, PlanState } from './plan'
+import type { PlanJudgment, PlanState } from './plan'
 
 export const STRUCTURE_COMPLETENESS_RULE_VERSION = 'next-week-plan-structure/v1' as const
 
@@ -29,11 +29,13 @@ export interface PublicGenerationSummary {
     action: 'keep' | 'drop' | 'rewrite' | 're-add'
     result: string
     replacementText: string | 'none'
+    source: 'carry-forward' | 'this-week-new'
   }>
   planItems: Array<{
     text: string
     source: PublicPlanItemSource
     candidateId: string | 'none'
+    itemId: string | 'none'
   }>
   historicalReferences: Array<{
     kind: 'carry-forward'
@@ -116,12 +118,6 @@ function cleanPublicProseList(input: {
   }
 }
 
-function publicSource(source: PlanSource): PublicPlanItemSource {
-  if (source === 'carry-forward') return 'carry-forward'
-  if (source === 'baseline') return 'editing-baseline'
-  return 'this-week-new'
-}
-
 export function publicPlanSourceLabel(source: PublicPlanItemSource): string {
   if (source === 'this-week-new') return '本周新增'
   if (source === 'user-rewrite') return 'user rewrite'
@@ -198,11 +194,18 @@ export function buildPublicGenerationSummary(input: {
       reason: item.reason,
       remainingAction: item.remainingAction ?? 'none',
     })),
-    planOverrideConclusions: [],
+    planOverrideConclusions: input.planState.overrideConclusions.map((item) => ({
+      itemId: item.itemId,
+      action: item.action,
+      result: item.result,
+      replacementText: item.replacementText ?? 'none',
+      source: item.source,
+    })),
     planItems: input.planState.items.map((item) => ({
       text: item.text,
-      source: publicSource(item.source),
+      source: item.publicSource,
       candidateId: item.candidateId ?? 'none',
+      itemId: item.itemId ?? 'none',
     })),
     historicalReferences: source ? [{
       kind: 'carry-forward',

@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db'
 import {
   generationMessageParts,
   generationPlanJudgments,
+  generationPlanOverrides,
   generationProposals,
   generationSessions,
   generationTurns,
@@ -13,6 +14,7 @@ import {
   type GenerationMessagePartType,
   type GenerationMessageRole,
   type GenerationProposal,
+  type GenerationPlanOverride,
   type GenerationSession,
 } from '@/lib/db/schema'
 import { getSystemPrompt } from '@/lib/ai'
@@ -34,6 +36,9 @@ import {
   mergeProposalPlan,
   getPlanTemplatePolicy,
   normalizePlanJudgments,
+  summarizePlanOverrides,
+  type PlanOverrideAction,
+  type PlanOverrideRecord,
   type PlanJudgmentRecord,
   type ProposalPlanInput,
 } from './plan'
@@ -224,17 +229,20 @@ export async function getGenerationSessionDetail(reportId: number, sessionId: nu
   })
   if (!session) return null
 
-  const [messages, turns, proposals, currentVariant, planJudgments] = await Promise.all([
+  const [messages, turns, proposals, currentVariant, planJudgments, planOverrides] = await Promise.all([
     db.select().from(generationMessageParts).where(eq(generationMessageParts.sessionId, sessionId)).orderBy(asc(generationMessageParts.sequence)),
     db.select().from(generationTurns).where(eq(generationTurns.sessionId, sessionId)).orderBy(asc(generationTurns.id)),
     db.select().from(generationProposals).where(eq(generationProposals.sessionId, sessionId)).orderBy(asc(generationProposals.id)),
     db.query.reportVariants.findFirst({ where: eq(reportVariants.id, session.reportVariantId) }),
     db.select().from(generationPlanJudgments).where(eq(generationPlanJudgments.sessionId, sessionId)).orderBy(asc(generationPlanJudgments.id)),
+    db.select().from(generationPlanOverrides).where(eq(generationPlanOverrides.sessionId, sessionId)).orderBy(asc(generationPlanOverrides.id)),
   ])
+
+  const carryForwardSnapshot = normalizeCarryForwardSnapshot(session.carryForwardSnapshot)
 
   return {
     ...session,
-    carryForwardSnapshot: normalizeCarryForwardSnapshot(session.carryForwardSnapshot),
+    carryForwardSnapshot,
     messages,
     turns,
     proposals: proposals.map((proposal) => ({
@@ -242,9 +250,102 @@ export async function getGenerationSessionDetail(reportId: number, sessionId: nu
       publicSummary: normalizePublicGenerationSummary(proposal.publicSummary),
     })),
     planJudgments,
+    planOverrides,
+    planOverrideState: summarizePlanOverrides(carryForwardSnapshot, planOverrides),
     sourceIsCurrent: currentVariant?.sourceRevision === session.sourceRevision,
     activeTurn: turns.find((turn) => turn.status === 'working') ?? null,
   }
+}
+
+function cleanOverrideText(value: string): string {
+  return value.replace(/^\s*(?:[-*+]\s+|\d+[.)]\s+)/, '').replace(/\s+/g, ' ').trim().slice(0, 500)
+}
+
+function overrideItemSource(input: {
+  itemId: string
+  snapshotCandidateIds: Set<string>
+  existing: GenerationPlanOverride[]
+}): 'carry-forward' | 'this-week-new' | null {
+  if (input.snapshotCandidateIds.has(input.itemId)) return 'carry-forward'
+  return input.existing.find((record) => record.itemId === input.itemId)?.source ?? null
+}
+
+export async function appendPlanOverride(input: {
+  reportId: number
+  sessionId: number
+  action: PlanOverrideAction
+  itemId?: string
+  text?: string
+}) {
+  const db = getDb()
+  return db.transaction((tx) => {
+    const session = tx.select().from(generationSessions).where(
+      and(eq(generationSessions.id, input.sessionId), eq(generationSessions.reportId, input.reportId)),
+    ).get()
+    if (!session) error('Generation session not found', 'SESSION_NOT_FOUND', 404)
+    if (session.status !== 'active') error('Session is archived', 'SESSION_ARCHIVED', 409)
+    const currentVariant = tx.select().from(reportVariants).where(eq(reportVariants.id, session.reportVariantId)).get()
+    if (!currentVariant || currentVariant.sourceRevision !== session.sourceRevision) {
+      error('The source draft has changed; start a new session', 'SOURCE_REVISION_CONFLICT', 409)
+    }
+    const activeTurn = tx.select().from(generationTurns).where(
+      and(eq(generationTurns.sessionId, session.id), eq(generationTurns.status, 'working')),
+    ).get()
+    if (activeTurn) error('AI is still generating; wait for the current turn to finish', 'TURN_IN_PROGRESS', 409)
+
+    const snapshot = normalizeCarryForwardSnapshot(session.carryForwardSnapshot)
+    const existing = tx.select().from(generationPlanOverrides)
+      .where(eq(generationPlanOverrides.sessionId, session.id)).orderBy(asc(generationPlanOverrides.id)).all()
+    const snapshotCandidateIds = new Set(snapshot.candidates.map((candidate) => candidate.candidateId))
+    const text = typeof input.text === 'string' ? cleanOverrideText(input.text) : ''
+    let itemId = input.itemId?.trim() ?? ''
+    let source: 'carry-forward' | 'this-week-new'
+    const createdNewItem = !itemId
+
+    if (createdNewItem) {
+      if (input.action !== 'keep' || !text) {
+        error('A new plan item requires keep with non-empty text', 'INVALID_PLAN_OVERRIDE', 400)
+      }
+      const nextItemNumber = existing.reduce((maximum, record) => {
+        const match = record.itemId.match(/^session-item-(\d+)$/)
+        return match ? Math.max(maximum, Number.parseInt(match[1], 10)) : maximum
+      }, 0) + 1
+      itemId = `session-item-${nextItemNumber}`
+      source = 'this-week-new'
+    } else {
+      const resolvedSource = overrideItemSource({ itemId, snapshotCandidateIds, existing })
+      if (!resolvedSource) error('Plan item not found in this session', 'PLAN_ITEM_NOT_FOUND', 404)
+      source = resolvedSource
+    }
+
+    const itemHistory = existing.filter((record) => record.itemId === itemId)
+    const latest = itemHistory.at(-1)
+    if (input.action === 'rewrite' && !text) {
+      error('Rewrite requires non-empty replacement text', 'INVALID_PLAN_OVERRIDE', 400)
+    }
+    if (input.action === 're-add' && latest?.action !== 'drop') {
+      error('Only a dropped plan item can be re-added', 'PLAN_ITEM_NOT_DROPPED', 409)
+    }
+    if (latest?.action === 'drop' && input.action !== 'drop' && input.action !== 're-add') {
+      error('Re-add the dropped plan item before applying another change', 'PLAN_ITEM_READD_REQUIRED', 409)
+    }
+
+    const now = new Date()
+    const record = tx.insert(generationPlanOverrides).values({
+      sessionId: session.id,
+      itemId,
+      action: input.action,
+      replacementText: input.action === 'rewrite' || createdNewItem ? text : null,
+      source,
+      createdAt: now,
+    }).returning().get()
+    tx.update(generationSessions).set({ updatedAt: now }).where(eq(generationSessions.id, session.id)).run()
+    const records = [...existing, record]
+    return {
+      ...record,
+      state: summarizePlanOverrides(snapshot, records).find((item) => item.itemId === itemId) ?? null,
+    }
+  })
 }
 
 export async function renameGenerationSession(reportId: number, sessionId: number, title: string) {
@@ -379,6 +480,8 @@ export async function createGenerationProposal(input: {
       reason: row.reason,
       remainingAction: row.remainingAction,
     }))
+    const overrides: PlanOverrideRecord[] = tx.select().from(generationPlanOverrides)
+      .where(eq(generationPlanOverrides.sessionId, storedSession.id)).orderBy(asc(generationPlanOverrides.id)).all()
     const normalizedJudgments = existingJudgments.length > 0
       ? existingJudgments
       : normalizePlanJudgments(snapshot, input.plan)
@@ -400,6 +503,7 @@ export async function createGenerationProposal(input: {
       templateContent: storedSession.templateContent,
       snapshot,
       plan: input.plan,
+      overrides,
       baselineFinalContent: storedSession.baselineFinalContent,
       existingJudgments: normalizedJudgments,
     })

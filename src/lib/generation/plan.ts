@@ -3,6 +3,26 @@ import type { CarryForwardSnapshot } from './carry-forward-snapshot'
 
 export type PlanJudgment = 'carry' | 'drop' | 'uncertain'
 export type PlanSource = 'user-goal' | 'carry-forward' | 'current-fact' | 'baseline'
+export type PlanOverrideAction = 'keep' | 'drop' | 'rewrite' | 're-add'
+export type PlanOverrideSource = 'carry-forward' | 'this-week-new'
+export type PlanItemPublicSource = 'carry-forward' | 'this-week-new' | 'user-rewrite' | 're-add' | 'editing-baseline'
+
+export interface PlanOverrideRecord {
+  id: number
+  itemId: string
+  action: PlanOverrideAction
+  replacementText: string | null
+  source: PlanOverrideSource
+  createdAt: Date | string
+}
+
+export interface PlanOverrideConclusion {
+  itemId: string
+  action: PlanOverrideAction
+  result: 'included' | 'excluded'
+  replacementText: string | null
+  source: PlanOverrideSource
+}
 
 export interface PlanJudgmentInput {
   candidateId: string
@@ -34,8 +54,15 @@ export interface PlanState {
   version: 1
   status: 'included' | 'empty' | 'forbidden'
   section: 'present' | 'appended' | 'omitted'
-  items: Array<{ text: string; source: PlanSource; candidateId: string | null }>
+  items: Array<{
+    text: string
+    source: PlanSource
+    candidateId: string | null
+    itemId: string | null
+    publicSource: PlanItemPublicSource
+  }>
   judgments: PlanJudgmentRecord[]
+  overrideConclusions: PlanOverrideConclusion[]
   truncatedCount: number
   warnings: string[]
 }
@@ -47,6 +74,23 @@ const HEADING = /^( {0,3})(#{2,3})(?:[ \t]+|$)(.*?)[ \t]*#*[ \t]*$/
 interface PlanSectionRange {
   headingIndex: number
   end: number
+}
+
+interface ResolvedOverride {
+  latest: PlanOverrideRecord
+  baseText: string
+  effectiveText: string | null
+  publicSource: Extract<PlanItemPublicSource, 'carry-forward' | 'this-week-new' | 'user-rewrite' | 're-add'>
+  lastRewrite: string | null
+}
+
+export interface PlanOverrideItemState {
+  itemId: string
+  source: PlanOverrideSource
+  originalText: string
+  effectiveText: string | null
+  latestAction: PlanOverrideAction
+  included: boolean
 }
 
 function normalizeText(value: string): string {
@@ -112,6 +156,52 @@ function defaultJudgmentReason(judgment: PlanJudgment): string {
   return '本轮未可靠判断，默认不自动结转。'
 }
 
+function resolveOverrides(snapshot: CarryForwardSnapshot, records: PlanOverrideRecord[]): Map<string, ResolvedOverride> {
+  const candidateText = new Map(snapshot.candidates.map((candidate) => [candidate.candidateId, candidate.text]))
+  const resolved = new Map<string, ResolvedOverride>()
+  for (const record of records) {
+    const existing = resolved.get(record.itemId)
+    const baseText = existing?.baseText
+      ?? candidateText.get(record.itemId)
+      ?? record.replacementText
+      ?? ''
+    const lastRewrite = record.action === 'rewrite' && record.replacementText
+      ? record.replacementText
+      : existing?.lastRewrite ?? null
+    const effectiveText = record.action === 'drop'
+      ? null
+      : record.action === 'rewrite'
+        ? record.replacementText
+        : record.action === 're-add'
+          ? lastRewrite || baseText
+          : baseText
+    const publicSource = record.action === 'rewrite'
+      ? 'user-rewrite'
+      : record.action === 're-add'
+        ? 're-add'
+        : record.source
+    resolved.set(record.itemId, {
+      latest: record,
+      baseText,
+      effectiveText,
+      publicSource,
+      lastRewrite,
+    })
+  }
+  return resolved
+}
+
+export function summarizePlanOverrides(snapshot: CarryForwardSnapshot, records: PlanOverrideRecord[]): PlanOverrideItemState[] {
+  return [...resolveOverrides(snapshot, records).entries()].map(([itemId, override]) => ({
+    itemId,
+    source: override.latest.source,
+    originalText: override.baseText,
+    effectiveText: override.effectiveText,
+    latestAction: override.latest.action,
+    included: override.effectiveText != null,
+  }))
+}
+
 export function normalizePlanJudgments(
   snapshot: CarryForwardSnapshot,
   input?: ProposalPlanInput,
@@ -139,6 +229,7 @@ export function mergeProposalPlan(input: {
   templateContent: string
   snapshot: CarryForwardSnapshot
   plan?: ProposalPlanInput
+  overrides?: PlanOverrideRecord[]
   existingJudgments?: PlanJudgmentRecord[]
   baselineFinalContent?: string | null
 }): { content: string; state: PlanState; proposalPlanParseFailure: string | null } {
@@ -148,9 +239,20 @@ export function mergeProposalPlan(input: {
   const forbidden = templateForbidsPlan(input.templateContent)
   const parsed = parseNextWeekPlan(input.content)
   const judgmentByCandidate = new Map(judgments.map((item) => [item.candidateId, item]))
+  const resolvedOverrides = resolveOverrides(input.snapshot, input.overrides ?? [])
+  const blockedOverrideText = new Set<string>()
+  for (const [itemId, override] of resolvedOverrides) {
+    const candidate = input.snapshot.candidates.find((item) => item.candidateId === itemId)
+    if (candidate) blockedOverrideText.add(candidate.normalizedText)
+    if (override.baseText) blockedOverrideText.add(normalizeText(override.baseText))
+    if (override.lastRewrite) blockedOverrideText.add(normalizeText(override.lastRewrite))
+    if (override.effectiveText) blockedOverrideText.add(normalizeText(override.effectiveText))
+  }
   const explicitItems = (input.plan?.items ?? [])
     .map((item) => ({ ...item, text: cleanText(item.text) }))
     .filter((item) => item.text.length > 0)
+    .filter((item) => !item.candidateId || !resolvedOverrides.has(item.candidateId))
+    .filter((item) => !blockedOverrideText.has(normalizeText(item.text)))
     .filter((item) => {
       if (item.source !== 'carry-forward') return true
       const candidate = item.candidateId ? judgmentByCandidate.get(item.candidateId) : undefined
@@ -163,22 +265,63 @@ export function mergeProposalPlan(input: {
     ? parsed.items
       .map((text) => ({ text: cleanText(text), source: 'current-fact' as const, candidateId: null }))
       .filter((item) => !blockedCarryText.has(normalizeText(item.text)))
+      .filter((item) => !blockedOverrideText.has(normalizeText(item.text)))
     : []
+  const overrideNewItems = [...resolvedOverrides.entries()].flatMap(([itemId, override]) => {
+    if (override.latest.source !== 'this-week-new' || !override.effectiveText) return []
+    return [{
+      text: override.effectiveText,
+      source: 'user-goal' as const,
+      candidateId: null,
+      itemId,
+      publicSource: override.publicSource,
+    }]
+  })
   const carryItems = input.snapshot.candidates.flatMap((candidate) => {
+    const override = resolvedOverrides.get(candidate.candidateId)
+    if (override) {
+      if (!override.effectiveText) return []
+      return [{
+        text: override.effectiveText,
+        source: 'carry-forward' as const,
+        candidateId: candidate.candidateId,
+        itemId: candidate.candidateId,
+        publicSource: override.publicSource,
+      }]
+    }
     const judgment = judgments.find((item) => item.candidateId === candidate.candidateId)
     if (!judgment || judgment.judgment !== 'carry') return []
     return [{
       text: judgment.remainingAction || candidate.text,
       source: 'carry-forward' as const,
       candidateId: candidate.candidateId,
+      itemId: candidate.candidateId,
+      publicSource: 'carry-forward' as const,
     }]
   })
   const baselineParsed = input.baselineFinalContent ? parseNextWeekPlan(input.baselineFinalContent) : null
   const baselineItems = baselineParsed?.status === 'found'
-    ? baselineParsed.items.map((text) => ({ text: cleanText(text), source: 'baseline' as const, candidateId: null }))
+    ? baselineParsed.items
+      .map((text) => ({ text: cleanText(text), source: 'baseline' as const, candidateId: null }))
+      .filter((item) => !blockedOverrideText.has(normalizeText(item.text)))
     : []
   const priority: PlanSource[] = ['user-goal', 'carry-forward', 'current-fact', 'baseline']
-  const all = [...explicitItems.map((item) => ({ ...item, candidateId: item.candidateId ?? null })), ...carryItems, ...generatedItems, ...baselineItems]
+  const all = [
+    ...overrideNewItems,
+    ...explicitItems.map((item) => ({
+      ...item,
+      candidateId: item.candidateId ?? null,
+      itemId: item.candidateId ?? null,
+      publicSource: item.source === 'carry-forward'
+        ? 'carry-forward' as const
+        : item.source === 'baseline'
+          ? 'editing-baseline' as const
+          : 'this-week-new' as const,
+    })),
+    ...carryItems,
+    ...generatedItems.map((item) => ({ ...item, itemId: null, publicSource: 'this-week-new' as const })),
+    ...baselineItems.map((item) => ({ ...item, itemId: null, publicSource: 'editing-baseline' as const })),
+  ]
   const items: PlanState['items'] = []
   const seen = new Set<string>()
   for (const source of priority) {
@@ -187,7 +330,13 @@ export function mergeProposalPlan(input: {
       const key = normalizeText(item.text)
       if (!key || seen.has(key)) continue
       seen.add(key)
-      items.push({ text: item.text, source: item.source, candidateId: item.candidateId ?? null })
+      items.push({
+        text: item.text,
+        source: item.source,
+        candidateId: item.candidateId ?? null,
+        itemId: item.itemId,
+        publicSource: item.publicSource,
+      })
     }
   }
   const truncatedCount = Math.max(0, items.length - MAX_PLAN_ITEMS)
@@ -195,10 +344,17 @@ export function mergeProposalPlan(input: {
   const warnings = truncatedCount > 0 ? [`下周计划超过 ${MAX_PLAN_ITEMS} 项，已按固定优先级截断 ${truncatedCount} 项。`] : []
   if (parsed.status === 'failed') warnings.push(`下周计划章节无法解析：${parsed.reason}`)
   if (input.snapshot.parseWarning) warnings.push(input.snapshot.parseWarning)
+  const overrideConclusions: PlanOverrideConclusion[] = [...resolvedOverrides.entries()].map(([itemId, override]) => ({
+    itemId,
+    action: override.latest.action,
+    result: override.effectiveText == null ? 'excluded' : 'included',
+    replacementText: override.latest.replacementText,
+    source: override.latest.source,
+  }))
   if (forbidden) {
     return {
       content: removePlanSection(input.content),
-      state: { version: 1, status: 'forbidden', section: 'omitted', items: [], judgments, truncatedCount: 0, warnings: ['模板明确禁止下周计划章节。'] },
+      state: { version: 1, status: 'forbidden', section: 'omitted', items: [], judgments, overrideConclusions, truncatedCount: 0, warnings: ['模板明确禁止下周计划章节。'] },
       proposalPlanParseFailure: parsed.status === 'failed' ? parsed.reason : null,
     }
   }
@@ -211,6 +367,7 @@ export function mergeProposalPlan(input: {
       section,
       items: selected,
       judgments,
+      overrideConclusions,
       truncatedCount,
       warnings,
     },

@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
 import {
   generationMessageParts,
+  generationPlanOverrides,
   generationProposals,
   generationSessions,
   generationTurns,
@@ -11,8 +12,10 @@ import {
 } from '@/lib/db/schema'
 import {
   acceptGenerationProposal,
+  appendPlanOverride,
   createGenerationProposal,
   createGenerationSession,
+  finishGenerationTurn,
   getGenerationSessionDetail,
   startGenerationTurn,
 } from './service'
@@ -86,6 +89,7 @@ describe('generation session lifecycle', () => {
       summary: ['按模板归类原稿事实'],
       publicSummary: { modelHandling: ['仅依据个人版周报原稿整理本周事实。'] },
     })
+    await finishGenerationTurn(turn.id, 'completed')
 
     expect(db.select().from(reportVariants).where(eq(reportVariants.id, variant.id)).get()?.finalContent).toBeNull()
     expect(proposal.baselineContent).toBe('')
@@ -114,6 +118,24 @@ describe('generation session lifecycle', () => {
     expect(db.select().from(generationMessageParts).where(eq(generationMessageParts.sessionId, session.id)).all().at(-1)?.partType).toBe('proposal-accepted')
     expect(db.select().from(generationSessions).where(eq(generationSessions.id, session.id)).get()?.baselineFinalContent).toBe(proposal.content)
 
+    const added = await appendPlanOverride({
+      reportId: report.id,
+      sessionId: session.id,
+      action: 'keep',
+      text: '安排发布复盘',
+    })
+    await appendPlanOverride({ reportId: report.id, sessionId: session.id, itemId: added.itemId, action: 'rewrite', text: '完成发布复盘' })
+    await appendPlanOverride({ reportId: report.id, sessionId: session.id, itemId: added.itemId, action: 'drop' })
+    await appendPlanOverride({ reportId: report.id, sessionId: session.id, itemId: added.itemId, action: 're-add' })
+    const restored = await getGenerationSessionDetail(report.id, session.id)
+    expect(restored?.planOverrides.map((item) => ({ itemId: item.itemId, action: item.action, source: item.source, replacementText: item.replacementText }))).toEqual([
+      { itemId: 'session-item-1', action: 'keep', source: 'this-week-new', replacementText: '安排发布复盘' },
+      { itemId: 'session-item-1', action: 'rewrite', source: 'this-week-new', replacementText: '完成发布复盘' },
+      { itemId: 'session-item-1', action: 'drop', source: 'this-week-new', replacementText: null },
+      { itemId: 'session-item-1', action: 're-add', source: 'this-week-new', replacementText: null },
+    ])
+
+    db.delete(generationPlanOverrides).where(eq(generationPlanOverrides.sessionId, session.id)).run()
     db.delete(generationProposals).where(eq(generationProposals.sessionId, session.id)).run()
     db.delete(generationMessageParts).where(eq(generationMessageParts.sessionId, session.id)).run()
     db.delete(generationTurns).where(eq(generationTurns.sessionId, session.id)).run()

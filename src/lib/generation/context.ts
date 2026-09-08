@@ -1,6 +1,7 @@
 import type { AudienceVariant } from '@/lib/db/schema'
 import { isEmptySourceDraft } from '@/lib/reports/source-draft'
 import type { CarryForwardSnapshot } from './carry-forward'
+import { summarizePlanOverrides, type PlanOverrideRecord } from './plan'
 
 export const DEFAULT_GENERATION_INSTRUCTION = 'Use the current source draft and template to create a final report. Briefly explain your approach, then call propose_final_report to submit a complete proposal.'
 
@@ -19,6 +20,7 @@ export const FINAL_REPORT_PLAN_RULES = `下周计划规则（应用会确定性�
 - 首次处理计划结转快照中的每个候选，必须在 plan.judgments 中提交 carry、drop 或 uncertain 及公开简短理由；无法可靠判断的候选必须是 uncertain。
 - uncertain 默认不自动进入计划。部分完成事项使用 remainingAction，只表达剩余动作，并保留候选身份。
 - plan.items 是完整提案的计划来源标记，优先级固定为 user-goal、carry-forward、current-fact、baseline；应用会稳定规范化去重、最多保留五项并记录截断。
+- 当前会话的追加式 keep、drop、rewrite、re-add 覆盖记录始终优先于 plan.judgments 和 plan.items。必须沿用记录中的事项身份；drop 后不得以改写、同义复述或新的 AI 判断静默恢复，只有用户显式 re-add 才能恢复。
 - 模板允许扩展但缺少“下周计划”时应用会追加标准章节；没有事项时保留明确空计划表达；模板明确禁止时应用省略章节并记录“章节禁止”。
 - plan 判断、来源和公开生成摘要是公开审计信息，不得包含隐藏思维链，也不得作为本周事实或评分输入。`
 
@@ -101,6 +103,16 @@ export function buildPlanJudgmentContext(judgments: Array<{ candidateId: string;
   return `计划临时判断记录（当前会话不可变审计输入）：\n${judgments.map((item) => `- [${item.candidateId}] ${item.judgment} · ${item.reason}${item.remainingAction ? ` · 剩余动作：${item.remainingAction}` : ''}`).join('\n')}`
 }
 
+export function buildPlanOverrideContext(snapshot: CarryForwardSnapshot, overrides: PlanOverrideRecord[]): string {
+  if (overrides.length === 0) return '计划覆盖记录：尚未产生。'
+  const current = summarizePlanOverrides(snapshot, overrides)
+  return `计划覆盖记录（用户追加式会话事实，最后一次有效覆盖优先于所有 AI 判断）：
+当前结论：
+${current.map((item) => `- [${item.itemId}] ${item.latestAction} · ${item.included ? `纳入：${item.effectiveText}` : '持续排除，只有 re-add 可恢复'} · 来源：${item.source}`).join('\n')}
+追加历史：
+${overrides.map((item) => `- ${new Date(item.createdAt).toISOString()} · [${item.itemId}] ${item.action}${item.replacementText ? ` · 文本：${item.replacementText}` : ''} · 来源：${item.source}`).join('\n')}`
+}
+
 export function buildModelSystemContext(input: {
   systemPrompt: string
   stylePrompt: string
@@ -115,6 +127,7 @@ export function buildModelSystemContext(input: {
   latestProposalContent?: string | null
   carryForwardSnapshot?: CarryForwardSnapshot
   planJudgments?: Array<{ candidateId: string; judgment: string; reason: string; remainingAction?: string | null }>
+  planOverrides?: PlanOverrideRecord[]
 }): string {
   const baseline = input.latestProposalContent || input.baselineFinalContent
   return `${input.systemPrompt}
@@ -147,5 +160,7 @@ ${input.carryForwardSnapshot ? buildCarryForwardContext(input.carryForwardSnapsh
 
 ${buildPlanJudgmentContext(input.planJudgments ?? [])}
 
-历史参考不得提升为当前周报事实；不确定候选默认不进入计划，用户明确的 keep/drop/rewrite/re-add 指令优先。`
+${input.carryForwardSnapshot ? buildPlanOverrideContext(input.carryForwardSnapshot, input.planOverrides ?? []) : '计划覆盖记录：不可用。'}
+
+历史参考不得提升为当前周报事实；不确定候选默认不进入计划。用户覆盖由应用确定性应用：drop 不得静默恢复，只有显式 re-add 可以解除；rewrite 与 re-add 必须保留原事项身份和来源。`
 }

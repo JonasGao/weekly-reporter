@@ -77,4 +77,93 @@ describe('generation plan merge', () => {
     expect(forbidden.content).not.toContain('下周计划')
     expect(forbidden.state).toMatchObject({ status: 'forbidden', section: 'omitted' })
   })
+
+  it('keeps an append-only drop effective when a later AI judgment tries to carry the item', () => {
+    const result = mergeProposalPlan({
+      content: '# 周报\n\n## 下周计划\n- 继续推进发布',
+      templateContent: '包含下周计划',
+      snapshot: snapshot(),
+      plan: {
+        judgments: [
+          { candidateId: 'carry-a', judgment: 'carry', reason: '模型再次建议结转' },
+          { candidateId: 'carry-b', judgment: 'drop', reason: '已完成' },
+        ],
+        items: [{ text: '继续推进发布', source: 'carry-forward', candidateId: 'carry-a' }],
+      },
+      overrides: [{
+        id: 1,
+        itemId: 'carry-a',
+        action: 'drop',
+        replacementText: null,
+        source: 'carry-forward',
+        createdAt: new Date('2026-09-08T00:00:00.000Z'),
+      }],
+      baselineFinalContent: '## 下周计划\n- 继续推进发布',
+    })
+
+    expect(result.content).not.toContain('- 继续推进发布')
+    expect(result.state.items).toEqual([])
+    expect(result.state.overrideConclusions).toEqual([{
+      itemId: 'carry-a',
+      action: 'drop',
+      result: 'excluded',
+      replacementText: null,
+      source: 'carry-forward',
+    }])
+  })
+
+  it('replays rewrite, drop, explicit re-add, and new session items deterministically', () => {
+    const overrides = [
+      { id: 1, itemId: 'carry-a', action: 'rewrite' as const, replacementText: '完成灰度发布', source: 'carry-forward' as const, createdAt: '2026-09-08T00:00:00.000Z' },
+      { id: 2, itemId: 'carry-a', action: 'drop' as const, replacementText: null, source: 'carry-forward' as const, createdAt: '2026-09-08T00:01:00.000Z' },
+      { id: 3, itemId: 'carry-a', action: 're-add' as const, replacementText: null, source: 'carry-forward' as const, createdAt: '2026-09-08T00:02:00.000Z' },
+      { id: 4, itemId: 'session-item-1', action: 'keep' as const, replacementText: '安排发布复盘', source: 'this-week-new' as const, createdAt: '2026-09-08T00:03:00.000Z' },
+    ]
+    const input = {
+      content: '# 周报\n\n## 下周计划\n- 继续推进发布',
+      templateContent: '包含下周计划',
+      snapshot: snapshot(),
+      plan: {
+        judgments: [
+          { candidateId: 'carry-a', judgment: 'drop' as const, reason: '模型误判为完成' },
+          { candidateId: 'carry-b', judgment: 'drop' as const, reason: '已完成' },
+        ],
+      },
+      overrides,
+      baselineFinalContent: '## 下周计划\n- 基线中的稳定事项',
+    }
+
+    const first = mergeProposalPlan(input)
+    const replay = mergeProposalPlan(input)
+
+    expect(first.content).toBe(replay.content)
+    expect(first.state.items).toEqual(replay.state.items)
+    expect(first.state.items).toEqual([
+      {
+        text: '安排发布复盘',
+        source: 'user-goal',
+        candidateId: null,
+        itemId: 'session-item-1',
+        publicSource: 'this-week-new',
+      },
+      {
+        text: '完成灰度发布',
+        source: 'carry-forward',
+        candidateId: 'carry-a',
+        itemId: 'carry-a',
+        publicSource: 're-add',
+      },
+      {
+        text: '基线中的稳定事项',
+        source: 'baseline',
+        candidateId: null,
+        itemId: null,
+        publicSource: 'editing-baseline',
+      },
+    ])
+    expect(first.state.overrideConclusions).toEqual([
+      { itemId: 'carry-a', action: 're-add', result: 'included', replacementText: null, source: 'carry-forward' },
+      { itemId: 'session-item-1', action: 'keep', result: 'included', replacementText: '安排发布复盘', source: 'this-week-new' },
+    ])
+  })
 })

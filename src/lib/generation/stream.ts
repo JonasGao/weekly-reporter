@@ -108,6 +108,11 @@ export async function prepareGenerationTurn(input: {
 
   const latestProposal = detail.proposals.at(-1)?.content ?? ''
   const transcriptCharacters = detail.messages.reduce((total, part) => total + (part.content?.length ?? 0), 0)
+  const overrideCharacters = (detail.planOverrides ?? []).reduce((total, item) => total
+    + item.itemId.length
+    + item.action.length
+    + item.source.length
+    + (item.replacementText?.length ?? 0), 0)
   const contextCharacters = detail.sourceDraftSnapshot.length
     + detail.templateContent.length
     + detail.systemPrompt.length
@@ -116,6 +121,7 @@ export async function prepareGenerationTurn(input: {
     + (detail.baselineFinalContent?.length ?? 0)
     + latestProposal.length
     + transcriptCharacters
+    + overrideCharacters
   if (contextCharacters > 450_000) {
     throw new GenerationServiceError('会话上下文接近上限，请从当前终版创建新会话后继续。', 'CONTEXT_LIMIT', 409)
   }
@@ -225,6 +231,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
           latestProposalContent: latestProposal?.content,
           carryForwardSnapshot: input.detail.carryForwardSnapshot,
           planJudgments: input.detail.planJudgments,
+          planOverrides: input.detail.planOverrides,
         })
         const model = createModelFromConfig(input.config)
         const proposalHolder: { current: GenerationProposal | null } = { current: null }

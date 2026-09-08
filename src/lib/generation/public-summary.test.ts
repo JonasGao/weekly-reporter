@@ -36,8 +36,9 @@ const planState: PlanState = {
   version: 1,
   status: 'included',
   section: 'present',
-  items: [{ text: '继续推进计划', source: 'carry-forward', candidateId: 'carry-1' }],
+  items: [{ text: '继续推进计划', source: 'carry-forward', candidateId: 'carry-1', itemId: 'carry-1', publicSource: 'carry-forward' }],
   judgments: [{ candidateId: 'carry-1', judgment: 'carry', reason: '尚未完成', remainingAction: null }],
+  overrideConclusions: [],
   truncatedCount: 0,
   warnings: [],
 }
