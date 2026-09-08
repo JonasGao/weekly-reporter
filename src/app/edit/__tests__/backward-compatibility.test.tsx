@@ -22,7 +22,7 @@ describe('EditReportPage - legacy report compatibility', () => {
   it('shows old single content as a legacy personal final', async () => {
     render(<EditReportPage />)
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Legacy report' })).toBeInTheDocument())
-    expect(screen.getByText('个人版')).toBeInTheDocument()
+    expect(screen.getByText('Personal')).toBeInTheDocument()
     expect(screen.queryByText('插入变量')).not.toBeInTheDocument()
   })
 })

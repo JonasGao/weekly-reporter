@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
-import { reportVariants, reports } from '@/lib/db/schema'
-import { triggerAsyncVariantScoring } from '@/lib/scoring'
+import { generationMessageParts, generationProposals, generationSessions, reportVariants, reports } from '@/lib/db/schema'
+import { triggerAsyncScoring, triggerAsyncVariantScoring } from '@/lib/scoring'
 import { normalizeStructureCompletenessRule } from '@/lib/reports/structure-completeness'
 
 export async function PUT(
@@ -21,19 +21,37 @@ export async function PUT(
       !variant
       || typeof body.content !== 'string'
       || !body.content.trim()
-      || !Number.isInteger(body.sourceRevision)
     ) {
-      return NextResponse.json({ error: 'Final content, audience variant, and source revision are required', code: 'INVALID_INPUT' }, { status: 400 })
+      return NextResponse.json({ error: 'Final content and audience variant are required', code: 'INVALID_INPUT' }, { status: 400 })
     }
 
     const db = getDb()
     const existing = await db.query.reportVariants.findFirst({
       where: and(eq(reportVariants.reportId, reportId), eq(reportVariants.variant, variant)),
     })
+    if (!existing && variant === 'personal') {
+      const legacy = await db.query.reports.findFirst({ where: eq(reports.id, reportId) })
+      if (!legacy) return NextResponse.json({ error: 'Report not found', code: 'NOT_FOUND' }, { status: 404 })
+      const now = new Date()
+      const updated = await db.update(reports).set({
+        content: body.content.trim(),
+        scoreStatus: 'pending',
+        scoreStructure: null,
+        scoreContent: null,
+        scoreValue: null,
+        scoreOverall: null,
+        suggestions: null,
+        scoreError: null,
+        scoredAt: null,
+        updatedAt: now,
+      }).where(eq(reports.id, reportId)).returning()
+      triggerAsyncScoring(reportId).catch((error) => console.error('[reports] Legacy scoring failed:', error))
+      return NextResponse.json(updated[0])
+    }
     if (!existing) {
       return NextResponse.json({ error: 'Report variant not found', code: 'VARIANT_NOT_FOUND' }, { status: 404 })
     }
-    if (existing.sourceRevision !== body.sourceRevision) {
+    if (body.sourceRevision != null && (!Number.isInteger(body.sourceRevision) || existing.sourceRevision !== body.sourceRevision)) {
       return NextResponse.json(
         { error: 'The source draft has changed. Regenerate the final version from the latest draft.', code: 'SOURCE_REVISION_CONFLICT' },
         { status: 409 },
@@ -41,19 +59,13 @@ export async function PUT(
     }
 
     const now = new Date()
-    const templateContent = typeof body.templateContent === 'string' ? body.templateContent : existing.templateContent ?? ''
     const finalValues = {
       finalContent: body.content.trim(),
       finalStatus: 'current',
-      templateId: typeof body.templateId === 'string' ? body.templateId : existing?.templateId ?? null,
-      templateName: typeof body.templateName === 'string' ? body.templateName : existing?.templateName ?? null,
-      templateContent,
       structureCompletenessRule: normalizeStructureCompletenessRule(
         existing.structureCompletenessRule,
         existing.templateContent,
       ),
-      aiStyle: typeof body.aiStyle === 'string' ? body.aiStyle : existing?.aiStyle ?? null,
-      acceptedProposalId: null,
       scoreStatus: 'pending',
       scoreStructure: null,
       scoreContent: null,
@@ -72,6 +84,31 @@ export async function PUT(
     if (updated[0]) {
       if (variant === 'personal') {
         await db.update(reports).set({ content: updated[0].finalContent ?? '', updatedAt: now }).where(eq(reports.id, reportId))
+      }
+      if (existing.acceptedProposalId != null) {
+        const proposal = await db.query.generationProposals.findFirst({ where: eq(generationProposals.id, existing.acceptedProposalId) })
+        const session = proposal && await db.query.generationSessions.findFirst({
+          where: and(eq(generationSessions.id, proposal.sessionId), eq(generationSessions.reportId, reportId)),
+        })
+        if (session) {
+          const last = await db.select({ sequence: generationMessageParts.sequence })
+            .from(generationMessageParts)
+            .where(eq(generationMessageParts.sessionId, session.id))
+            .orderBy(desc(generationMessageParts.sequence))
+            .limit(1)
+          await db.insert(generationMessageParts).values({
+            sessionId: session.id,
+            turnId: null,
+            sequence: (last[0]?.sequence ?? 0) + 1,
+            role: 'application',
+            partType: 'text',
+            content: '会话基线后的用户编辑。',
+            data: { event: 'direct-final-edit', variant },
+            createdAt: now,
+          })
+          await db.update(generationSessions).set({ baselineFinalContent: updated[0].finalContent, updatedAt: now })
+            .where(eq(generationSessions.id, session.id))
+        }
       }
       triggerAsyncVariantScoring(updated[0].id).catch((error) => {
         console.error('[reports] Variant scoring failed:', error)

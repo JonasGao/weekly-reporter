@@ -225,6 +225,13 @@
       "when": 1789074000001,
       "tag": "0031_military_lockheed",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1789074000002,
+      "tag": "0032_legacy_direct_edit_compatibility",
+      "breakpoints": true
     }
   ]
 }

@@ -38,6 +38,7 @@ export async function GET(
       templateId: null,
       templateName: null,
       templateContent: null,
+      structureCompletenessRule: null,
       aiStyle: bundle.aiStyleOverride,
       acceptedProposalId: null,
       sourceRevision: 0,

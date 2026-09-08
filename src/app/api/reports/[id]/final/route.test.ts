@@ -2,14 +2,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   findVariant: vi.fn(),
+  findReport: vi.fn(),
+  findProposal: vi.fn(),
+  findSession: vi.fn(),
   returning: vi.fn(),
   triggerScoring: vi.fn(),
+  triggerLegacyScoring: vi.fn(),
   set: vi.fn(),
+  insert: vi.fn(),
+  select: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({
   getDb: () => ({
-    query: { reportVariants: { findFirst: mocks.findVariant } },
+    query: {
+      reportVariants: { findFirst: mocks.findVariant },
+      reports: { findFirst: mocks.findReport },
+      generationProposals: { findFirst: mocks.findProposal },
+      generationSessions: { findFirst: mocks.findSession },
+    },
     update: () => ({
       set: (values: unknown) => {
         mocks.set(values)
@@ -18,11 +29,14 @@ vi.mock('@/lib/db', () => ({
         }
       },
     }),
+    insert: () => ({ values: mocks.insert }),
+    select: mocks.select,
   }),
 }))
 
 vi.mock('@/lib/scoring', () => ({
   triggerAsyncVariantScoring: mocks.triggerScoring,
+  triggerAsyncScoring: mocks.triggerLegacyScoring,
 }))
 
 import { PUT } from './route'
@@ -63,6 +77,7 @@ describe('PUT /api/reports/[id]/final', () => {
     vi.clearAllMocks()
     mocks.findVariant.mockResolvedValue(existingVariant)
     mocks.triggerScoring.mockResolvedValue({ success: true })
+    mocks.triggerLegacyScoring.mockResolvedValue({ success: true })
   })
 
   it('rejects a preview generated from an outdated source revision', async () => {
@@ -101,5 +116,41 @@ describe('PUT /api/reports/[id]/final', () => {
     expect(mocks.set).toHaveBeenCalledWith(expect.objectContaining({
       structureCompletenessRule: { version: 'next-week-plan-structure/v1', nextWeekPlan: 'required' },
     }))
+  })
+
+  it('saves a legacy personal final without creating a variant or generation record', async () => {
+    mocks.findVariant.mockResolvedValue(undefined)
+    mocks.findReport.mockResolvedValue({ id: 3, content: '旧版终稿' })
+    mocks.returning.mockResolvedValue([{ id: 3, content: '已编辑旧版终稿', scoreStatus: 'pending' }])
+
+    const response = await PUT(new Request('http://localhost/api/reports/3/final', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variant: 'personal', content: '已编辑旧版终稿' }),
+    }), { params: Promise.resolve({ id: '3' }) })
+
+    expect(response.status).toBe(200)
+    expect(mocks.triggerLegacyScoring).toHaveBeenCalledWith(3)
+    expect(mocks.findProposal).not.toHaveBeenCalled()
+    expect(mocks.insert).not.toHaveBeenCalled()
+  })
+
+  it('records a direct edit after an accepted session without changing its plan records', async () => {
+    const sessionVariant = { ...existingVariant, acceptedProposalId: 44 }
+    mocks.findVariant.mockResolvedValue(sessionVariant)
+    mocks.returning.mockResolvedValue([{ ...sessionVariant, finalContent: '会话后编辑', scoreStatus: 'pending' }])
+    mocks.findProposal.mockResolvedValue({ id: 44, sessionId: 9 })
+    mocks.findSession.mockResolvedValue({ id: 9, reportId: 3 })
+    mocks.select.mockReturnValue({ from: () => ({ where: () => ({ orderBy: () => ({ limit: () => Promise.resolve([{ sequence: 12 }]) }) }) }) })
+    mocks.insert.mockResolvedValue(undefined)
+
+    const response = await PUT(request(2), { params: Promise.resolve({ id: '3' }) })
+
+    expect(response.status).toBe(200)
+    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 9,
+      sequence: 13,
+      content: '会话基线后的用户编辑。',
+    }))
+    expect(mocks.set).toHaveBeenCalledWith(expect.objectContaining({ baselineFinalContent: '会话后编辑' }))
   })
 })

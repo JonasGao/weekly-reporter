@@ -9,7 +9,7 @@ export async function POST(
 ) {
   try {
     const reportId = Number.parseInt((await params).id, 10)
-    if (Number.isNaN(reportId)) return NextResponse.json({ error: 'Invalid report ID' }, { status: 400 })
+    if (Number.isNaN(reportId)) return NextResponse.json({ error: 'Invalid report ID', code: 'INVALID_ID' }, { status: 400 })
     const body = await request.json().catch(() => ({}))
     const variant = body.variant === 'leadership' || body.variant === 'personal' ? body.variant : 'personal'
     const db = getDb()

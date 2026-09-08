@@ -160,7 +160,7 @@ describe('applyDatabaseMigrations', () => {
     expect(columnNames(sqlite, 'generation_sessions')).toContain('carry_forward_snapshot')
     expect(columnNames(sqlite, 'generation_proposals')).toEqual(expect.arrayContaining(['public_summary', 'baseline_content']))
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'generation_plan_overrides'").get()).toBeTruthy()
-    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations').get()).toEqual({ count: 32 })
+    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations').get()).toEqual({ count: 33 })
 
     sqlite.close()
   })
@@ -192,14 +192,10 @@ describe('applyDatabaseMigrations', () => {
       title: '旧周报',
       content: '旧版终稿',
     })
-    expect(sqlite.prepare('SELECT variant, source_draft, final_content, final_status FROM report_variants').get()).toEqual({
-      variant: 'personal',
-      source_draft: '- 旧版周报无原稿',
-      final_content: '旧版终稿',
-      final_status: 'current',
-    })
+    expect(sqlite.prepare('SELECT * FROM report_variants').all()).toEqual([])
+    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM report_event_snapshots').get()).toEqual({ count: 0 })
     expect(sqlite.prepare('SELECT MAX(created_at) AS createdAt FROM __drizzle_migrations').get()).toEqual({
-      createdAt: 1789074000001,
+      createdAt: 1789074000002,
     })
 
     sqlite.close()
