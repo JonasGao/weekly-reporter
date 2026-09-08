@@ -211,6 +211,13 @@
       "when": 1788886465697,
       "tag": "0029_historical_query_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1788887367556,
+      "tag": "0030_snapshot_source_metadata",
+      "breakpoints": true
     }
   ]
 }

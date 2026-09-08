@@ -20,6 +20,7 @@ export function persistQuerySnapshot(input: {
   const count = Array.isArray(result.items) ? result.items.length : Array.isArray(result.matches) ? result.matches.length : result.found ? 1 : 0
   const truncated = result.truncated === true || result.matchesTruncated === true
   const errorCode = result.ok === false && result.error && typeof result.error === 'object' && 'code' in result.error ? String((result.error as { code: unknown }).code) : null
+  const identity = (result.identity && typeof result.identity === 'object' ? result.identity : Array.isArray(result.items) ? result.items[0] : null) as { weekStart?: string; weekEnd?: string; finalStatus?: string } | null
   const previous = input.previousSnapshotId ?? db.select({ id: generationQuerySnapshots.id }).from(generationQuerySnapshots)
     .where(and(eq(generationQuerySnapshots.sessionId, input.sessionId), eq(generationQuerySnapshots.toolName, input.toolName))).orderBy(desc(generationQuerySnapshots.id)).limit(1).get()?.id ?? null
   return db.insert(generationQuerySnapshots).values({
@@ -30,6 +31,9 @@ export function persistQuerySnapshot(input: {
     sourceReportId: session.reportId,
     sourceAudience: session.variant as AudienceVariant,
     sourceUpdatedAt: variant?.updatedAt ?? null,
+    sourceWeekStart: identity?.weekStart ?? null,
+    sourceWeekEnd: identity?.weekEnd ?? null,
+    sourceFinalStatus: identity?.finalStatus ?? null,
     result,
     resultCount: count,
     truncated,
