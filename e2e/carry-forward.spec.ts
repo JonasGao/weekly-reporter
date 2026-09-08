@@ -25,7 +25,7 @@ function streamProposal(content: string) {
 
 interface CarryForwardSnapshot {
   status: string
-  source: { reportId: number; audience: string; weekStart: string; weekEnd: string; finalStatus: string } | null
+  source: { reportId: number; audience: string; weekStart: string; weekEnd: string; finalStatus: string; acceptedProposalId: number | null } | null
   planText: string | null
   parseStatus: string
   candidates: Array<{ candidateId: string; text: string; source: string }>
