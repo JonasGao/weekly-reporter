@@ -40,6 +40,11 @@ import {
   publicPlanSourceLabel,
   type PublicGenerationSummary,
 } from '@/lib/generation/public-summary'
+import {
+  isReportListToolResult,
+  REPORT_LIST_TOOL_NAME,
+  type ReportListToolResult,
+} from '@/lib/generation/report-list-contract'
 
 interface TemplateOption {
   id: string
@@ -74,24 +79,6 @@ interface MessagePart {
   partType: string
   content: string | null
   data: Record<string, unknown> | null
-}
-
-interface ReportListToolOutput {
-  ok: boolean
-  items?: Array<{
-    reportId: number
-    title: string
-    weekStart: string
-    weekEnd: string
-    audience: AudienceVariant
-    finalStatus: string
-    updatedAt: string
-    contentAvailable: boolean
-    matches?: Array<{ field: string; content: string; startLine?: number; endLine?: number }>
-  }>
-  appliedFilters?: Record<string, unknown>
-  hasMore?: boolean
-  error?: { code: string; message: string }
 }
 
 interface Turn {
@@ -436,11 +423,7 @@ function PlanOverridePanel({
   )
 }
 
-function isReportListToolOutput(value: unknown): value is ReportListToolOutput {
-  return Boolean(value && typeof value === 'object' && typeof (value as { ok?: unknown }).ok === 'boolean')
-}
-
-function ReportListToolResultCard({ output, content }: { output: ReportListToolOutput; content: string | null }) {
+function ReportListToolResultCard({ output, content }: { output: ReportListToolResult; content: string | null }) {
   return (
     <div className="ml-11 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
@@ -451,7 +434,7 @@ function ReportListToolResultCard({ output, content }: { output: ReportListToolO
       <p className="mt-2 text-xs text-muted-foreground">{content}</p>
       {output.ok ? (
         <div className="mt-3 space-y-2">
-          {(output.items ?? []).length > 0 ? (output.items ?? []).map((item) => (
+          {output.items.length > 0 ? output.items.map((item) => (
             <div key={item.reportId} className="rounded-lg border border-border bg-background p-3">
               <p className="font-medium">来源：{item.title} <span className="text-xs text-muted-foreground">#{item.reportId}</span></p>
               <dl className="mt-2 grid gap-x-3 gap-y-1 text-xs text-muted-foreground sm:grid-cols-[auto_1fr]">
@@ -475,11 +458,11 @@ function ReportListToolResultCard({ output, content }: { output: ReportListToolO
           )) : <p className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">未找到符合条件的历史周报</p>}
           <details className="rounded-lg border border-border bg-background p-2">
             <summary className="cursor-pointer text-xs text-muted-foreground">规范化 appliedFilters</summary>
-            <pre className="mt-2 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(output.appliedFilters ?? {}, null, 2)}</pre>
+            <pre className="mt-2 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(output.appliedFilters, null, 2)}</pre>
           </details>
         </div>
       ) : (
-        <p className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">{output.error?.code ?? 'QUERY_FAILED'} · {output.error?.message ?? '查询失败'}</p>
+        <p className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">{output.error.code} · {output.error.message}</p>
       )}
     </div>
   )
@@ -505,7 +488,7 @@ function TranscriptPart({ part }: { part: MessagePart }) {
   }
   if (part.partType === 'tool-call' || part.partType === 'tool-result') {
     const toolName = typeof part.data?.toolName === 'string' ? part.data.toolName : ''
-    if (part.partType === 'tool-result' && toolName === 'query_report_list' && isReportListToolOutput(part.data?.output)) {
+    if (part.partType === 'tool-result' && toolName === REPORT_LIST_TOOL_NAME && isReportListToolResult(part.data?.output)) {
       return <ReportListToolResultCard output={part.data.output} content={part.content} />
     }
     return (
@@ -964,9 +947,9 @@ export function GenerationWorkspace({
         if (event.type === 'start') setLiveTurnId(event.turnId)
         else if (event.type === 'reasoning-delta') queueLiveReasoning(event.text)
         else if (event.type === 'text-delta') queueLiveText(event.text)
-        else if (event.type === 'tool-input-delta') setLiveToolState(event.toolName === 'query_report_list' ? 'Preparing report list query...' : 'Preparing proposed final version...')
-        else if (event.type === 'tool-call') setLiveToolState(event.toolName === 'query_report_list' ? 'Querying same-audience historical reports...' : 'Calling propose_final_report...')
-        else if (event.type === 'tool-result') setLiveToolState(event.toolName === 'query_report_list' ? 'Historical report list query completed.' : 'Proposed final version submitted; awaiting review.')
+        else if (event.type === 'tool-input-delta') setLiveToolState(event.toolName === REPORT_LIST_TOOL_NAME ? 'Preparing report list query...' : 'Preparing proposed final version...')
+        else if (event.type === 'tool-call') setLiveToolState(event.toolName === REPORT_LIST_TOOL_NAME ? 'Querying same-audience historical reports...' : 'Calling propose_final_report...')
+        else if (event.type === 'tool-result') setLiveToolState(event.toolName === REPORT_LIST_TOOL_NAME ? 'Historical report list query completed.' : 'Proposed final version submitted; awaiting review.')
         else if (event.type === 'proposal') setLiveProposal(event.proposal)
         else if (event.type === 'error') throw new Error(event.message)
       }
