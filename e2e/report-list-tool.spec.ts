@@ -321,18 +321,20 @@ test.describe('AI 查询周报内容', () => {
           { name: 'query_report_content', arguments: { reportId: fixture.staleReportId, allowStale: true } },
           { name: 'query_report_content', arguments: { reportId: fixture.legacyReportId } },
           { name: 'query_report_content', arguments: { reportId: fixture.legacyReportId, allowLegacy: true } },
+          { name: 'query_report_content', arguments: { reportId: fixture.crossAudienceReportId, allowLegacy: true } },
           { name: 'query_report_content', arguments: { reportId: 999999999, query: 'missing' } },
         ] }, { kind: 'stream', text: '授权检查完成。' }],
       }))
       await expect(page.getByText('授权检查完成。')).toBeVisible({ timeout: 30_000 })
       const detail = await latestSessionDetail(request, reportId)
       const results = detail.messages.filter((part) => part.partType === 'tool-result' && part.data?.toolName === 'query_report_content').map((part) => part.data?.output)
-      expect(results).toHaveLength(5)
+      expect(results).toHaveLength(6)
       expect(results[0]).toMatchObject({ ok: true, found: false })
       expect(results[1]).toMatchObject({ ok: true, found: true, identity: { finalStatus: 'stale' } })
       expect(results[2]).toMatchObject({ ok: true, found: false })
       expect(results[3]).toMatchObject({ ok: true, found: true, identity: { isLegacy: true } })
       expect(results[4]).toMatchObject({ ok: true, found: false })
+      expect(results[5]).toMatchObject({ ok: true, found: false })
     })
   })
 })

@@ -49,7 +49,8 @@ export function queryReportContentForSession(input: { sessionId: number; paramet
     const report = db.select().from(reports).where(eq(reports.id, reportId)).get()
     if (!report) return { ok: true, found: false, reportId, truncated: false, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
     const variant = db.select().from(reportVariants).where(and(eq(reportVariants.reportId, reportId), eq(reportVariants.variant, session.audience))).get()
-    const isLegacy = !variant
+    const hasModernVariant = Boolean(db.select({ id: reportVariants.id }).from(reportVariants).where(eq(reportVariants.reportId, reportId)).get())
+    const isLegacy = !hasModernVariant
     if (isLegacy) {
       if (session.audience !== 'personal' || params.allowLegacy !== true) return { ok: true, found: false, reportId, truncated: false, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
     } else {
