@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   triggerLegacyScoring: vi.fn(),
   set: vi.fn(),
   insert: vi.fn(),
+  insertRun: vi.fn(),
   select: vi.fn(),
 }))
 
@@ -30,7 +31,10 @@ vi.mock('@/lib/db', () => ({
         }
       },
     }),
-    insert: () => ({ values: mocks.insert }),
+    insert: () => ({ values: (values: unknown) => {
+      mocks.insert(values)
+      return { run: mocks.insertRun }
+    } }),
     select: mocks.select,
     transaction: (callback: (tx: unknown) => unknown) => callback({
       update: () => ({ set: (values: unknown) => {
@@ -38,7 +42,10 @@ vi.mock('@/lib/db', () => ({
         return { where: () => ({ returning: () => ({ get: mocks.transactionReturning }), run: vi.fn() }) }
       } }),
       select: mocks.select,
-      insert: () => ({ values: mocks.insert }),
+      insert: () => ({ values: (values: unknown) => {
+        mocks.insert(values)
+        return { run: mocks.insertRun }
+      } }),
     }),
   }),
 }))
@@ -87,6 +94,7 @@ describe('PUT /api/reports/[id]/final', () => {
     mocks.findVariant.mockResolvedValue(existingVariant)
     mocks.triggerScoring.mockResolvedValue({ success: true })
     mocks.triggerLegacyScoring.mockResolvedValue({ success: true })
+    mocks.insertRun.mockReturnValue(undefined)
     mocks.transactionReturning.mockReturnValue(existingVariant)
   })
 
@@ -167,6 +175,7 @@ describe('PUT /api/reports/[id]/final', () => {
       sequence: 13,
       content: '会话基线后的用户编辑。',
     }))
+    expect(mocks.insertRun).toHaveBeenCalled()
     expect(mocks.set).toHaveBeenCalledWith(expect.objectContaining({ baselineFinalContent: '会话后编辑' }))
   })
 })

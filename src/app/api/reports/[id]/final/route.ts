@@ -107,7 +107,7 @@ export async function PUT(
             content: '会话基线后的用户编辑。',
             data: { event: 'direct-final-edit', variant },
             createdAt: now,
-          })
+          }).run()
           tx.update(generationSessions).set({ baselineFinalContent: updatedVariant.finalContent, updatedAt: now })
             .where(eq(generationSessions.id, session.id))
             .run()
