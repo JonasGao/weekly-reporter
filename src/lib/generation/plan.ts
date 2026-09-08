@@ -40,14 +40,6 @@ export interface PlanState {
   warnings: string[]
 }
 
-export function parsePlanState(value: unknown): PlanState | null {
-  if (!value || typeof value !== 'object') return null
-  const state = value as Partial<PlanState>
-  if (state.version !== 1 || !['included', 'empty', 'forbidden'].includes(String(state.status))) return null
-  if (!Array.isArray(state.items) || !Array.isArray(state.judgments)) return null
-  return value as PlanState
-}
-
 const MAX_PLAN_ITEMS = 5
 const PLAN_TITLE = '下周计划'
 const HEADING = /^( {0,3})(#{2,3})(?:[ \t]+|$)(.*?)[ \t]*#*[ \t]*$/
@@ -55,7 +47,6 @@ const HEADING = /^( {0,3})(#{2,3})(?:[ \t]+|$)(.*?)[ \t]*#*[ \t]*$/
 interface PlanSectionRange {
   headingIndex: number
   end: number
-  headingLevel: number
 }
 
 function normalizeText(value: string): string {
@@ -68,8 +59,8 @@ function cleanText(value: string): string {
 
 function templateForbidsPlan(template: string): boolean {
   const normalized = template.normalize('NFKC').replace(/\s+/g, ' ').toLocaleLowerCase()
-  return /(?:禁止|不要|不包含|无需|省略|omit|without|exclude|no)\s*(?:编写|输出|包含|添加|include|write)?\s*(?:“|「|the\s+)?(?:下周计划|下周重点|next\s*week\s*plan)/i.test(normalized)
-    || /(?:下周计划|next\s*week\s*plan)[^。.!\n]{0,30}(?:禁止|不要|不包含|omit|without|exclude|no)/i.test(normalized)
+  return /(?:禁止|不要|不包含|不需要|不应|不写|无需|省略|不适用|omit|without|exclude|no)\s*(?:编写|输出|包含|添加|include|write)?\s*(?:“|「|the\s+)?(?:下周计划|下周重点|next\s*week\s*plan)/i.test(normalized)
+    || /(?:下周计划|next\s*week\s*plan)[^。.!\n]{0,30}(?:禁止|不要|不包含|不需要|不应|不写|无需|省略|不适用|omit|without|exclude|no)/i.test(normalized)
 }
 
 export function getPlanTemplatePolicy(template: string): 'forbidden' | 'required' {
@@ -90,7 +81,7 @@ function findPlanSection(content: string): PlanSectionRange | null {
     if (match && match[2].length <= headingLevel) break
     end += 1
   }
-  return { headingIndex, end, headingLevel }
+  return { headingIndex, end }
 }
 
 function replacePlanSection(content: string, items: string[]): string {
