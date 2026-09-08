@@ -1,4 +1,5 @@
 import { parseNextWeekPlan } from '@/lib/reports/next-week-plan'
+import { nextWeekPlanPolicy } from '@/lib/reports/structure-completeness'
 import type { CarryForwardSnapshot } from './carry-forward-snapshot'
 
 export type PlanJudgment = 'carry' | 'drop' | 'uncertain'
@@ -101,14 +102,8 @@ function cleanText(value: string): string {
   return value.replace(/^\s*(?:[-*+]\s+|\d+[.)]\s+)/, '').replace(/\s+/g, ' ').trim()
 }
 
-function templateForbidsPlan(template: string): boolean {
-  const normalized = template.normalize('NFKC').replace(/\s+/g, ' ').toLocaleLowerCase()
-  return /(?:禁止|不要|不包含|不需要|不应|不写|无需|省略|不适用|omit|without|exclude|no)\s*(?:编写|输出|包含|添加|include|write)?\s*(?:“|「|the\s+)?(?:下周计划|下周重点|next\s*week\s*plan)/i.test(normalized)
-    || /(?:下周计划|next\s*week\s*plan)[^。.!\n]{0,30}(?:禁止|不要|不包含|不需要|不应|不写|无需|省略|不适用|omit|without|exclude|no)/i.test(normalized)
-}
-
 export function getPlanTemplatePolicy(template: string): 'forbidden' | 'required' {
-  return templateForbidsPlan(template) ? 'forbidden' : 'required'
+  return nextWeekPlanPolicy(template)
 }
 
 function findPlanSection(content: string): PlanSectionRange | null {
@@ -236,7 +231,7 @@ export function mergeProposalPlan(input: {
   const judgments = input.existingJudgments?.length
     ? input.existingJudgments
     : normalizePlanJudgments(input.snapshot, input.plan)
-  const forbidden = templateForbidsPlan(input.templateContent)
+  const forbidden = nextWeekPlanPolicy(input.templateContent) === 'forbidden'
   const parsed = parseNextWeekPlan(input.content)
   const judgmentByCandidate = new Map(judgments.map((item) => [item.candidateId, item]))
   const resolvedOverrides = resolveOverrides(input.snapshot, input.overrides ?? [])

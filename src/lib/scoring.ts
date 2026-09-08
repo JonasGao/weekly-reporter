@@ -4,6 +4,7 @@ import { scoreReport } from './ai'
 import { getStyleFromReport } from './ai/style-helpers'
 import { getAIStyle } from './ai/styles'
 import type { ScoreStatus } from './db/schema'
+import { normalizeStructureCompletenessRule } from './reports/structure-completeness'
 
 export interface ScoreUpdate {
   reportId: number
@@ -132,7 +133,11 @@ export async function triggerAsyncVariantScoring(variantId: number) {
     })
 
     const style = await getAIStyle(variant.aiStyle ?? undefined)
-    const result = await scoreReport({ content: variant.finalContent })
+    const structureCompleteness = normalizeStructureCompletenessRule(
+      variant.structureCompletenessRule,
+      variant.templateContent,
+    )
+    const result = await scoreReport({ content: variant.finalContent, structureCompleteness })
     const weightedScore = calculateWeightedScore(result.score, style.scoreWeights)
     const now = new Date()
 

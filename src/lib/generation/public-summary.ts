@@ -3,8 +3,9 @@ import type { CarryForwardSnapshot } from './carry-forward-snapshot'
 import type { PlanJudgment, PlanState } from './plan'
 import type { ReportListToolResult } from './report-list-contract'
 import type { ReportContentToolResult } from './report-content-contract'
+import { STRUCTURE_COMPLETENESS_RULE_VERSION } from '@/lib/reports/structure-completeness'
 
-export const STRUCTURE_COMPLETENESS_RULE_VERSION = 'next-week-plan-structure/v1' as const
+export { STRUCTURE_COMPLETENESS_RULE_VERSION }
 
 export type PublicPlanItemSource =
   | 'carry-forward'

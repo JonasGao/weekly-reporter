@@ -1,0 +1,1 @@
+ALTER TABLE `report_variants` ADD `structure_completeness_rule` text;

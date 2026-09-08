@@ -120,6 +120,11 @@ export async function startScriptedAI(port = 0): Promise<ScriptedAI> {
     let body = ''
     for await (const chunk of request) body += chunk
     const input = JSON.parse(body) as OpenAIRequest
+    if (!input.stream && request.url?.includes('/fail-score/')) {
+      response.writeHead(503, { 'content-type': 'application/json' })
+      response.end(JSON.stringify({ error: { message: 'scripted score failure', type: 'server_error' } }))
+      return
+    }
     let step: ScriptedStep
     try {
       step = scriptedStep(input) ?? defaultStep

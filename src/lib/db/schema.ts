@@ -1,4 +1,5 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import type { StructureCompletenessRule } from '@/lib/reports/structure-completeness'
 
 export type ScoreStatus = 'pending' | 'scoring' | 'completed' | 'failed'
 export type AudienceVariant = 'leadership' | 'personal'
@@ -60,6 +61,8 @@ export const reportVariants = sqliteTable('report_variants', {
   templateId: text('template_id'),
   templateName: text('template_name'),
   templateContent: text('template_content'),
+  /** Immutable structure-completeness contract captured when this final is adopted. */
+  structureCompletenessRule: text('structure_completeness_rule', { mode: 'json' }).$type<StructureCompletenessRule>(),
   aiStyle: text('ai_style').$type<AIStyle>(),
   acceptedProposalId: integer('accepted_proposal_id'),
   sourceRevision: integer('source_revision').notNull().default(1),

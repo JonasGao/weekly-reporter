@@ -130,6 +130,10 @@ describe('generation session lifecycle', () => {
     })
     expect(accepted.variant.finalContent).toContain('完成会话持久化')
     expect(accepted.variant.acceptedProposalId).toBe(proposal.id)
+    expect(accepted.variant.structureCompletenessRule).toEqual({
+      version: 'next-week-plan-structure/v1',
+      nextWeekPlan: 'required',
+    })
     expect(db.select().from(reports).where(eq(reports.id, report.id)).get()?.content).toContain('完成会话持久化')
     expect(db.select().from(generationMessageParts).where(eq(generationMessageParts.sessionId, session.id)).all().at(-1)?.partType).toBe('proposal-accepted')
     expect(db.select().from(generationSessions).where(eq(generationSessions.id, session.id)).get()?.baselineFinalContent).toBe(proposal.content)

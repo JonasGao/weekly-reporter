@@ -21,6 +21,7 @@ import {
 import { getSystemPrompt } from '@/lib/ai'
 import { getAIStyle } from '@/lib/ai/styles'
 import { getTemplateSelection, getReportBundle } from '@/lib/reports/service'
+import { createStructureCompletenessRule } from '@/lib/reports/structure-completeness'
 import { triggerAsyncVariantScoring } from '@/lib/scoring'
 import {
   buildEffectiveGenerationSystemPrompt,
@@ -616,6 +617,7 @@ export async function acceptGenerationProposal(input: {
       templateId: session.templateId,
       templateName: session.templateName,
       templateContent: session.templateContent,
+      structureCompletenessRule: createStructureCompletenessRule(session.templateContent),
       aiStyle: session.aiStyleKey,
       acceptedProposalId: proposal.id,
       scoreStatus: 'pending',

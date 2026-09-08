@@ -44,6 +44,7 @@ function normalizeBundle(data: Partial<ReportBundle> & { id: number; content?: s
     templateId: null,
     templateName: null,
     templateContent: null,
+    structureCompletenessRule: null,
     aiStyle: null,
     acceptedProposalId: null,
     sourceRevision: 0,

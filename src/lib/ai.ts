@@ -86,6 +86,10 @@ export interface CheckResponse {
 
 export interface ScoreRequest {
   content: string
+  structureCompleteness?: {
+    version: string
+    nextWeekPlan: 'required' | 'forbidden'
+  }
 }
 
 export interface ScoreResponse {
@@ -141,9 +145,15 @@ export async function checkContent(request: CheckRequest): Promise<CheckResponse
 
 export async function scoreReport(request: ScoreRequest): Promise<ScoreResponse> {
   const template = await getSystemPrompt('score')
-  const prompt = renderPromptTemplate(template, {
+  const basePrompt = renderPromptTemplate(template, {
     content: request.content,
   })
+  const structureRule = request.structureCompleteness
+    ? `\n\n结构完整度规则（版本 ${request.structureCompleteness.version}）：${request.structureCompleteness.nextWeekPlan === 'forbidden'
+      ? '模板明确禁止“下周计划”章节。缺少该章节不得降低 structure 分数；不得建议添加该章节。'
+      : '模板允许扩展，标准“下周计划”章节是 structure 的必要章节。明确空计划表达“（暂无可用的下周计划事项）”视为该章节完整；不得因空计划降低 structure 分数。'}\n仅按此规则评估 structure。不要改写周报内容。`
+    : ''
+  const prompt = `${basePrompt}${structureRule}`
 
   try {
     const model = await getModel()
@@ -164,6 +174,7 @@ export async function scoreReport(request: ScoreRequest): Promise<ScoreResponse>
       }),
       prompt,
       temperature: 0.7,
+      maxRetries: 0,
     })
 
     return {
@@ -172,17 +183,8 @@ export async function scoreReport(request: ScoreRequest): Promise<ScoreResponse>
       rewriteExamples: object.rewriteExamples,
     }
   } catch (error) {
-    if (error instanceof AIConfigError) {
-      return {
-        score: { structure: 0, content: 0, value: 0, overall: 0 },
-        suggestions: [error.message],
-      }
-    }
     console.error('scoreReport error:', error)
-    return {
-      score: { structure: 0, content: 0, value: 0, overall: 0 },
-      suggestions: ['AI 服务暂时不可用'],
-    }
+    throw error
   }
 }
 

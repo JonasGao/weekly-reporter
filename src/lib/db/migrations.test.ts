@@ -156,10 +156,11 @@ describe('applyDatabaseMigrations', () => {
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'generation_proposals'").get()).toBeTruthy()
     expect(columnNames(sqlite, 'templates')).toContain('source_template_id')
     expect(columnNames(sqlite, 'report_variants')).toContain('accepted_proposal_id')
+    expect(columnNames(sqlite, 'report_variants')).toContain('structure_completeness_rule')
     expect(columnNames(sqlite, 'generation_sessions')).toContain('carry_forward_snapshot')
     expect(columnNames(sqlite, 'generation_proposals')).toEqual(expect.arrayContaining(['public_summary', 'baseline_content']))
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'generation_plan_overrides'").get()).toBeTruthy()
-    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations').get()).toEqual({ count: 29 })
+    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations').get()).toEqual({ count: 32 })
 
     sqlite.close()
   })
@@ -173,6 +174,7 @@ describe('applyDatabaseMigrations', () => {
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'report_event_snapshots'").get()).toBeTruthy()
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'generation_sessions'").get()).toBeTruthy()
     expect(columnNames(sqlite, 'generation_sessions')).toContain('carry_forward_snapshot')
+    expect(columnNames(sqlite, 'report_variants')).toContain('structure_completeness_rule')
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tags'").get()).toBeUndefined()
     expect(columnNames(sqlite, 'raw_events')).not.toContain('tags')
     expect(columnNames(sqlite, 'raw_events')).not.toContain('section_type')
@@ -197,7 +199,7 @@ describe('applyDatabaseMigrations', () => {
       final_status: 'current',
     })
     expect(sqlite.prepare('SELECT MAX(created_at) AS createdAt FROM __drizzle_migrations').get()).toEqual({
-      createdAt: 1789074000000,
+      createdAt: 1789074000001,
     })
 
     sqlite.close()
