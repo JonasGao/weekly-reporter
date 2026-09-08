@@ -4,15 +4,19 @@ const mocks = vi.hoisted(() => ({
   findVariant: vi.fn(),
   returning: vi.fn(),
   triggerScoring: vi.fn(),
+  set: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({
   getDb: () => ({
     query: { reportVariants: { findFirst: mocks.findVariant } },
     update: () => ({
-      set: () => ({
+      set: (values: unknown) => {
+        mocks.set(values)
+        return {
         where: () => ({ returning: mocks.returning }),
-      }),
+        }
+      },
     }),
   }),
 }))
@@ -35,6 +39,7 @@ const existingVariant = {
   templateContent: '# 模板',
   aiStyle: 'formal',
   sourceRevision: 2,
+  structureCompletenessRule: { version: 'next-week-plan-structure/v1', nextWeekPlan: 'required' },
 }
 
 function request(sourceRevision: number) {
@@ -79,5 +84,22 @@ describe('PUT /api/reports/[id]/final', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({ id: 10, variant: 'leadership', finalContent: '新终版' })
     await vi.waitFor(() => expect(mocks.triggerScoring).toHaveBeenCalledWith(10))
+  })
+
+  it('retains the adopted contract when a direct edit submits different template text', async () => {
+    mocks.returning.mockResolvedValue([{ ...existingVariant, finalContent: '新终版', scoreStatus: 'pending' }])
+    const response = await PUT(new Request('http://localhost/api/reports/3/final', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        variant: 'leadership', content: '新终版', sourceRevision: 2,
+        templateContent: '明确禁止下周计划章节。',
+      }),
+    }), { params: Promise.resolve({ id: '3' }) })
+
+    expect(response.status).toBe(200)
+    expect(mocks.set).toHaveBeenCalledWith(expect.objectContaining({
+      structureCompletenessRule: { version: 'next-week-plan-structure/v1', nextWeekPlan: 'required' },
+    }))
   })
 })

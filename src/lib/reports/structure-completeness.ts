@@ -1,7 +1,7 @@
 export const STRUCTURE_COMPLETENESS_RULE_VERSION = 'next-week-plan-structure/v1' as const
 
 export interface StructureCompletenessRule {
-  version: typeof STRUCTURE_COMPLETENESS_RULE_VERSION
+  version: string
   nextWeekPlan: 'required' | 'forbidden'
 }
 
@@ -22,7 +22,7 @@ export function normalizeStructureCompletenessRule(
 ): StructureCompletenessRule {
   if (savedRule && typeof savedRule === 'object') {
     const candidate = savedRule as Partial<StructureCompletenessRule>
-    if (candidate.version === STRUCTURE_COMPLETENESS_RULE_VERSION && (candidate.nextWeekPlan === 'required' || candidate.nextWeekPlan === 'forbidden')) {
+    if (typeof candidate.version === 'string' && candidate.version.trim() && (candidate.nextWeekPlan === 'required' || candidate.nextWeekPlan === 'forbidden')) {
       return { version: candidate.version, nextWeekPlan: candidate.nextWeekPlan }
     }
   }

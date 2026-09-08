@@ -125,6 +125,9 @@ export async function startScriptedAI(port = 0): Promise<ScriptedAI> {
       response.end(JSON.stringify({ error: { message: 'scripted score failure', type: 'server_error' } }))
       return
     }
+    if (!input.stream && request.url?.includes('/slow-score/')) {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
     let step: ScriptedStep
     try {
       step = scriptedStep(input) ?? defaultStep

@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
 import { reportVariants, reports } from '@/lib/db/schema'
 import { triggerAsyncVariantScoring } from '@/lib/scoring'
-import { createStructureCompletenessRule } from '@/lib/reports/structure-completeness'
+import { normalizeStructureCompletenessRule } from '@/lib/reports/structure-completeness'
 
 export async function PUT(
   request: Request,
@@ -48,7 +48,10 @@ export async function PUT(
       templateId: typeof body.templateId === 'string' ? body.templateId : existing?.templateId ?? null,
       templateName: typeof body.templateName === 'string' ? body.templateName : existing?.templateName ?? null,
       templateContent,
-      structureCompletenessRule: createStructureCompletenessRule(templateContent),
+      structureCompletenessRule: normalizeStructureCompletenessRule(
+        existing.structureCompletenessRule,
+        existing.templateContent,
+      ),
       aiStyle: typeof body.aiStyle === 'string' ? body.aiStyle : existing?.aiStyle ?? null,
       acceptedProposalId: null,
       scoreStatus: 'pending',

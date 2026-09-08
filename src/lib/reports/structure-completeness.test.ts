@@ -24,6 +24,13 @@ describe('structure completeness rule', () => {
     )).toEqual({ version: STRUCTURE_COMPLETENESS_RULE_VERSION, nextWeekPlan: 'forbidden' })
   })
 
+  it('keeps a historical rule version instead of replacing it with the current one', () => {
+    expect(normalizeStructureCompletenessRule(
+      { version: 'next-week-plan-structure/v0', nextWeekPlan: 'required' },
+      '明确禁止下周计划章节',
+    )).toEqual({ version: 'next-week-plan-structure/v0', nextWeekPlan: 'required' })
+  })
+
   it('derives a compatibility rule from the final template snapshot when old variants have none', () => {
     expect(normalizeStructureCompletenessRule(null, '明确禁止下周计划章节')).toEqual({
       version: STRUCTURE_COMPLETENESS_RULE_VERSION,

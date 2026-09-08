@@ -46,7 +46,7 @@ test('结构完整度按采用时模板契约评分，失败可重试且受众�
 
   try {
     await request.put('/api/settings/ai', {
-      data: { protocol: 'openai-compatible', apiUrl: SCRIPTED_AI_URL, apiKey: 'e2e-scripted', model: 'e2e-scripted' },
+      data: { protocol: 'openai-compatible', apiUrl: `${SCRIPTED_AI_URL}/slow-score`, apiKey: 'e2e-scripted', model: 'e2e-scripted' },
     })
 
     const emptyPersonal = await createAndAccept({
@@ -59,6 +59,15 @@ test('结构完整度按采用时模板契约评分，失败可重试且受众�
     expect(emptyPersonal.proposal.content).toContain('（暂无可用的下周计划事项）')
     expect(emptyPersonal.accepted.variant.structureCompletenessRule).toEqual({
       version: 'next-week-plan-structure/v1', nextWeekPlan: 'required',
+    })
+    expect(emptyPersonal.accepted.variant.scoreStatus).toBe('pending')
+    await expect.poll(async () => {
+      const latest = await request.get(`/api/reports/${reportId}`)
+      return ((await latest.json()).variants as Array<{ variant: string; scoreStatus: string }>).find((item) => item.variant === 'personal')?.scoreStatus
+    }).toBe('completed')
+
+    await request.put('/api/settings/ai', {
+      data: { protocol: 'openai-compatible', apiUrl: SCRIPTED_AI_URL, apiKey: 'e2e-scripted', model: 'e2e-scripted' },
     })
 
     const forbiddenPersonal = await createAndAccept({
