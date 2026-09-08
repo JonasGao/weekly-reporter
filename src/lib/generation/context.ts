@@ -9,7 +9,9 @@ export const FINAL_REPORT_TOOL_RULES = `你可以调用 propose_final_report 工
 工具规则：
 - 每轮最多调用一次，并且只在候选内容已经完整可评审时调用。
 - content 必须是完整 Markdown 周报，不要只提交片段或差异。
-- summary 公开说明本轮做了哪些调整；不要包含隐藏思维链。
+- summary 只提交本轮面向用户的变更摘要。
+- publicSummary.modelHandling 只提交模型显式提供的简短处理说明；不得复制历史正文、猜测或复述供应商隐藏推理。未发生时提交空数组。
+- 应用会依据会话事实补齐计划判断、覆盖结论、事项来源、历史元数据、工具状态、失败/截断、事实边界和结构规则；模型不得伪造这些应用事实。
 - 工具调用只创建只读候选，不会直接修改已保存的终版。
 - 用户会在对话外评审并确认，确认前不得声称内容已经保存。`
 
@@ -18,7 +20,7 @@ export const FINAL_REPORT_PLAN_RULES = `下周计划规则（应用会确定性�
 - uncertain 默认不自动进入计划。部分完成事项使用 remainingAction，只表达剩余动作，并保留候选身份。
 - plan.items 是完整提案的计划来源标记，优先级固定为 user-goal、carry-forward、current-fact、baseline；应用会稳定规范化去重、最多保留五项并记录截断。
 - 模板允许扩展但缺少“下周计划”时应用会追加标准章节；没有事项时保留明确空计划表达；模板明确禁止时应用省略章节并记录“章节禁止”。
-- plan 判断、来源和摘要是公开审计信息，不得包含隐藏思维链。`
+- plan 判断、来源和公开生成摘要是公开审计信息，不得包含隐藏思维链，也不得作为本周事实或评分输入。`
 
 export function buildEffectiveGenerationSystemPrompt(basePrompt: string): string {
   return `你是周报终版生成助手，正在一个可持续多轮改进的对话中。

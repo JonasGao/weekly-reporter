@@ -176,6 +176,10 @@ export const generationProposals = sqliteTable('generation_proposals', {
   sourceRevision: integer('source_revision').notNull(),
   status: text('status').notNull().default('pending').$type<GenerationProposalStatus>(),
   planState: text('plan_state', { mode: 'json' }).$type<Record<string, unknown>>(),
+  /** Structured public audit summary; null only for proposals created before issue #23. */
+  publicSummary: text('public_summary', { mode: 'json' }).$type<Record<string, unknown>>(),
+  /** Editing baseline at proposal creation; null only when unavailable for legacy proposals. */
+  baselineContent: text('baseline_content'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   acceptedAt: integer('accepted_at', { mode: 'timestamp' }),
 })

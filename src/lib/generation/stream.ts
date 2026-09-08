@@ -19,6 +19,7 @@ import {
   updateGenerationPart,
 } from './service'
 import type { PlanItemInput, PlanJudgmentInput, PlanState, ProposalPlanInput } from './plan'
+import type { PublicGenerationSummary, PublicGenerationSummaryInput } from './public-summary'
 
 export type GenerationStreamEvent =
   | { type: 'start'; turnId: number; protocol: string; model: string }
@@ -28,7 +29,7 @@ export type GenerationStreamEvent =
   | { type: 'tool-input-delta'; toolName: string }
   | { type: 'tool-call'; toolName: string; toolCallId: string }
   | { type: 'tool-result'; toolName: string; toolCallId: string }
-  | { type: 'proposal'; proposal: { id: number; content: string; summary: string[]; status: string; sourceRevision: number; createdAt: Date; planState?: PlanState | null } }
+  | { type: 'proposal'; proposal: { id: number; content: string; summary: string[]; status: string; sourceRevision: number; createdAt: Date; planState?: PlanState | null; publicSummary?: PublicGenerationSummary | null; baselineContent?: string | null } }
   | { type: 'finish'; status: 'completed' | 'aborted' }
   | { type: 'error'; message: string }
 
@@ -241,6 +242,9 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
               inputSchema: z.object({
                 content: z.string().min(1).describe('完整的 Markdown 周报候选终版'),
                 summary: z.array(z.string()).describe('面向用户的简短变更摘要'),
+                publicSummary: z.object({
+                  modelHandling: z.array(z.string()).describe('模型显式提供的简短处理说明；不得复制历史正文或推测隐藏推理'),
+                }).optional(),
                 plan: z.object({
                   judgments: z.array(z.object({
                     candidateId: z.string(),
@@ -268,7 +272,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
                   reason: z.string().optional(),
                 })).optional(),
               }),
-              execute: async ({ content, summary, plan, planJudgments, planItems }) => {
+              execute: async ({ content, summary, publicSummary, plan, planJudgments, planItems }) => {
                 if (proposalHolder.current) throw new Error('本轮已经提交过候选终版')
                 const normalizedPlan: ProposalPlanInput | undefined = plan ?? ((planJudgments || planItems)
                   ? {
@@ -281,6 +285,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
                   turnId: input.turn.id,
                   content,
                   summary,
+                  publicSummary: publicSummary as PublicGenerationSummaryInput | undefined,
                   plan: normalizedPlan,
                 })
                 return { proposalId: proposalHolder.current.id, status: 'ready' }
@@ -335,6 +340,8 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
                   sourceRevision: proposal.sourceRevision,
                   createdAt: proposal.createdAt,
                   planState: proposal.planState ? (proposal.planState as unknown as PlanState) : null,
+                  publicSummary: proposal.publicSummary ? (proposal.publicSummary as unknown as PublicGenerationSummary) : null,
+                  baselineContent: proposal.baselineContent,
                 },
               })
             }

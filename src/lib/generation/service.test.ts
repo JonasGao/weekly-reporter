@@ -84,9 +84,24 @@ describe('generation session lifecycle', () => {
       turnId: turn.id,
       content: '# 本周完成\n\n- 完成会话持久化',
       summary: ['按模板归类原稿事实'],
+      publicSummary: { modelHandling: ['仅依据个人版周报原稿整理本周事实。'] },
     })
 
     expect(db.select().from(reportVariants).where(eq(reportVariants.id, variant.id)).get()?.finalContent).toBeNull()
+    expect(proposal.baselineContent).toBe('')
+    expect(proposal.publicSummary).toMatchObject({
+      version: 1,
+      modelHandling: ['仅依据个人版周报原稿整理本周事实。'],
+      planJudgments: [],
+      planOverrideConclusions: [],
+      planItems: [],
+      historicalReferences: [],
+      toolStatuses: [{ toolName: 'propose_final_report', status: 'succeeded', detail: 'proposal-created' }],
+      truncationStates: [],
+      changeSummary: ['按模板归类原稿事实'],
+      factBoundary: { currentWeekFacts: 'report-source-draft-only', scoringInput: 'none' },
+      structureCompleteness: { ruleVersion: 'next-week-plan-structure/v1', status: 'satisfied' },
+    })
 
     const accepted = await acceptGenerationProposal({
       reportId: report.id,
@@ -97,6 +112,7 @@ describe('generation session lifecycle', () => {
     expect(accepted.variant.acceptedProposalId).toBe(proposal.id)
     expect(db.select().from(reports).where(eq(reports.id, report.id)).get()?.content).toContain('完成会话持久化')
     expect(db.select().from(generationMessageParts).where(eq(generationMessageParts.sessionId, session.id)).all().at(-1)?.partType).toBe('proposal-accepted')
+    expect(db.select().from(generationSessions).where(eq(generationSessions.id, session.id)).get()?.baselineFinalContent).toBe(proposal.content)
 
     db.delete(generationProposals).where(eq(generationProposals.sessionId, session.id)).run()
     db.delete(generationMessageParts).where(eq(generationMessageParts.sessionId, session.id)).run()

@@ -37,6 +37,11 @@ import {
   type PlanJudgmentRecord,
   type ProposalPlanInput,
 } from './plan'
+import {
+  buildPublicGenerationSummary,
+  normalizePublicGenerationSummary,
+  type PublicGenerationSummaryInput,
+} from './public-summary'
 
 const MAX_PROPOSAL_CHARACTERS = 200_000
 
@@ -204,7 +209,10 @@ export async function listGenerationSessions(reportId: number, variant?: Audienc
       ...session,
       carryForwardSnapshot: normalizeCarryForwardSnapshot(session.carryForwardSnapshot),
       latestTurn: latestTurn[0] ?? null,
-      latestProposal: latestProposal[0] ?? null,
+      latestProposal: latestProposal[0] ? {
+        ...latestProposal[0],
+        publicSummary: normalizePublicGenerationSummary(latestProposal[0].publicSummary),
+      } : null,
     }
   }))
 }
@@ -229,7 +237,10 @@ export async function getGenerationSessionDetail(reportId: number, sessionId: nu
     carryForwardSnapshot: normalizeCarryForwardSnapshot(session.carryForwardSnapshot),
     messages,
     turns,
-    proposals,
+    proposals: proposals.map((proposal) => ({
+      ...proposal,
+      publicSummary: normalizePublicGenerationSummary(proposal.publicSummary),
+    })),
     planJudgments,
     sourceIsCurrent: currentVariant?.sourceRevision === session.sourceRevision,
     activeTurn: turns.find((turn) => turn.status === 'working') ?? null,
@@ -336,6 +347,7 @@ export async function createGenerationProposal(input: {
   turnId: number
   content: string
   summary: string[]
+  publicSummary?: PublicGenerationSummaryInput
   plan?: ProposalPlanInput
 }): Promise<GenerationProposal> {
   const content = input.content.trim()
@@ -345,20 +357,22 @@ export async function createGenerationProposal(input: {
 
   const db = getDb()
   return db.transaction((tx) => {
-    const currentVariant = tx.select().from(reportVariants).where(eq(reportVariants.id, input.session.reportVariantId)).get()
-    if (!currentVariant || currentVariant.sourceRevision !== input.session.sourceRevision) {
+    const storedSession = tx.select().from(generationSessions).where(eq(generationSessions.id, input.session.id)).get()
+    if (!storedSession) error('Generation session not found', 'SESSION_NOT_FOUND', 404)
+    const currentVariant = tx.select().from(reportVariants).where(eq(reportVariants.id, storedSession.reportVariantId)).get()
+    if (!currentVariant || currentVariant.sourceRevision !== storedSession.sourceRevision) {
       error('The source draft changed; this proposal is based on an older version', 'SOURCE_REVISION_CONFLICT', 409)
     }
     const turn = tx.select().from(generationTurns).where(eq(generationTurns.id, input.turnId)).get()
-    if (!turn || turn.sessionId !== input.session.id || turn.status !== 'working') {
+    if (!turn || turn.sessionId !== storedSession.id || turn.status !== 'working') {
       error('The current generation turn has ended', 'TURN_NOT_ACTIVE', 409)
     }
     const existingForTurn = tx.select().from(generationProposals).where(eq(generationProposals.turnId, input.turnId)).get()
     if (existingForTurn) error('Only one proposal may be submitted per turn', 'PROPOSAL_LIMIT', 409)
 
-    const snapshot = normalizeCarryForwardSnapshot(input.session.carryForwardSnapshot)
+    const snapshot = normalizeCarryForwardSnapshot(storedSession.carryForwardSnapshot)
     const existingJudgmentRows = tx.select().from(generationPlanJudgments)
-      .where(eq(generationPlanJudgments.sessionId, input.session.id)).orderBy(asc(generationPlanJudgments.id)).all()
+      .where(eq(generationPlanJudgments.sessionId, storedSession.id)).orderBy(asc(generationPlanJudgments.id)).all()
     const existingJudgments: PlanJudgmentRecord[] = existingJudgmentRows.map((row) => ({
       candidateId: row.candidateId,
       judgment: row.judgment,
@@ -371,7 +385,7 @@ export async function createGenerationProposal(input: {
     if (existingJudgmentRows.length === 0) {
       for (const judgment of normalizedJudgments) {
         tx.insert(generationPlanJudgments).values({
-          sessionId: input.session.id,
+          sessionId: storedSession.id,
           candidateId: judgment.candidateId,
           judgment: judgment.judgment,
           reason: judgment.reason,
@@ -383,10 +397,10 @@ export async function createGenerationProposal(input: {
     }
     const merged = mergeProposalPlan({
       content,
-      templateContent: input.session.templateContent,
+      templateContent: storedSession.templateContent,
       snapshot,
       plan: input.plan,
-      baselineFinalContent: input.session.baselineFinalContent,
+      baselineFinalContent: storedSession.baselineFinalContent,
       existingJudgments: normalizedJudgments,
     })
     const planSummary = merged.state.status === 'forbidden'
@@ -395,16 +409,27 @@ export async function createGenerationProposal(input: {
         ? '下周计划：无可用事项，保留明确空计划表达'
         : `下周计划：应用 ${merged.state.items.length} 项，${merged.state.judgments.filter((item) => item.judgment === 'carry').length} 项 carry、${merged.state.judgments.filter((item) => item.judgment === 'uncertain').length} 项 uncertain`
     const effectiveSummary = [...summary, planSummary, ...merged.state.warnings].filter(Boolean).slice(0, 8)
+    const templatePolicy = storedSession.planPolicy ?? getPlanTemplatePolicy(storedSession.templateContent)
+    const publicSummary = buildPublicGenerationSummary({
+      explicit: input.publicSummary,
+      changeSummary: summary,
+      planState: merged.state,
+      carryForwardSnapshot: snapshot,
+      templatePolicy,
+      proposalPlanParseFailure: merged.proposalPlanParseFailure,
+    })
     tx.update(generationProposals).set({ status: 'superseded' })
-      .where(and(eq(generationProposals.sessionId, input.session.id), eq(generationProposals.status, 'pending'))).run()
+      .where(and(eq(generationProposals.sessionId, storedSession.id), eq(generationProposals.status, 'pending'))).run()
     return tx.insert(generationProposals).values({
-      sessionId: input.session.id,
+      sessionId: storedSession.id,
       turnId: input.turnId,
       content: merged.content,
       summary: effectiveSummary,
-      sourceRevision: input.session.sourceRevision,
+      sourceRevision: storedSession.sourceRevision,
       status: 'pending',
       planState: merged.state as unknown as Record<string, unknown>,
+      publicSummary: publicSummary as unknown as Record<string, unknown>,
+      baselineContent: storedSession.baselineFinalContent ?? '',
       createdAt: new Date(),
     }).returning().get()
   })

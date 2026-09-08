@@ -141,7 +141,7 @@ export function mergeProposalPlan(input: {
   plan?: ProposalPlanInput
   existingJudgments?: PlanJudgmentRecord[]
   baselineFinalContent?: string | null
-}): { content: string; state: PlanState } {
+}): { content: string; state: PlanState; proposalPlanParseFailure: string | null } {
   const judgments = input.existingJudgments?.length
     ? input.existingJudgments
     : normalizePlanJudgments(input.snapshot, input.plan)
@@ -199,6 +199,7 @@ export function mergeProposalPlan(input: {
     return {
       content: removePlanSection(input.content),
       state: { version: 1, status: 'forbidden', section: 'omitted', items: [], judgments, truncatedCount: 0, warnings: ['模板明确禁止下周计划章节。'] },
+      proposalPlanParseFailure: parsed.status === 'failed' ? parsed.reason : null,
     }
   }
   const section = findPlanSection(input.content) ? 'present' : 'appended'
@@ -213,5 +214,6 @@ export function mergeProposalPlan(input: {
       truncatedCount,
       warnings,
     },
+    proposalPlanParseFailure: parsed.status === 'failed' ? parsed.reason : null,
   }
 }
