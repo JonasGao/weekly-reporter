@@ -34,6 +34,7 @@ export async function POST(request: Request) {
   const rows: FixtureReport[] = []
   if (body.action === 'carry-forward') {
     const empty = body.mode === 'empty'
+    const excludedStatus = body.mode === 'stale' ? 'stale' : body.mode === 'none' ? 'none' : 'current'
     const targetWeekStart = empty ? '2027-02-01' : '2027-01-11'
     const targetWeekEnd = empty ? '2027-02-07' : '2027-01-17'
     const reportIds: number[] = []
@@ -48,30 +49,32 @@ export async function POST(request: Request) {
         createdAt: now,
         updatedAt: now,
       }).returning().get()
-      db.insert(reportVariants).values([
-        {
-          reportId: previous.id,
-          variant: 'leadership' as const,
-          sourceDraft: `- ${marker} leadership source`,
-          finalContent: `# ${marker} leadership final\n\n## 下周计划\n\n- ${marker} leadership carry`,
-          finalStatus: 'current' as const,
-          sourceRevision: 1,
-          scoreStatus: 'completed' as const,
-          createdAt: now,
-          updatedAt: now,
-        },
-        {
-          reportId: previous.id,
-          variant: 'personal' as const,
-          sourceDraft: `- ${marker} personal source`,
-          finalContent: `# ${marker} personal final\n\n## 下周计划\n\n- ${marker} personal carry`,
-          finalStatus: 'current' as const,
-          sourceRevision: 1,
-          scoreStatus: 'completed' as const,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ]).run()
+      if (body.mode !== 'legacy') {
+        db.insert(reportVariants).values([
+          {
+            reportId: previous.id,
+            variant: 'leadership' as const,
+            sourceDraft: `- ${marker} leadership source`,
+            finalContent: `# ${marker} leadership final\n\n## 下周计划\n\n- ${marker} leadership carry`,
+            finalStatus: excludedStatus as 'current' | 'stale' | 'none',
+            sourceRevision: 1,
+            scoreStatus: 'completed' as const,
+            createdAt: now,
+            updatedAt: now,
+          },
+          {
+            reportId: previous.id,
+            variant: 'personal' as const,
+            sourceDraft: `- ${marker} personal source`,
+            finalContent: `# ${marker} personal final\n\n## 下周计划\n\n- ${marker} personal carry`,
+            finalStatus: excludedStatus as 'current' | 'stale' | 'none',
+            sourceRevision: 1,
+            scoreStatus: 'completed' as const,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ]).run()
+      }
       reportIds.push(previous.id)
     } else {
       const older = db.insert(reports).values({

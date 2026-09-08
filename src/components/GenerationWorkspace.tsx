@@ -33,7 +33,7 @@ import {
   type StreamingMarkdown,
 } from '@/lib/generation/streaming-markdown'
 import type { AudienceVariant, ReportVariant } from '@/lib/db/schema'
-import type { CarryForwardSnapshot } from '@/lib/generation/carry-forward'
+import { LEGACY_NO_SNAPSHOT, type CarryForwardSnapshot } from '@/lib/generation/carry-forward-snapshot'
 
 interface TemplateOption {
   id: string
@@ -238,33 +238,35 @@ function SystemContextCard({ detail }: { detail: SessionDetail }) {
   )
 }
 
-function CarryForwardSnapshotCard({ snapshot }: { snapshot: CarryForwardSnapshot }) {
-  const source = snapshot.source
+function CarryForwardSnapshotCard({ snapshot }: { snapshot?: CarryForwardSnapshot }) {
+  const normalized = snapshot ?? LEGACY_NO_SNAPSHOT
+  const source = normalized.source
   return (
     <details className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3" open>
       <summary className="cursor-pointer text-sm font-medium">Plan carry-forward snapshot · 历史参考·不可信</summary>
       <div className="mt-3 space-y-3 text-xs leading-5 text-muted-foreground">
         <p>This immutable historical reference is not a fact of the current report.</p>
         <dl className="grid gap-x-3 gap-y-1 sm:grid-cols-[auto_1fr]">
-          <dt>Snapshot status</dt><dd className="font-medium text-foreground">{snapshot.status}</dd>
-          <dt>Parse status</dt><dd>{snapshot.parseStatus}{snapshot.parseReason ? ` · ${snapshot.parseReason}` : ''}</dd>
+          <dt>Snapshot status</dt><dd className="font-medium text-foreground">{normalized.status}</dd>
+          <dt>Parse status</dt><dd>{normalized.parseStatus}{normalized.parseReason ? ` · ${normalized.parseReason}` : ''}</dd>
+          <dt>Snapshot captured</dt><dd>{normalized.capturedAt ?? 'not captured'}</dd>
           <dt>Source</dt><dd>{source ? `${source.title} · ${source.weekStart} – ${source.weekEnd} · ${source.audience} · ${source.finalStatus}` : 'No exact previous-cycle source'}</dd>
           <dt>Proposal reference</dt><dd>{source?.acceptedProposalId ?? 'none'}</dd>
         </dl>
-        {snapshot.parseWarning && <p className="text-amber-500">{snapshot.parseWarning}</p>}
+        {normalized.parseWarning && <p className="text-amber-500">{normalized.parseWarning}</p>}
         <div>
           <p className="mb-1 font-medium text-foreground">Plan source copy</p>
-          <pre className="whitespace-pre-wrap break-words rounded border border-border bg-background p-2">{snapshot.planText ?? '(none)'}</pre>
+          <pre className="whitespace-pre-wrap break-words rounded border border-border bg-background p-2">{normalized.planText ?? '(none)'}</pre>
         </div>
         <div>
-          <p className="mb-1 font-medium text-foreground">Candidates ({snapshot.candidates.length})</p>
-          {snapshot.candidates.length > 0 ? (
+          <p className="mb-1 font-medium text-foreground">Candidates ({normalized.candidates.length})</p>
+          {normalized.candidates.length > 0 ? (
             <ul className="space-y-1">
-              {snapshot.candidates.map((candidate) => <li key={candidate.candidateId}>[{candidate.candidateId}] {candidate.text} · {candidate.judgment ?? 'pending judgment'}</li>)}
+              {normalized.candidates.map((candidate) => <li key={candidate.candidateId}>[{candidate.candidateId}] {candidate.text} · {candidate.judgment ?? 'pending judgment'}</li>)}
             </ul>
           ) : <p>(none)</p>}
         </div>
-        {snapshot.reason && <p>Reason: {snapshot.reason}</p>}
+        {normalized.reason && <p>Reason: {normalized.reason}</p>}
       </div>
     </details>
   )

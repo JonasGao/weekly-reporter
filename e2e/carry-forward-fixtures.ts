@@ -6,7 +6,11 @@ export interface CarryForwardFixture {
   eventIds: number[]
 }
 
-export async function seedCarryForward(request: APIRequestContext, marker: string, mode?: 'empty'): Promise<CarryForwardFixture> {
+export async function seedCarryForward(
+  request: APIRequestContext,
+  marker: string,
+  mode?: 'empty' | 'stale' | 'none' | 'legacy',
+): Promise<CarryForwardFixture> {
   const response = await request.post('/api/e2e/fixtures', { data: { action: 'carry-forward', marker, mode } })
   expect(response.status()).toBe(201)
   return await response.json() as CarryForwardFixture

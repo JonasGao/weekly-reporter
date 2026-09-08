@@ -131,4 +131,21 @@ test.describe('计划结转快照', () => {
       await disposeCarryForward(request, fixture)
     }
   })
+
+  test('排除精确周期内未采用、过期和 legacy 来源', async ({ request }) => {
+    for (const mode of ['stale', 'none', 'legacy'] as const) {
+      const fixture = await seedCarryForward(request, `carry-excluded-${mode}-${Date.now()}`, mode)
+      try {
+        const session = await createSession(request, fixture.targetReportId, 'personal')
+        expect(session.carryForwardSnapshot).toMatchObject({
+          status: 'no-source',
+          source: null,
+          candidates: [],
+          planText: null,
+        })
+      } finally {
+        await disposeCarryForward(request, fixture)
+      }
+    }
+  })
 })
