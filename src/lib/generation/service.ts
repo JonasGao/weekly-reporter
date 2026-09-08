@@ -57,6 +57,10 @@ import { queryReportContentForSession } from './report-content-tool'
 
 const MAX_PROPOSAL_CHARACTERS = 200_000
 
+function proposalReferenceChanged(proposal: GenerationProposal, snapshots: ReturnType<typeof listQuerySnapshots>): boolean {
+  return proposal.status === 'pending' && snapshots.some((snapshot) => snapshot.trigger === 'user' && snapshot.createdAt > proposal.createdAt)
+}
+
 export class GenerationServiceError extends Error {
   constructor(
     message: string,
@@ -256,12 +260,12 @@ export async function getGenerationSessionDetail(reportId: number, sessionId: nu
     proposals: proposals.map((proposal) => ({
       ...proposal,
       publicSummary: normalizePublicGenerationSummary(proposal.publicSummary),
-      referenceChanged: proposal.status === 'pending' && querySnapshots.some((snapshot) => snapshot.trigger === 'user' && snapshot.createdAt > proposal.createdAt),
+      referenceChanged: proposalReferenceChanged(proposal, querySnapshots),
     })),
     planJudgments,
     planOverrides,
     querySnapshots,
-    historicalReferencesChanged: proposals.some((proposal) => proposal.status === 'pending' && querySnapshots.some((snapshot) => snapshot.trigger === 'user' && snapshot.createdAt > proposal.createdAt)),
+    historicalReferencesChanged: proposals.some((proposal) => proposalReferenceChanged(proposal, querySnapshots)),
     planOverrideState: summarizePlanOverrides(carryForwardSnapshot, planOverrides),
     sourceIsCurrent: currentVariant?.sourceRevision === session.sourceRevision,
     activeTurn: turns.find((turn) => turn.status === 'working') ?? null,
@@ -275,6 +279,9 @@ export async function refreshHistoricalQuery(input: { reportId: number; sessionI
   const previous = db.select().from(generationQuerySnapshots).where(and(eq(generationQuerySnapshots.id, input.snapshotId ?? 0), eq(generationQuerySnapshots.sessionId, input.sessionId))).get()
   if (!previous) error('Query snapshot not found', 'SNAPSHOT_NOT_FOUND', 404)
   const started = Date.now()
+  if (previous.toolName !== REPORT_LIST_TOOL_NAME && previous.toolName !== REPORT_CONTENT_TOOL_NAME) {
+    error('Unsupported historical query tool', 'SNAPSHOT_INVALID', 400)
+  }
   const result = previous.toolName === REPORT_LIST_TOOL_NAME
     ? queryReportListForSession({ sessionId: input.sessionId, parameters: previous.parameters as never })
     : queryReportContentForSession({ sessionId: input.sessionId, parameters: previous.parameters as never })

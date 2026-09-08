@@ -325,7 +325,11 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
               }),
               execute: async (parameters) => {
                 historyQueryCount += 1
-                if (historyQueryCount > MAX_HISTORY_QUERIES_PER_TURN) return toolBudgetExceeded(REPORT_LIST_TOOL_NAME)
+                if (historyQueryCount > MAX_HISTORY_QUERIES_PER_TURN) {
+                  const output = toolBudgetExceeded(REPORT_LIST_TOOL_NAME)
+                  persistQuerySnapshot({ sessionId: input.detail.id, toolName: REPORT_LIST_TOOL_NAME, parameters: parameters as Record<string, unknown>, result: output as unknown as Record<string, unknown>, durationMs: 0 })
+                  return output
+                }
                 const started = Date.now()
                 const output = queryReportListForSession({ sessionId: input.detail.id, parameters })
                 persistQuerySnapshot({ sessionId: input.detail.id, toolName: REPORT_LIST_TOOL_NAME, parameters: parameters as Record<string, unknown>, result: output as unknown as Record<string, unknown>, durationMs: Date.now() - started })
@@ -346,7 +350,9 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
                 historyQueryCount += 1
                 contentQueryCount += 1
                 if (historyQueryCount > MAX_HISTORY_QUERIES_PER_TURN || contentQueryCount > MAX_CONTENT_QUERIES_PER_TURN) {
-                  return toolBudgetExceeded(REPORT_CONTENT_TOOL_NAME)
+                  const output = toolBudgetExceeded(REPORT_CONTENT_TOOL_NAME)
+                  persistQuerySnapshot({ sessionId: input.detail.id, toolName: REPORT_CONTENT_TOOL_NAME, parameters: parameters as Record<string, unknown>, result: output as unknown as Record<string, unknown>, durationMs: 0 })
+                  return output
                 }
                 const started = Date.now()
                 const output = queryReportContentForSession({ sessionId: input.detail.id, parameters })

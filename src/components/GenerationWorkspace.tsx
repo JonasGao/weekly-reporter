@@ -127,7 +127,7 @@ interface SessionDetail extends SessionSummary {
   planJudgments?: Array<{ candidateId: string; judgment: string; reason: string; remainingAction: string | null }>
   planOverrides?: PlanOverrideRecord[]
   planOverrideState?: PlanOverrideItemState[]
-  querySnapshots?: Array<{ id: number; toolName: string; calledAt: string | Date; trigger: string; resultCount: number; truncated: boolean; errorCode: string | null; previousSnapshotId: number | null }>
+  querySnapshots?: Array<{ id: number; toolName: string; calledAt: string | Date; trigger: string; resultCount: number; truncated: boolean; errorCode: string | null; previousSnapshotId: number | null; parameters: Record<string, unknown>; result: Record<string, unknown>; sourceAudience: string; sourceReportId: number; sourceUpdatedAt: string | Date | null }>
   historicalReferencesChanged?: boolean
 }
 
@@ -239,7 +239,7 @@ function lineDiff(before: string, after: string): DiffLine[] {
   return output
 }
 
-function SystemContextCard({ detail, onRefresh }: { detail: SessionDetail; onRefresh?: () => void }) {
+function SystemContextCard({ detail, onRefresh }: { detail: SessionDetail; onRefresh?: (snapshotId: number) => void }) {
   const blocks = [
     ['Final report system prompt', detail.systemPrompt],
     [`AI style prompt · ${detail.aiStyleLabel}`, detail.aiStylePrompt],
@@ -283,11 +283,11 @@ function SystemContextCard({ detail, onRefresh }: { detail: SessionDetail; onRef
         <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">{detail.templateContent}</pre>
       </details>
       <CarryForwardSnapshotCard snapshot={detail.carryForwardSnapshot} />
-      <details className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3" open>
+      <details className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
         <summary className="cursor-pointer text-sm font-medium">Historical query snapshots · 历史参考·不可信</summary>
         <div className="mt-2 space-y-2 text-xs text-muted-foreground">
           {detail.historicalReferencesChanged && <p role="alert" className="text-amber-500">参考已变化。请显式启动新一轮生成以产生新提案。</p>}
-          {(detail.querySnapshots ?? []).map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-2"><span>#{snapshot.id} {snapshot.toolName} · {snapshot.resultCount} 项 · {snapshot.trigger}{snapshot.errorCode ? ` · ${snapshot.errorCode}` : ''}{snapshot.truncated ? ' · 截断' : ''}</span>{onRefresh && <Button variant="outline" size="sm" onClick={onRefresh}>刷新</Button>}</div>)}
+          {(detail.querySnapshots ?? []).map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-2"><details className="min-w-0 flex-1"><summary className="cursor-pointer">#{snapshot.id} {snapshot.toolName} · {snapshot.resultCount} 项 · {snapshot.trigger}{snapshot.errorCode ? ` · ${snapshot.errorCode}` : ''}{snapshot.truncated ? ' · 截断' : ''}</summary><p className="mt-1">来源报告 {snapshot.sourceReportId} · 受众 {snapshot.sourceAudience} · 快照时间 {String(snapshot.calledAt)} · 历史参考·不可信</p><pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap">参数 {JSON.stringify(snapshot.parameters)}{snapshot.result && `\n摘要 ${JSON.stringify(snapshot.result).slice(0, 300)}`}</pre></details>{onRefresh && <Button variant="outline" size="sm" onClick={() => onRefresh(snapshot.id)}>刷新</Button>}</div>)}
           {(detail.querySnapshots ?? []).length === 0 && <p>尚未查询历史周报。</p>}
         </div>
       </details>
@@ -1161,7 +1161,7 @@ export function GenerationWorkspace({
             </div>
               {!detail.sourceIsCurrent && <div className="border-b border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-500">The source draft has changed. This session is retained for audit; create a new session from the latest draft.</div>}
             <div ref={transcriptRef} onScroll={handleTranscriptScroll} className="generation-transcript max-h-[calc(100vh-15rem)] min-h-[520px] space-y-4 overflow-y-auto p-4">
-              <SystemContextCard detail={detail} onRefresh={() => { const snapshot = detail.querySnapshots?.at(-1); if (snapshot) void (async () => { const response = await fetch(`/api/reports/${reportId}/generation-sessions/${detail.id}/query-snapshots/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ snapshotId: snapshot.id }) }); if (!response.ok) { toast.error('刷新历史查询失败'); return } await loadDetail(detail.id) })() }} />
+              <SystemContextCard detail={detail} onRefresh={(snapshotId) => { if (snapshotId) void (async () => { const response = await fetch(`/api/reports/${reportId}/generation-sessions/${detail.id}/query-snapshots/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ snapshotId }) }); if (!response.ok) { toast.error('刷新历史查询失败'); return } await loadDetail(detail.id) })() }} />
               <PlanOverridePanel detail={detail} disabled={!canChat || streaming} saving={savingOverride} onAction={recordPlanOverride} />
               {detail.messages.map((part) => <TranscriptPart key={part.id} part={part} onRetry={part.partType === 'tool-result' ? () => { const message = detail.messages.filter((item) => item.role === 'user').at(-1)?.content; if (message) void streamTurn(detail.id, message) } : undefined} />)}
               {liveUser && <TranscriptPart part={{ id: -1, turnId: liveTurnId, sequence: Number.MAX_SAFE_INTEGER, role: 'user', partType: 'text', content: liveUser, data: null }} />}
