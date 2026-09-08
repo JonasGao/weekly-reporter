@@ -52,6 +52,12 @@ const MAX_PLAN_ITEMS = 5
 const PLAN_TITLE = '下周计划'
 const HEADING = /^( {0,3})(#{2,3})(?:[ \t]+|$)(.*?)[ \t]*#*[ \t]*$/
 
+interface PlanSectionRange {
+  headingIndex: number
+  end: number
+  headingLevel: number
+}
+
 function normalizeText(value: string): string {
   return value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase()
 }
@@ -70,43 +76,13 @@ export function getPlanTemplatePolicy(template: string): 'forbidden' | 'required
   return templateForbidsPlan(template) ? 'forbidden' : 'required'
 }
 
-function hasPlanHeading(content: string): boolean {
-  return content.split(/\r?\n/).some((line) => {
-    const match = line.match(HEADING)
-    return Boolean(match && match[3].trim().toLocaleLowerCase() === PLAN_TITLE.toLocaleLowerCase())
-  })
-}
-
-function replacePlanSection(content: string, items: string[]): string {
+function findPlanSection(content: string): PlanSectionRange | null {
   const lines = content.split(/\r?\n/)
   const headingIndex = lines.findIndex((line) => {
     const match = line.match(HEADING)
     return Boolean(match && match[3].trim().toLocaleLowerCase() === PLAN_TITLE.toLocaleLowerCase())
   })
-  const body = items.length > 0 ? items.map((item) => `- ${item}`) : ['（暂无可用的下周计划事项）']
-  if (headingIndex < 0) {
-    const prefix = content.trimEnd()
-    return `${prefix}${prefix ? '\n\n' : ''}## ${PLAN_TITLE}\n${body.join('\n')}`
-  }
-  const heading = lines[headingIndex]
-  const headingLevel = heading.match(HEADING)?.[2].length ?? 2
-  let end = headingIndex + 1
-  while (end < lines.length) {
-    const match = lines[end].match(HEADING)
-    if (match && match[2].length <= headingLevel) break
-    end += 1
-  }
-  lines.splice(headingIndex, end - headingIndex, heading, ...body)
-  return lines.join('\n').trimEnd()
-}
-
-function removePlanSection(content: string): string {
-  const lines = content.split(/\r?\n/)
-  const headingIndex = lines.findIndex((line) => {
-    const match = line.match(HEADING)
-    return Boolean(match && match[3].trim().toLocaleLowerCase() === PLAN_TITLE.toLocaleLowerCase())
-  })
-  if (headingIndex < 0) return content.trimEnd()
+  if (headingIndex < 0) return null
   const headingLevel = lines[headingIndex].match(HEADING)?.[2].length ?? 2
   let end = headingIndex + 1
   while (end < lines.length) {
@@ -114,8 +90,28 @@ function removePlanSection(content: string): string {
     if (match && match[2].length <= headingLevel) break
     end += 1
   }
-  const before = lines.slice(0, headingIndex)
-  const after = lines.slice(end)
+  return { headingIndex, end, headingLevel }
+}
+
+function replacePlanSection(content: string, items: string[]): string {
+  const lines = content.split(/\r?\n/)
+  const body = items.length > 0 ? items.map((item) => `- ${item}`) : ['（暂无可用的下周计划事项）']
+  const section = findPlanSection(content)
+  if (!section) {
+    const prefix = content.trimEnd()
+    return `${prefix}${prefix ? '\n\n' : ''}## ${PLAN_TITLE}\n${body.join('\n')}`
+  }
+  const heading = lines[section.headingIndex]
+  lines.splice(section.headingIndex, section.end - section.headingIndex, heading, ...body)
+  return lines.join('\n').trimEnd()
+}
+
+function removePlanSection(content: string): string {
+  const lines = content.split(/\r?\n/)
+  const section = findPlanSection(content)
+  if (!section) return content.trimEnd()
+  const before = lines.slice(0, section.headingIndex)
+  const after = lines.slice(section.end)
   return [...before, ...after].join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
 }
 
@@ -214,7 +210,7 @@ export function mergeProposalPlan(input: {
       state: { version: 1, status: 'forbidden', section: 'omitted', items: [], judgments, truncatedCount: 0, warnings: ['模板明确禁止下周计划章节。'] },
     }
   }
-  const section = hasPlanHeading(input.content) ? 'present' : 'appended'
+  const section = findPlanSection(input.content) ? 'present' : 'appended'
   return {
     content: replacePlanSection(input.content, selected.map((item) => item.text)),
     state: {

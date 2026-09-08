@@ -137,4 +137,36 @@ test.describe('完整计划生成预览', () => {
       await disposeCarryForward(request, fixture)
     }
   })
+
+  test('普通讨论轮次不消耗候选，后续提案仍可首次可靠判断 carry', async ({ request }) => {
+    const marker = `plan-discussion-${Date.now()}`
+    const fixture = await seedCarryForward(request, marker)
+    try {
+      await request.put('/api/settings/ai', {
+        data: { protocol: 'openai-compatible', apiUrl: SCRIPTED_AI_URL, apiKey: 'e2e-scripted', model: 'e2e-scripted' },
+      })
+      const session = await createSession(request, fixture.targetReportId)
+      const detail = await request.get(`/api/reports/${fixture.targetReportId}/generation-sessions/${session.id}`)
+      const candidateId = (await detail.json()).carryForwardSnapshot.candidates[0].candidateId as string
+      const stream = await request.post(`/api/reports/${fixture.targetReportId}/generation-sessions/${session.id}/turns`, {
+        data: { message: scriptedInstruction('先讨论，不提交提案', {
+          steps: [
+            { kind: 'stream', text: '可以继续核对计划来源。' },
+            proposalStep('# 本周完成\n\n- 已核对\n\n## 下周计划\n- 继续推进', { judgments: [{ candidateId, judgment: 'carry', reason: '仍未完成' }] }),
+          ],
+        }) },
+      })
+      expect(stream.ok()).toBeTruthy()
+      const firstDetail = await request.get(`/api/reports/${fixture.targetReportId}/generation-sessions/${session.id}`)
+      expect((await firstDetail.json()).planJudgments).toHaveLength(0)
+      const second = await request.post(`/api/reports/${fixture.targetReportId}/generation-sessions/${session.id}/turns`, { data: { message: '现在提交完整预览' } })
+      expect(second.ok()).toBeTruthy()
+      const finalDetail = await request.get(`/api/reports/${fixture.targetReportId}/generation-sessions/${session.id}`)
+      const body = await finalDetail.json()
+      expect(body.planJudgments[0]).toMatchObject({ candidateId, judgment: 'carry' })
+      expect(body.proposals.at(-1).planState.judgments[0].judgment).toBe('carry')
+    } finally {
+      await disposeCarryForward(request, fixture)
+    }
+  })
 })

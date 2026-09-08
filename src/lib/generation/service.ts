@@ -301,11 +301,11 @@ export function startGenerationTurn(input: {
   })
 }
 
-export async function finishGenerationTurn(turnId: number, status: 'completed' | 'failed' | 'aborted', errorMessage?: string) {
+export async function finishGenerationTurn(turnId: number, status: 'completed' | 'failed' | 'aborted', errorMessage?: string, partial = false) {
   const db = getDb()
   const turn = await db.query.generationTurns.findFirst({ where: eq(generationTurns.id, turnId) })
   if (!turn) return null
-  persistUncertainPlanJudgments(turn.sessionId, turnId)
+  if (partial || status === 'failed' || status === 'aborted') persistUncertainPlanJudgments(turn.sessionId, turnId)
   const now = new Date()
   const updated = await db.update(generationTurns).set({
     status,

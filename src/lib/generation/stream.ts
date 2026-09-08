@@ -157,6 +157,8 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
       let lastTextFlush = 0
       let lastReasoningFlush = 0
       let finalStatus: 'completed' | 'aborted' = 'completed'
+      let providerFinished = false
+      let providerFinishReason: string | null = null
 
       const flushText = (force = false) => {
         if (textPartId == null || (!force && Date.now() - lastTextFlush < 500)) return
@@ -336,6 +338,9 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
                 },
               })
             }
+          } else if (part.type === 'finish') {
+            providerFinished = true
+            providerFinishReason = part.finishReason
           } else if (part.type === 'abort') {
             finalStatus = 'aborted'
           } else if (part.type === 'error') {
@@ -345,7 +350,8 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
 
         flushText(true)
         flushReasoning(true)
-        await finishGenerationTurn(input.turn.id, finalStatus)
+        const partial = !providerFinished || (providerFinishReason !== 'stop' && providerFinishReason !== 'tool-calls')
+        await finishGenerationTurn(input.turn.id, finalStatus, undefined, partial && !proposalHolder.current)
         send({ type: 'finish', status: finalStatus })
       } catch (streamError) {
         flushText(true)
