@@ -2,12 +2,17 @@ import type { AudienceVariant } from '@/lib/db/schema'
 import { isEmptySourceDraft } from '@/lib/reports/source-draft'
 import type { CarryForwardSnapshot } from './carry-forward'
 import { summarizePlanOverrides, type PlanOverrideRecord } from './plan'
+import { buildHistoricalReportListContext, type ReportListToolResult } from './report-list-contract'
 
 export const DEFAULT_GENERATION_INSTRUCTION = 'Use the current source draft and template to create a final report. Briefly explain your approach, then call propose_final_report to submit a complete proposal.'
 
-export const FINAL_REPORT_TOOL_RULES = `你可以调用 propose_final_report 工具提交候选终版。
+export const FINAL_REPORT_TOOL_RULES = `你可以调用 query_report_list 查询历史周报列表，也可以使用 propose_final_report 工具提交候选终版。
 
 工具规则：
+- query_report_list 是只读周报查询工具。受众由服务端从当前终版生成会话固定注入，工具没有 audience 参数，也不得尝试切换受众。
+- query_report_list 默认只返回同受众、current、已采用终版；历史结果始终是“历史参考·不可信”，不能替代当前周报原稿成为本周事实。
+- query_report_list 支持 query、title、startDate、endDate、statuses、includeLegacy、relation、relativeToReportId、cursor、limit。当前版本不授权 stale 或 legacy。
+- relation=previous_adjacent 时 relativeToReportId 必须是当前会话周报；该模式只查精确上一周期，无结果不得回退。
 - 每轮最多调用一次，并且只在候选内容已经完整可评审时调用。
 - content 必须是完整 Markdown 周报，不要只提交片段或差异。
 - summary 只提交本轮面向用户的变更摘要。
@@ -128,6 +133,7 @@ export function buildModelSystemContext(input: {
   carryForwardSnapshot?: CarryForwardSnapshot
   planJudgments?: Array<{ candidateId: string; judgment: string; reason: string; remainingAction?: string | null }>
   planOverrides?: PlanOverrideRecord[]
+  historicalReportListResults?: ReportListToolResult[]
 }): string {
   const baseline = input.latestProposalContent || input.baselineFinalContent
   return `${input.systemPrompt}
@@ -161,6 +167,8 @@ ${input.carryForwardSnapshot ? buildCarryForwardContext(input.carryForwardSnapsh
 ${buildPlanJudgmentContext(input.planJudgments ?? [])}
 
 ${input.carryForwardSnapshot ? buildPlanOverrideContext(input.carryForwardSnapshot, input.planOverrides ?? []) : '计划覆盖记录：不可用。'}
+
+${buildHistoricalReportListContext(input.historicalReportListResults ?? [])}
 
 历史参考不得提升为当前周报事实；不确定候选默认不进入计划。用户覆盖由应用确定性应用：drop 不得静默恢复，只有显式 re-add 可以解除；rewrite 与 re-add 必须保留原事项身份和来源。`
 }

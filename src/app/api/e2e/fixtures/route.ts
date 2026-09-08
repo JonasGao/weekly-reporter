@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { eq, inArray } from 'drizzle-orm'
-import { format, startOfWeek, subDays } from 'date-fns'
+import { format, parseISO, startOfWeek, subDays } from 'date-fns'
 import { getDb } from '@/lib/db'
 import {
   generationMessageParts,
@@ -25,8 +25,8 @@ function enabled() {
 
 export async function POST(request: Request) {
   if (!enabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  const body = await request.json().catch(() => null) as { action?: string; marker?: string; mode?: string } | null
-  if (!body || !['historical', 'timeline', 'carry-forward'].includes(body.action ?? '') || typeof body.marker !== 'string' || !body.marker.trim()) {
+  const body = await request.json().catch(() => null) as { action?: string; marker?: string; mode?: string; targetReportId?: unknown } | null
+  if (!body || !['historical', 'timeline', 'carry-forward', 'report-query'].includes(body.action ?? '') || typeof body.marker !== 'string' || !body.marker.trim()) {
     return NextResponse.json({ error: 'A marker and historical action are required', code: 'INVALID_INPUT' }, { status: 400 })
   }
 
@@ -34,6 +34,108 @@ export async function POST(request: Request) {
   const db = getDb()
   const now = new Date()
   const rows: FixtureReport[] = []
+  if (body.action === 'report-query') {
+    if (!Number.isInteger(body.targetReportId) || Number(body.targetReportId) <= 0) {
+      return NextResponse.json({ error: 'A target report ID is required', code: 'INVALID_INPUT' }, { status: 400 })
+    }
+    const targetReportId = Number(body.targetReportId)
+    const target = db.select().from(reports).where(eq(reports.id, targetReportId)).get()
+    if (!target) return NextResponse.json({ error: 'Target report not found', code: 'REPORT_NOT_FOUND' }, { status: 404 })
+
+    const targetStart = parseISO(target.weekStart)
+    const reportIds: number[] = []
+    const createReport = (input: {
+      title: string
+      weekStart: Date
+      weekEnd: Date
+      variants: Array<{
+        audience: 'leadership' | 'personal'
+        finalStatus: 'current' | 'stale' | 'none'
+        finalContent: string | null
+        accepted: boolean
+      }>
+    }) => {
+      const report = db.insert(reports).values({
+        title: input.title,
+        content: `# raw source must stay private: ${input.title}`,
+        weekStart: format(input.weekStart, 'yyyy-MM-dd'),
+        weekEnd: format(input.weekEnd, 'yyyy-MM-dd'),
+        scoreStatus: 'completed',
+        scoreOverall: 99,
+        suggestions: JSON.stringify(['private score suggestion']),
+        createdAt: now,
+        updatedAt: now,
+      }).returning().get()
+      db.insert(reportVariants).values(input.variants.map((variant, index) => ({
+        reportId: report.id,
+        variant: variant.audience,
+        sourceDraft: `- private ${variant.audience} source draft for ${input.title}`,
+        finalContent: variant.finalContent,
+        finalStatus: variant.finalStatus,
+        acceptedProposalId: variant.accepted ? report.id * 100 + index + 1 : null,
+        sourceRevision: 1,
+        scoreStatus: 'completed' as const,
+        scoreOverall: 98,
+        suggestions: JSON.stringify(['private variant suggestion']),
+        createdAt: now,
+        updatedAt: now,
+      }))).run()
+      reportIds.push(report.id)
+      return report.id
+    }
+
+    const adjacentReportId = body.mode === 'no-adjacent' ? undefined : createReport({
+      title: `${marker} previous adjacent`,
+      weekStart: subDays(targetStart, 7),
+      weekEnd: subDays(targetStart, 1),
+      variants: [
+        { audience: 'personal', finalStatus: 'current', finalContent: `# ${marker} previous adjacent personal final`, accepted: true },
+        { audience: 'leadership', finalStatus: 'current', finalContent: `# ${marker} previous adjacent leadership final`, accepted: true },
+      ],
+    })
+    const sameAudienceReportId = createReport({
+      title: `${marker} personal history`,
+      weekStart: subDays(targetStart, 21),
+      weekEnd: subDays(targetStart, 15),
+      variants: [
+        { audience: 'personal', finalStatus: 'current', finalContent: `# ${marker} searchable personal final`, accepted: true },
+        { audience: 'leadership', finalStatus: 'none', finalContent: null, accepted: false },
+      ],
+    })
+    const crossAudienceReportId = createReport({
+      title: `${marker} leadership only`,
+      weekStart: subDays(targetStart, 14),
+      weekEnd: subDays(targetStart, 8),
+      variants: [
+        { audience: 'leadership', finalStatus: 'current', finalContent: `# ${marker} leadership secret`, accepted: true },
+        { audience: 'personal', finalStatus: 'none', finalContent: null, accepted: false },
+      ],
+    })
+    createReport({
+      title: `${marker} stale excluded`,
+      weekStart: subDays(targetStart, 28),
+      weekEnd: subDays(targetStart, 22),
+      variants: [{ audience: 'personal', finalStatus: 'stale', finalContent: `# ${marker} stale secret`, accepted: true }],
+    })
+    createReport({
+      title: `${marker} none excluded`,
+      weekStart: subDays(targetStart, 35),
+      weekEnd: subDays(targetStart, 29),
+      variants: [{ audience: 'personal', finalStatus: 'none', finalContent: null, accepted: false }],
+    })
+    createReport({
+      title: `${marker} unaccepted excluded`,
+      weekStart: subDays(targetStart, 42),
+      weekEnd: subDays(targetStart, 36),
+      variants: [{ audience: 'personal', finalStatus: 'none', finalContent: `# ${marker} unaccepted preview secret`, accepted: false }],
+    })
+    return NextResponse.json({
+      reportIds,
+      adjacentReportId,
+      sameAudienceReportId,
+      crossAudienceReportId,
+    }, { status: 201 })
+  }
   if (body.action === 'carry-forward') {
     const empty = body.mode === 'empty'
     const excludedStatus = body.mode === 'stale' ? 'stale' : body.mode === 'none' ? 'none' : 'current'

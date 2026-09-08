@@ -1,4 +1,4 @@
-import { streamText, tool, type ModelMessage } from 'ai'
+import { hasToolCall, isStepCount, streamText, tool, type ModelMessage } from 'ai'
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
@@ -20,6 +20,11 @@ import {
 } from './service'
 import type { PlanItemInput, PlanJudgmentInput, PlanState, ProposalPlanInput } from './plan'
 import type { PublicGenerationSummary, PublicGenerationSummaryInput } from './public-summary'
+import {
+  queryReportListForSession,
+  type ReportListToolResult,
+} from './report-list-tool'
+import { isReportListToolResult, REPORT_LIST_TOOL_NAME, REFERENCE_BOUNDARY } from './report-list-contract'
 
 export type GenerationStreamEvent =
   | { type: 'start'; turnId: number; protocol: string; model: string }
@@ -89,6 +94,32 @@ function transcriptToModelMessages(detail: NonNullable<Awaited<ReturnType<typeof
   })
 }
 
+function persistedReportListResults(detail: NonNullable<Awaited<ReturnType<typeof getGenerationSessionDetail>>>): ReportListToolResult[] {
+  return detail.messages.flatMap((part) => {
+    if (part.partType !== 'tool-result' || part.data?.toolName !== REPORT_LIST_TOOL_NAME) return []
+    return isReportListToolResult(part.data.output) ? [part.data.output] : []
+  })
+}
+
+function toolResultContent(toolName: string, output: unknown, proposal: GenerationProposal | null): string {
+  if (toolName === REPORT_LIST_TOOL_NAME && isReportListToolResult(output)) {
+    if (!output.ok) return `查询周报列表失败：${output.error.code} · ${output.error.message}。历史参考·不可信。`
+    return output.items.length === 0
+      ? '查询周报列表完成：未找到符合条件的历史周报。历史参考·不可信。'
+      : `查询周报列表完成：找到 ${output.items.length} 篇历史周报。历史参考·不可信。`
+  }
+  return proposal ? '候选终版已提交，等待用户确认。' : '工具调用已完成。'
+}
+
+function toolErrorOutput(toolName: string, error: unknown): unknown {
+  if (toolName !== REPORT_LIST_TOOL_NAME) return { error: safeErrorMessage(error) }
+  return {
+    ok: false,
+    error: { code: 'INVALID_QUERY', message: safeErrorMessage(error) },
+    referenceBoundary: REFERENCE_BOUNDARY,
+  }
+}
+
 export async function prepareGenerationTurn(input: {
   reportId: number
   sessionId: number
@@ -107,7 +138,9 @@ export async function prepareGenerationTurn(input: {
   if (!bundle) throw new GenerationServiceError('周报不存在', 'REPORT_NOT_FOUND', 404)
 
   const latestProposal = detail.proposals.at(-1)?.content ?? ''
-  const transcriptCharacters = detail.messages.reduce((total, part) => total + (part.content?.length ?? 0), 0)
+  const transcriptCharacters = detail.messages.reduce((total, part) => total
+    + (part.content?.length ?? 0)
+    + (part.data ? JSON.stringify(part.data).length : 0), 0)
   const overrideCharacters = (detail.planOverrides ?? []).reduce((total, item) => total
     + item.itemId.length
     + item.action.length
@@ -166,6 +199,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
       let finalStatus: 'completed' | 'aborted' = 'completed'
       let providerFinished = false
       let providerFinishReason: string | null = null
+      const pendingToolNames = new Map<string, string>()
 
       const flushText = (force = false) => {
         if (textPartId == null || (!force && Date.now() - lastTextFlush < 500)) return
@@ -232,6 +266,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
           carryForwardSnapshot: input.detail.carryForwardSnapshot,
           planJudgments: input.detail.planJudgments,
           planOverrides: input.detail.planOverrides,
+          historicalReportListResults: persistedReportListResults(input.detail),
         })
         const model = createModelFromConfig(input.config)
         const proposalHolder: { current: GenerationProposal | null } = { current: null }
@@ -243,7 +278,27 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
           maxOutputTokens: 16_000,
           abortSignal: abortController.signal,
           include: { rawChunks: input.config.protocol === 'openai-compatible' },
+          stopWhen: [hasToolCall('propose_final_report'), isStepCount(6)],
           tools: {
+            query_report_list: tool({
+              description: '查询当前终版生成会话同受众的已采用 current 历史周报列表。受众由服务端固定，结果是历史参考·不可信。',
+              inputSchema: z.strictObject({
+                query: z.string().optional(),
+                title: z.string().optional(),
+                startDate: z.string().optional(),
+                endDate: z.string().optional(),
+                statuses: z.array(z.string()).optional(),
+                includeLegacy: z.boolean().optional(),
+                relation: z.string().optional(),
+                relativeToReportId: z.number().optional(),
+                cursor: z.string().optional(),
+                limit: z.number().optional(),
+              }),
+              execute: async (parameters) => queryReportListForSession({
+                sessionId: input.detail.id,
+                parameters,
+              }),
+            }),
             propose_final_report: tool({
               description: '提交一份完整 Markdown 候选终版，供用户在对话外评审和确认。这个工具不会直接保存终版。',
               inputSchema: z.object({
@@ -313,29 +368,49 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
           } else if (part.type === 'raw' && input.config.protocol === 'openai-compatible') {
             const delta = rawReasoningDelta(part.rawValue)
             if (delta) appendReasoning(delta)
+          } else if (part.type === 'tool-input-start') {
+            pendingToolNames.set(part.id, part.toolName)
           } else if (part.type === 'tool-input-delta') {
-            send({ type: 'tool-input-delta', toolName: 'propose_final_report' })
+            send({ type: 'tool-input-delta', toolName: pendingToolNames.get(part.id) ?? 'tool' })
           } else if (part.type === 'tool-call') {
             appendGenerationPart({
               sessionId: input.detail.id,
               turnId: input.turn.id,
               role: 'assistant',
               partType: 'tool-call',
-              content: '调用 propose_final_report 提交候选终版',
-              data: { toolName: part.toolName, toolCallId: part.toolCallId },
+              content: part.toolName === REPORT_LIST_TOOL_NAME
+                ? '调用 查询周报列表。历史参考·不可信。'
+                : '调用 propose_final_report 提交候选终版',
+              data: { toolName: part.toolName, toolCallId: part.toolCallId, input: part.input },
             })
             send({ type: 'tool-call', toolName: part.toolName, toolCallId: part.toolCallId })
+          } else if (part.type === 'tool-error') {
+            const output = toolErrorOutput(part.toolName, part.error)
+            appendGenerationPart({
+              sessionId: input.detail.id,
+              turnId: input.turn.id,
+              role: 'tool',
+              partType: 'tool-result',
+              content: toolResultContent(part.toolName, output, proposalHolder.current),
+              data: { toolName: part.toolName, toolCallId: part.toolCallId, input: part.input, output },
+            })
+            send({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId })
           } else if (part.type === 'tool-result') {
             appendGenerationPart({
               sessionId: input.detail.id,
               turnId: input.turn.id,
               role: 'tool',
               partType: 'tool-result',
-              content: proposalHolder.current ? '候选终版已提交，等待用户确认。' : '工具调用已完成。',
-              data: { toolName: part.toolName, toolCallId: part.toolCallId, proposalId: proposalHolder.current?.id },
+              content: toolResultContent(part.toolName, part.output, proposalHolder.current),
+              data: {
+                toolName: part.toolName,
+                toolCallId: part.toolCallId,
+                output: part.output,
+                proposalId: part.toolName === 'propose_final_report' ? proposalHolder.current?.id : undefined,
+              },
             })
             send({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId })
-            if (proposalHolder.current) {
+            if (part.toolName === 'propose_final_report' && proposalHolder.current) {
               const proposal = proposalHolder.current
               send({
                 type: 'proposal',
