@@ -43,21 +43,7 @@ export async function getSystemPrompt(key: 'check' | 'generate'): Promise<string
 - 只返回终版 Markdown 正文。`
   }
 
-  // score
-  return `你是一个周报评分专家。请对以下周报进行评分和建议。
-
-周报内容：
-{{content}}
-
-请从以下维度评分（0-100）：
-1. structure（结构完整度）：各区块是否填写完整
-2. content（内容充实度）：是否有具体细节和数据
-3. value（价值突出度）：是否强调成果和贡献
-
-请给出：
-1. 各维度评分
-2. 具体改进建议（每条不超过30字）
-3. （可选）改写示例`
+  throw new Error(`Unknown system prompt key: ${key}`)
 }
 
 /** 简单的 Mustache 风格模板替换：{{var}} 或 {{#var}}...{{/var}} */
