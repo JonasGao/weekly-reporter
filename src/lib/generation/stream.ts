@@ -98,17 +98,21 @@ function transcriptToModelMessages(detail: NonNullable<Awaited<ReturnType<typeof
 }
 
 function persistedReportListResults(detail: NonNullable<Awaited<ReturnType<typeof getGenerationSessionDetail>>>): ReportListToolResult[] {
-  return detail.messages.flatMap((part) => {
+  const results = detail.messages.flatMap((part) => {
     if (part.partType !== 'tool-result' || part.data?.toolName !== REPORT_LIST_TOOL_NAME) return []
-    return isReportListToolResult(part.data.output) ? [part.data.output] : []
+    return isReportListToolResult(part.data.output) ? [{ result: part.data.output, refreshed: part.data.refreshed === true }] : []
   })
+  const refreshed = results.findLast((item) => item.refreshed)
+  return refreshed ? [refreshed.result] : results.map((item) => item.result)
 }
 
 function persistedReportContentResults(detail: NonNullable<Awaited<ReturnType<typeof getGenerationSessionDetail>>>): ReportContentToolResult[] {
-  return detail.messages.flatMap((part) => {
+  const results = detail.messages.flatMap((part) => {
     if (part.partType !== 'tool-result' || part.data?.toolName !== REPORT_CONTENT_TOOL_NAME) return []
-    return isReportContentToolResult(part.data.output) ? [part.data.output] : []
+    return isReportContentToolResult(part.data.output) ? [{ result: part.data.output, refreshed: part.data.refreshed === true }] : []
   })
+  const refreshed = results.findLast((item) => item.refreshed)
+  return refreshed ? [refreshed.result] : results.map((item) => item.result)
 }
 
 function toolResultContent(toolName: string, output: unknown, proposal: GenerationProposal | null): string {
@@ -226,6 +230,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
       let providerFinished = false
       let providerFinishReason: string | null = null
       const pendingToolNames = new Map<string, string>()
+      const toolStartedAt = new Map<string, number>()
       let historyQueryCount = 0
       let contentQueryCount = 0
 
@@ -431,6 +436,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
             if (delta) appendReasoning(delta)
           } else if (part.type === 'tool-input-start') {
             pendingToolNames.set(part.id, part.toolName)
+            toolStartedAt.set(part.id, Date.now())
           } else if (part.type === 'tool-input-delta') {
             send({ type: 'tool-input-delta', toolName: pendingToolNames.get(part.id) ?? 'tool' })
           } else if (part.type === 'tool-call') {
@@ -449,6 +455,9 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
             send({ type: 'tool-call', toolName: part.toolName, toolCallId: part.toolCallId })
           } else if (part.type === 'tool-error') {
             const output = toolErrorOutput(part.toolName, part.error)
+            if (part.toolName === REPORT_LIST_TOOL_NAME || part.toolName === REPORT_CONTENT_TOOL_NAME) {
+              persistQuerySnapshot({ sessionId: input.detail.id, toolName: part.toolName, parameters: (part.input ?? {}) as Record<string, unknown>, result: output as Record<string, unknown>, durationMs: Date.now() - (toolStartedAt.get(part.toolCallId) ?? Date.now()) })
+            }
             appendGenerationPart({
               sessionId: input.detail.id,
               turnId: input.turn.id,

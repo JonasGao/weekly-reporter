@@ -15,12 +15,11 @@ export function persistQuerySnapshot(input: {
   const db = getDb()
   const session = db.select().from(generationSessions).where(eq(generationSessions.id, input.sessionId)).get()
   if (!session) return null
-  const variant = db.select({ updatedAt: reportVariants.updatedAt }).from(reportVariants).where(eq(reportVariants.id, session.reportVariantId)).get()
   const result = input.result
   const count = Array.isArray(result.items) ? result.items.length : Array.isArray(result.matches) ? result.matches.length : result.found ? 1 : 0
   const truncated = result.truncated === true || result.matchesTruncated === true
   const errorCode = result.ok === false && result.error && typeof result.error === 'object' && 'code' in result.error ? String((result.error as { code: unknown }).code) : null
-  const identity = (result.identity && typeof result.identity === 'object' ? result.identity : Array.isArray(result.items) ? result.items[0] : null) as { weekStart?: string; weekEnd?: string; finalStatus?: string } | null
+  const identity = (result.identity && typeof result.identity === 'object' ? result.identity : Array.isArray(result.items) && result.items.length === 1 ? result.items[0] : null) as { weekStart?: string; weekEnd?: string; finalStatus?: string; updatedAt?: string } | null
   const previous = input.previousSnapshotId ?? db.select({ id: generationQuerySnapshots.id }).from(generationQuerySnapshots)
     .where(and(eq(generationQuerySnapshots.sessionId, input.sessionId), eq(generationQuerySnapshots.toolName, input.toolName))).orderBy(desc(generationQuerySnapshots.id)).limit(1).get()?.id ?? null
   return db.insert(generationQuerySnapshots).values({
@@ -30,7 +29,7 @@ export function persistQuerySnapshot(input: {
     calledAt: new Date(),
     sourceReportId: session.reportId,
     sourceAudience: session.variant as AudienceVariant,
-    sourceUpdatedAt: variant?.updatedAt ?? null,
+    sourceUpdatedAt: identity?.updatedAt ? new Date(identity.updatedAt) : null,
     sourceWeekStart: identity?.weekStart ?? null,
     sourceWeekEnd: identity?.weekEnd ?? null,
     sourceFinalStatus: identity?.finalStatus ?? null,

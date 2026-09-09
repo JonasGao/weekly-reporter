@@ -39,10 +39,10 @@ export function queryReportContentForSession(input: { sessionId: number; paramet
     const reportId = Number(params.reportId)
     const query = params.query?.trim()
     if (params.query !== undefined && (!query || query.length > MAX_QUERY_CHARS)) return invalid('query must contain 1 to 200 characters after trimming')
-    const requestedMaxMatches = params.maxMatches ?? 3
+    const requestedMaxMatches = params.maxMatches ?? 5
     const contextLines = params.contextLines ?? 1
     if (!Number.isInteger(requestedMaxMatches) || requestedMaxMatches < 1 || requestedMaxMatches > 10) return invalid('maxMatches must be an integer from 1 to 10')
-    const maxMatches = Math.min(requestedMaxMatches, 3)
+    const maxMatches = requestedMaxMatches
     if (!Number.isInteger(contextLines) || contextLines < 0 || contextLines > 5) return invalid('contextLines must be an integer from 0 to 5')
     const db = getDb()
     const session = db.select({ reportId: generationSessions.reportId, audience: generationSessions.variant }).from(generationSessions).where(eq(generationSessions.id, input.sessionId)).get()
@@ -84,7 +84,7 @@ export function queryReportContentForSession(input: { sessionId: number; paramet
       return [match]
     })
     const budgetTruncated = matches.length < matched.ranges.slice(0, maxMatches).length
-    return { ok: true, found: true, identity, query, matches, totalMatches: matched.total, returnedMatches: Math.min(matched.total, maxMatches), truncated: budgetTruncated || matched.total > maxMatches, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
+    return { ok: true, found: true, identity, query, matches, totalMatches: matched.total, returnedMatches: matches.length, truncated: budgetTruncated || matched.total > maxMatches, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }
   } catch (error) {
     console.error('[generation] Report content query failed:', error)
     return { ok: false, error: { code: 'QUERY_FAILED', message: 'Failed to query historical report content' }, referenceBoundary: CONTENT_REFERENCE_BOUNDARY }

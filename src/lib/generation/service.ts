@@ -287,6 +287,15 @@ export async function refreshHistoricalQuery(input: { reportId: number; sessionI
     ? queryReportListForSession({ sessionId: input.sessionId, parameters: previous.parameters as never })
     : queryReportContentForSession({ sessionId: input.sessionId, parameters: previous.parameters as never })
   const snapshot = persistQuerySnapshot({ sessionId: input.sessionId, toolName: previous.toolName, parameters: previous.parameters, result: result as unknown as Record<string, unknown>, durationMs: Date.now() - started, trigger: 'user', previousSnapshotId: previous.id })
+  if (snapshot) {
+    appendGenerationPart({
+      sessionId: input.sessionId,
+      role: 'tool',
+      partType: 'tool-result',
+      content: `历史查询已刷新：${previous.toolName}。历史参考·不可信。`,
+      data: { toolName: previous.toolName, output: result, snapshotId: snapshot.id, refreshed: true },
+    })
+  }
   return snapshot
 }
 

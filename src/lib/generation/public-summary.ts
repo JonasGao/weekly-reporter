@@ -188,12 +188,11 @@ export function buildPublicGenerationSummary(input: {
   for (const result of input.historicalReportListResults ?? []) {
     if (!result.ok) continue
     for (const item of result.items) {
-      if (item.finalStatus !== 'stale' && !item.isLegacy) continue
       queriedReferences.set(`${item.reportId}:${item.audience}`, queriedHistoricalReference(item))
     }
   }
   for (const result of input.historicalReportContentResults ?? []) {
-    if (!result.ok || !result.found || result.identity.finalStatus === 'none' || (result.identity.finalStatus !== 'stale' && !result.identity.isLegacy)) continue
+    if (!result.ok || !result.found || result.identity.finalStatus === 'none') continue
     const item = result.identity
     queriedReferences.set(`${item.reportId}:${item.audience}`, queriedHistoricalReference({
       ...item,

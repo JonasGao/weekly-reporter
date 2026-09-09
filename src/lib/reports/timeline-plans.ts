@@ -55,7 +55,7 @@ export async function getTimelinePlanProjection(now = new Date()): Promise<Timel
     const audienceVariants = variantsByAudience[audience]
     for (const report of candidateReports) {
       const row = audienceVariants.find((candidate) => candidate.reportId === report.id)
-      if (row?.finalStatus === 'current' && typeof row.finalContent === 'string' && row.finalContent.trim()) {
+      if (row?.finalStatus === 'current' && row.acceptedProposalId != null && typeof row.finalContent === 'string' && row.finalContent.trim()) {
         source = report
         variant = row
         break
