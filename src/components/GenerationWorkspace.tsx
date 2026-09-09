@@ -888,8 +888,9 @@ export function GenerationWorkspace({
     const data = await response.json()
     if (!response.ok) throw new Error(data.error || 'Failed to load session')
     setDetail(data)
-    setLiveProposal(null)
+    // Clear liveProposal after detail is set, so the component uses detail.proposals.at(-1)
     if (settleLiveStream) {
+      setLiveProposal(null)
       setLiveTurnId(null)
       setLiveUser('')
       resetLiveOutput()
@@ -1063,6 +1064,7 @@ export function GenerationWorkspace({
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to save proposed final version')
       onAccepted(data.variant)
+      setLiveProposal(null) // Clear live proposal so we show the updated proposal from detail
       await Promise.all([loadDetail(activeSessionId), loadSessions(activeSessionId)])
       toast.success('Final version saved; scoring will run in the background')
     } catch (error) {
@@ -1083,6 +1085,7 @@ export function GenerationWorkspace({
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to record plan override')
+      setLiveProposal(null) // Clear live proposal since pending proposals are superseded
       await Promise.all([loadDetail(activeSessionId), loadSessions(activeSessionId)])
       toast.success(`Plan override recorded: ${action}`)
       return true
