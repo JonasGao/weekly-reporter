@@ -39,13 +39,6 @@ export async function GET(request: Request) {
         ...report,
         // Compatibility fields used by the existing report list.
         content: personal?.finalContent ?? personal?.sourceDraft ?? report.content,
-        scoreStatus: personal?.finalContent ? (personal.scoreStatus ?? report.scoreStatus) : 'completed',
-        scoreStructure: personal?.scoreStructure ?? report.scoreStructure,
-        scoreContent: personal?.scoreContent ?? report.scoreContent,
-        scoreValue: personal?.scoreValue ?? report.scoreValue,
-        scoreOverall: personal?.scoreOverall ?? report.scoreOverall,
-        suggestions: personal?.suggestions ?? report.suggestions,
-        scoreError: personal?.scoreError ?? report.scoreError,
         variants: variantByReport.get(report.id) ?? [],
       }
     })

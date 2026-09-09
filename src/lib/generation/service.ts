@@ -22,7 +22,6 @@ import { getSystemPrompt } from '@/lib/ai'
 import { getAIStyle } from '@/lib/ai/styles'
 import { getTemplateSelection, getReportBundle } from '@/lib/reports/service'
 import { createStructureCompletenessRule } from '@/lib/reports/structure-completeness'
-import { triggerAsyncVariantScoring } from '@/lib/scoring'
 import {
   buildEffectiveGenerationSystemPrompt,
   buildSourceOverview,
@@ -629,14 +628,6 @@ export async function acceptGenerationProposal(input: {
       structureCompletenessRule: createStructureCompletenessRule(session.templateContent),
       aiStyle: session.aiStyleKey,
       acceptedProposalId: proposal.id,
-      scoreStatus: 'pending',
-      scoreStructure: null,
-      scoreContent: null,
-      scoreValue: null,
-      scoreOverall: null,
-      suggestions: null,
-      scoreError: null,
-      scoredAt: null,
       updatedAt: now,
     }).where(eq(reportVariants.id, currentVariant.id)).returning().get()
     tx.update(generationProposals).set({ status: 'accepted', acceptedAt: now }).where(eq(generationProposals.id, proposal.id)).run()
@@ -659,8 +650,5 @@ export async function acceptGenerationProposal(input: {
     return { session, proposal: { ...proposal, status: 'accepted' as const, acceptedAt: now }, variant: updatedVariant }
   })
 
-  triggerAsyncVariantScoring(accepted.variant.id).catch((scoringError) => {
-    console.error('[generation] Variant scoring failed:', scoringError)
-  })
   return accepted
 }

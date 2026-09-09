@@ -60,9 +60,6 @@ export async function POST(request: Request) {
         content: `# raw source must stay private: ${input.title}`,
         weekStart: format(input.weekStart, 'yyyy-MM-dd'),
         weekEnd: format(input.weekEnd, 'yyyy-MM-dd'),
-        scoreStatus: 'completed',
-        scoreOverall: 99,
-        suggestions: JSON.stringify(['private score suggestion']),
         createdAt: now,
         updatedAt: now,
       }).returning().get()
@@ -74,9 +71,6 @@ export async function POST(request: Request) {
         finalStatus: variant.finalStatus,
         acceptedProposalId: variant.accepted ? report.id * 100 + index + 1 : null,
         sourceRevision: 1,
-        scoreStatus: 'completed' as const,
-        scoreOverall: 98,
-        suggestions: JSON.stringify(['private variant suggestion']),
         createdAt: now,
         updatedAt: now,
       }))).run()
@@ -137,7 +131,6 @@ export async function POST(request: Request) {
       content: `# ${marker} legacy readable content\n\n${marker} legacy grep target`,
       weekStart: format(subDays(targetStart, 56), 'yyyy-MM-dd'),
       weekEnd: format(subDays(targetStart, 50), 'yyyy-MM-dd'),
-      scoreStatus: 'completed',
       createdAt: now,
       updatedAt: now,
     }).returning().get().id
@@ -186,7 +179,6 @@ export async function POST(request: Request) {
         content: `# ${marker} previous cycle`,
         weekStart: '2027-01-04',
         weekEnd: '2027-01-10',
-        scoreStatus: 'completed',
         createdAt: now,
         updatedAt: now,
       }).returning().get()
@@ -200,7 +192,6 @@ export async function POST(request: Request) {
             finalStatus: excludedStatus as 'current' | 'stale' | 'none',
             acceptedProposalId: excludedStatus === 'current' ? 101 : null,
             sourceRevision: 1,
-            scoreStatus: 'completed' as const,
             createdAt: now,
             updatedAt: now,
           },
@@ -212,7 +203,6 @@ export async function POST(request: Request) {
             finalStatus: excludedStatus as 'current' | 'stale' | 'none',
             acceptedProposalId: excludedStatus === 'current' ? 102 : null,
             sourceRevision: 1,
-            scoreStatus: 'completed' as const,
             createdAt: now,
             updatedAt: now,
           },
@@ -225,7 +215,6 @@ export async function POST(request: Request) {
         content: `# ${marker} older cycle`,
         weekStart: '2027-01-18',
         weekEnd: '2027-01-24',
-        scoreStatus: 'completed',
         createdAt: now,
         updatedAt: now,
       }).returning().get()
@@ -236,7 +225,6 @@ export async function POST(request: Request) {
         finalContent: `## 下周计划\n- ${marker} must not backfill`,
         finalStatus: 'current' as const,
         sourceRevision: 1,
-        scoreStatus: 'completed' as const,
         createdAt: now,
         updatedAt: now,
       }).run()
@@ -256,13 +244,10 @@ export async function POST(request: Request) {
       content: `# ${marker} target report`,
       weekStart: targetWeekStart,
       weekEnd: targetWeekEnd,
-      scoreStatus: 'completed',
       createdAt: now,
       updatedAt: now,
     }).returning().get()
     db.insert(reportVariants).values([
-      { reportId: target.id, variant: 'leadership' as const, sourceDraft: `- ${marker} current source fact`, finalStatus: 'none' as const, sourceRevision: 1, scoreStatus: 'pending' as const, createdAt: now, updatedAt: now },
-      { reportId: target.id, variant: 'personal' as const, sourceDraft: `- ${marker} current source fact`, finalStatus: 'none' as const, sourceRevision: 1, scoreStatus: 'pending' as const, createdAt: now, updatedAt: now },
     ]).run()
     reportIds.push(target.id)
     return NextResponse.json({ targetReportId: target.id, reportIds, eventIds }, { status: 201 })
@@ -278,7 +263,6 @@ export async function POST(request: Request) {
       content: `# ${marker} timeline history`,
       weekStart,
       weekEnd,
-      scoreStatus: 'completed',
       createdAt: now,
       updatedAt: now,
     }).returning().get()
@@ -291,7 +275,6 @@ export async function POST(request: Request) {
         finalStatus: 'current' as const,
         acceptedProposalId: report.id * 100 + 1,
         sourceRevision: 1,
-        scoreStatus: 'completed' as const,
         createdAt: now,
         updatedAt: now,
       },
@@ -303,7 +286,6 @@ export async function POST(request: Request) {
         finalStatus: 'current' as const,
         acceptedProposalId: report.id * 100 + 2,
         sourceRevision: 1,
-        scoreStatus: 'completed' as const,
         createdAt: now,
         updatedAt: now,
       },
@@ -315,7 +297,6 @@ export async function POST(request: Request) {
       content: `# ${marker} stale timeline history`,
       weekStart,
       weekEnd,
-      scoreStatus: 'completed',
       createdAt: now,
       updatedAt: now,
     }).returning().get()
@@ -326,7 +307,6 @@ export async function POST(request: Request) {
       finalContent: `## 下周计划\n- ${marker} stale excluded`,
       finalStatus: 'stale' as const,
       sourceRevision: 1,
-      scoreStatus: 'completed' as const,
       createdAt: now,
       updatedAt: now,
     }))).run()
@@ -337,7 +317,6 @@ export async function POST(request: Request) {
       content: `## 下周计划\n- ${marker} legacy excluded`,
       weekStart: format(subDays(previousWeekStart, 7), 'yyyy-MM-dd'),
       weekEnd: format(subDays(previousWeekStart, 1), 'yyyy-MM-dd'),
-      scoreStatus: 'completed',
       createdAt: now,
       updatedAt: now,
     }).returning().get()
@@ -351,7 +330,6 @@ export async function POST(request: Request) {
       content: `# ${kind} history`,
       weekStart: kind === 'current' ? '2026-12-21' : '2026-12-14',
       weekEnd: kind === 'current' ? '2026-12-27' : '2026-12-20',
-      scoreStatus: 'completed',
       createdAt: now,
       updatedAt: now,
     }).returning().get()
@@ -363,8 +341,6 @@ export async function POST(request: Request) {
       finalContent: `# ${marker} ${variant} final`,
       finalStatus,
       sourceRevision: 1,
-      scoreStatus: 'completed' as const,
-      scoreOverall: 80,
       createdAt: now,
       updatedAt: now,
     }))).run()
@@ -377,8 +353,6 @@ export async function POST(request: Request) {
     content: `# ${marker} legacy final`,
     weekStart: '2026-12-07',
     weekEnd: '2026-12-13',
-    scoreStatus: 'completed',
-    scoreOverall: 70,
     createdAt: now,
     updatedAt: now,
   }).returning().get()

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { and, desc, eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
 import { generationMessageParts, generationProposals, generationSessions, reportVariants, reports } from '@/lib/db/schema'
-import { triggerAsyncScoring, triggerAsyncVariantScoring } from '@/lib/scoring'
 import { normalizeStructureCompletenessRule } from '@/lib/reports/structure-completeness'
 
 export async function PUT(
@@ -35,17 +34,8 @@ export async function PUT(
       const now = new Date()
       const updated = await db.update(reports).set({
         content: body.content.trim(),
-        scoreStatus: 'pending',
-        scoreStructure: null,
-        scoreContent: null,
-        scoreValue: null,
-        scoreOverall: null,
-        suggestions: null,
-        scoreError: null,
-        scoredAt: null,
         updatedAt: now,
       }).where(eq(reports.id, reportId)).returning()
-      triggerAsyncScoring(reportId).catch((error) => console.error('[reports] Legacy scoring failed:', error))
       return NextResponse.json(updated[0])
     }
     if (!existing) {
@@ -66,14 +56,6 @@ export async function PUT(
         existing.structureCompletenessRule,
         existing.templateContent,
       ),
-      scoreStatus: 'pending',
-      scoreStructure: null,
-      scoreContent: null,
-      scoreValue: null,
-      scoreOverall: null,
-      suggestions: null,
-      scoreError: null,
-      scoredAt: null,
       updatedAt: now,
     } as const
     const updated = db.transaction((tx) => {
@@ -115,11 +97,6 @@ export async function PUT(
       }
       return updatedVariant
     })
-    if (updated) {
-      triggerAsyncVariantScoring(updated.id).catch((error) => {
-        console.error('[reports] Variant scoring failed:', error)
-      })
-    }
 
     return NextResponse.json(updated)
   } catch (error) {

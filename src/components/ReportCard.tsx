@@ -4,26 +4,18 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Pencil, Trash2 } from 'lucide-react'
-import { ScoreBadge } from '@/components/ScoreBadge'
 import type { Report } from '@/lib/db/schema'
 import { formatSystemDate } from '@/lib/time-format'
 
 interface ReportCardProps {
   report: Report
   onDelete: (id: number) => void
-  onRetry?: (id: number) => void
 }
 
-export function ReportCard({ report, onDelete, onRetry }: ReportCardProps) {
+export function ReportCard({ report, onDelete }: ReportCardProps) {
   const weekStart = formatSystemDate(report.weekStart)
   const weekEnd = formatSystemDate(report.weekEnd)
   const createdAt = formatSystemDate(report.createdAt)
-
-  const handleRetry = async () => {
-    if (onRetry) {
-      onRetry(report.id)
-    }
-  }
 
   return (
     <a href={`/reports/${report.id}`} className="block">
@@ -32,12 +24,6 @@ export function ReportCard({ report, onDelete, onRetry }: ReportCardProps) {
           <div className="flex items-start justify-between gap-4 max-[720px]:flex-col">
             <CardTitle className="text-lg flex-1 max-[720px]:pr-0">{report.title}</CardTitle>
             <div className="flex gap-2 items-center max-[720px]:w-full max-[720px]:justify-end max-[720px]:mt-2">
-              <ScoreBadge
-                scoreStatus={report.scoreStatus}
-                scoreOverall={report.scoreOverall}
-                scoreError={report.scoreError}
-                onRetry={handleRetry}
-              />
               <Link href={`/edit/${report.id}`} onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" aria-label="Edit">
                   <Pencil className="h-4 w-4" />

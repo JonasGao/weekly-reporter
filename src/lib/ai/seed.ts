@@ -47,9 +47,6 @@ const BUILTIN_STYLES = [
 - 主观情绪化表述（如"非常辛苦""极其困难"）
 - 无数据支撑的形容词堆砌`,
     temperature: '0.3',
-    scoreStructureWeight: 25,
-    scoreContentWeight: 30,
-    scoreValueWeight: 45,
     isDefault: true,
   },
   {
@@ -69,9 +66,6 @@ const BUILTIN_STYLES = [
 - 只描述"做了什么"不解释"为什么这么做/为什么不选替代方案"
 - 忽略未完成或受阻的工作`,
     temperature: '0.4',
-    scoreStructureWeight: 20,
-    scoreContentWeight: 50,
-    scoreValueWeight: 30,
     isDefault: false,
   },
   {
@@ -96,9 +90,6 @@ const BUILTIN_STYLES = [
 - 超过 40 字的单条
 - 用段落而非列表`,
     temperature: '0.2',
-    scoreStructureWeight: 40,
-    scoreContentWeight: 30,
-    scoreValueWeight: 30,
     isDefault: false,
   },
   {
@@ -124,9 +115,6 @@ const BUILTIN_STYLES = [
 - 泛泛而谈没有具体事例
 - 把所有问题归因于"时间不够""需求不明确"等外部因素`,
     temperature: '0.5',
-    scoreStructureWeight: 20,
-    scoreContentWeight: 55,
-    scoreValueWeight: 25,
     isDefault: false,
   },
 ]
@@ -150,24 +138,6 @@ const BUILTIN_SYSTEM_PROMPTS = [
 
 请给出具体、简洁的建议（每条不超过20字）。
 如果内容很好，返回空数组 []。`,
-  },
-  {
-    key: 'score' as const,
-    label: '周报评分',
-    promptText: `你是一个周报评分专家。请对以下周报进行评分和建议。
-
-周报内容：
-{{content}}
-
-请从以下维度评分（0-100）：
-1. structure（结构完整度）：各区块是否填写完整
-2. content（内容充实度）：是否有具体细节和数据
-3. value（价值突出度）：是否强调成果和贡献
-
-请给出：
-1. 各维度评分
-2. 具体改进建议（每条不超过30字）
-3. （可选）改写示例`,
   },
   {
     key: 'generate' as const,

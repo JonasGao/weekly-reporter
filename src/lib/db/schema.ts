@@ -1,7 +1,6 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import type { StructureCompletenessRule } from '@/lib/reports/structure-completeness'
 
-export type ScoreStatus = 'pending' | 'scoring' | 'completed' | 'failed'
 export type AudienceVariant = 'leadership' | 'personal'
 export type FinalStatus = 'none' | 'current' | 'stale'
 export type GenerationSessionStatus = 'active' | 'archived'
@@ -31,14 +30,6 @@ export const reports = sqliteTable('reports', {
   weekStart: text('week_start').notNull(),
   weekEnd: text('week_end').notNull(),
   aiStyleOverride: text('ai_style_override').$type<AIStyle>(),
-  scoreStatus: text('score_status').$type<ScoreStatus>().default('pending').notNull(),
-  scoreStructure: integer('score_structure'),
-  scoreContent: integer('score_content'),
-  scoreValue: integer('score_value'),
-  scoreOverall: integer('score_overall'),
-  suggestions: text('suggestions'),
-  scoreError: text('score_error'),
-  scoredAt: integer('scored_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 })
@@ -48,8 +39,6 @@ export type NewReport = typeof reports.$inferInsert
 
 /**
  * A persisted audience-specific source draft and optional AI-generated final.
- * The legacy reports.content/score columns remain for reports created before
- * the dual-variant model was introduced.
  */
 export const reportVariants = sqliteTable('report_variants', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -66,14 +55,6 @@ export const reportVariants = sqliteTable('report_variants', {
   aiStyle: text('ai_style').$type<AIStyle>(),
   acceptedProposalId: integer('accepted_proposal_id'),
   sourceRevision: integer('source_revision').notNull().default(1),
-  scoreStatus: text('score_status').$type<ScoreStatus>().default('pending').notNull(),
-  scoreStructure: integer('score_structure'),
-  scoreContent: integer('score_content'),
-  scoreValue: integer('score_value'),
-  scoreOverall: integer('score_overall'),
-  suggestions: text('suggestions'),
-  scoreError: text('score_error'),
-  scoredAt: integer('scored_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (table) => ({
@@ -368,9 +349,6 @@ export const aiStyles = sqliteTable('ai_styles', {
   label: text('label').notNull(),
   systemPrompt: text('system_prompt').notNull(),
   temperature: text('temperature').notNull().default('0.3'),
-  scoreStructureWeight: integer('score_structure_weight').notNull().default(25),
-  scoreContentWeight: integer('score_content_weight').notNull().default(30),
-  scoreValueWeight: integer('score_value_weight').notNull().default(45),
   detailLevel: text('detail_level').$type<DetailLevel>(),
   resultOriented: text('result_oriented').$type<ResultOriented>(),
   isDefault: integer('is_default', { mode: 'boolean' }).default(false).notNull(),
@@ -383,7 +361,7 @@ export type NewAIStyleRow = typeof aiStyles.$inferInsert
 
 // --- 系统提示词表（全局唯一，只可编辑） ---
 
-export type SystemPromptKey = 'check' | 'score' | 'generate'
+export type SystemPromptKey = 'check' | 'generate'
 
 export const systemPrompts = sqliteTable('system_prompts', {
   id: integer('id').primaryKey({ autoIncrement: true }),

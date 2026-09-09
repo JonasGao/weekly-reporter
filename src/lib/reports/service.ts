@@ -116,7 +116,6 @@ export async function createReportWithSourceDrafts(input: {
       title: input.title,
       // Kept populated for old list/search clients. New code reads variants.
       content: drafts.personal,
-      scoreStatus: 'completed',
       weekStart: input.weekStart,
       weekEnd: input.weekEnd,
       createdAt: now,
@@ -148,7 +147,6 @@ export async function createReportWithSourceDrafts(input: {
       sourceDraft: drafts[variant],
       finalStatus: 'none' as const,
       sourceRevision: 1,
-      scoreStatus: 'pending' as const,
       createdAt: now,
       updatedAt: now,
     }))).returning().all()
@@ -229,7 +227,6 @@ export async function regenerateSourceDrafts(reportId: number) {
           sourceDraft: drafts[variant],
           sourceRevision: nextRevision,
           finalStatus: 'none',
-          scoreStatus: 'pending',
           createdAt: now,
           updatedAt: now,
         }).run()

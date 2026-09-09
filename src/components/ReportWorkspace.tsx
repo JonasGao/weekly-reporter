@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { MilkdownEditor } from '@/components/editor/MilkdownEditor'
 import { GenerationWorkspace } from '@/components/GenerationWorkspace'
-import { ScoreCard } from '@/components/ScoreCard'
 import type { AudienceVariant, Report, ReportVariant } from '@/lib/db/schema'
 import { EMPTY_SOURCE_DRAFT } from '@/lib/reports/source-draft'
 import { formatSystemDate } from '@/lib/time-format'
@@ -48,14 +47,6 @@ function normalizeBundle(data: Partial<ReportBundle> & { id: number; content?: s
     aiStyle: null,
     acceptedProposalId: null,
     sourceRevision: 0,
-    scoreStatus: data.scoreStatus ?? 'completed',
-    scoreStructure: data.scoreStructure ?? null,
-    scoreContent: data.scoreContent ?? null,
-    scoreValue: data.scoreValue ?? null,
-    scoreOverall: data.scoreOverall ?? null,
-    suggestions: data.suggestions ?? null,
-    scoreError: data.scoreError ?? null,
-    scoredAt: data.scoredAt ?? null,
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
   }
@@ -124,21 +115,6 @@ export function ReportWorkspace({ reportId, editable = true }: { reportId: numbe
     void load()
     return () => { cancelled = true }
   }, [reportId])
-
-  function scoreShape(item: ReportVariant): Report {
-    return {
-      ...(bundle as Report),
-      content: item.finalContent ?? item.sourceDraft,
-      scoreStatus: item.scoreStatus,
-      scoreStructure: item.scoreStructure,
-      scoreContent: item.scoreContent,
-      scoreValue: item.scoreValue,
-      scoreOverall: item.scoreOverall,
-      suggestions: item.suggestions,
-      scoreError: item.scoreError,
-      scoredAt: item.scoredAt,
-    }
-  }
 
   function selectVariant(nextVariant: AudienceVariant) {
     const next = bundle?.variants.find((item) => item.variant === nextVariant)
@@ -293,7 +269,6 @@ export function ReportWorkspace({ reportId, editable = true }: { reportId: numbe
           </section>
 
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-            {hasFinal && <ScoreCard report={scoreShape(currentVariant)} />}
             <div className="rounded-xl border border-border p-4 text-sm text-muted-foreground">
               <p className="mb-2 font-medium text-foreground">Source draft</p>
               <div data-testid="source-draft-scroll" className="max-h-[min(42vh,440px)] overflow-y-auto rounded-lg border border-border bg-muted/20 p-3 pr-2 prose prose-sm dark:prose-invert prose-report max-w-none">

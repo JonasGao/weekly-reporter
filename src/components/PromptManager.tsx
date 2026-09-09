@@ -33,9 +33,6 @@ interface StyleFormData {
   label: string
   systemPrompt: string
   temperature: number
-  scoreStructureWeight: number
-  scoreContentWeight: number
-  scoreValueWeight: number
   detailLevel: string
   resultOriented: string
   isDefault: boolean
@@ -47,9 +44,6 @@ function emptyStyleForm(key = ''): StyleFormData {
     label: '',
     systemPrompt: '',
     temperature: 0.3,
-    scoreStructureWeight: 25,
-    scoreContentWeight: 30,
-    scoreValueWeight: 45,
     detailLevel: 'medium',
     resultOriented: 'medium',
     isDefault: false,
@@ -134,9 +128,6 @@ function StyleTab() {
       label: style.label,
       systemPrompt: style.systemPrompt,
       temperature: parseFloat(style.temperature),
-      scoreStructureWeight: style.scoreStructureWeight,
-      scoreContentWeight: style.scoreContentWeight,
-      scoreValueWeight: style.scoreValueWeight,
       detailLevel: style.detailLevel ?? 'medium',
       resultOriented: style.resultOriented ?? 'medium',
       isDefault: style.isDefault,
@@ -362,39 +353,6 @@ function StyleTab() {
                       onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })}
                       className="w-full"
                     />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Structure weight</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={form.scoreStructureWeight}
-                        onChange={(e) => setForm({ ...form, scoreStructureWeight: parseInt(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Content weight</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={form.scoreContentWeight}
-                        onChange={(e) => setForm({ ...form, scoreContentWeight: parseInt(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Value weight</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={form.scoreValueWeight}
-                        onChange={(e) => setForm({ ...form, scoreValueWeight: parseInt(e.target.value) || 0 })}
-                      />
-                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

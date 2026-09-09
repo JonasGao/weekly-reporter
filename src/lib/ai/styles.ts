@@ -8,27 +8,16 @@ export interface AIStyleConfig {
   label: string
   systemPrompt: string
   temperature: number
-  scoreWeights: {
-    structure: number
-    content: number
-    value: number
-  }
   detailLevel?: 'low' | 'medium' | 'high'
   resultOriented?: 'low' | 'medium' | 'high'
 }
 
 /** 将数据库行转换为 AIStyleConfig */
 function rowToConfig(row: AIStyleRow): AIStyleConfig {
-  const total = row.scoreStructureWeight + row.scoreContentWeight + row.scoreValueWeight || 100
   return {
     label: row.label,
     systemPrompt: row.systemPrompt,
     temperature: parseFloat(row.temperature),
-    scoreWeights: {
-      structure: row.scoreStructureWeight / total,
-      content: row.scoreContentWeight / total,
-      value: row.scoreValueWeight / total,
-    },
     detailLevel: row.detailLevel ?? undefined,
     resultOriented: row.resultOriented ?? undefined,
   }
@@ -72,7 +61,6 @@ export async function getAIStyle(styleKey?: string): Promise<AIStyleConfig> {
 - 主观情绪化表述（如"非常辛苦""极其困难"）
 - 无数据支撑的形容词堆砌`,
     temperature: 0.3,
-    scoreWeights: { structure: 0.25, content: 0.3, value: 0.45 },
   }
 }
 
@@ -98,9 +86,6 @@ export async function createAIStyle(input: {
   label: string
   systemPrompt: string
   temperature?: number
-  scoreStructureWeight?: number
-  scoreContentWeight?: number
-  scoreValueWeight?: number
   detailLevel?: 'low' | 'medium' | 'high' | null
   resultOriented?: 'low' | 'medium' | 'high' | null
   isDefault?: boolean
@@ -113,9 +98,6 @@ export async function createAIStyle(input: {
     label: input.label,
     systemPrompt: input.systemPrompt,
     temperature: String(input.temperature ?? 0.3),
-    scoreStructureWeight: input.scoreStructureWeight ?? 25,
-    scoreContentWeight: input.scoreContentWeight ?? 30,
-    scoreValueWeight: input.scoreValueWeight ?? 45,
     detailLevel: input.detailLevel ?? null,
     resultOriented: input.resultOriented ?? null,
     isDefault: input.isDefault ?? false,
@@ -136,9 +118,6 @@ export async function updateAIStyle(
     label: string
     systemPrompt: string
     temperature: number
-    scoreStructureWeight: number
-    scoreContentWeight: number
-    scoreValueWeight: number
     detailLevel: 'low' | 'medium' | 'high' | null
     resultOriented: 'low' | 'medium' | 'high' | null
     isDefault: boolean
@@ -156,9 +135,6 @@ export async function updateAIStyle(
       label: input.label ?? existing[0].label,
       systemPrompt: input.systemPrompt ?? existing[0].systemPrompt,
       temperature: input.temperature !== undefined ? String(input.temperature) : existing[0].temperature,
-      scoreStructureWeight: input.scoreStructureWeight ?? existing[0].scoreStructureWeight,
-      scoreContentWeight: input.scoreContentWeight ?? existing[0].scoreContentWeight,
-      scoreValueWeight: input.scoreValueWeight ?? existing[0].scoreValueWeight,
       detailLevel: input.detailLevel !== undefined ? input.detailLevel : existing[0].detailLevel,
       resultOriented: input.resultOriented !== undefined ? input.resultOriented : existing[0].resultOriented,
       isDefault: input.isDefault ?? existing[0].isDefault,
@@ -250,7 +226,6 @@ export const aiStyles: Record<string, AIStyleConfig> = {
 - 主观情绪化表述（如"非常辛苦""极其困难"）
 - 无数据支撑的形容词堆砌`,
     temperature: 0.3,
-    scoreWeights: { structure: 0.25, content: 0.3, value: 0.45 },
   },
   technical: {
     label: '技术研发',
@@ -268,7 +243,6 @@ export const aiStyles: Record<string, AIStyleConfig> = {
 - 只描述"做了什么"不解释"为什么这么做/为什么不选替代方案"
 - 忽略未完成或受阻的工作`,
     temperature: 0.4,
-    scoreWeights: { structure: 0.2, content: 0.5, value: 0.3 },
   },
   concise: {
     label: '极简干练',
@@ -291,7 +265,6 @@ export const aiStyles: Record<string, AIStyleConfig> = {
 - 超过 40 字的单条
 - 用段落而非列表`,
     temperature: 0.2,
-    scoreWeights: { structure: 0.4, content: 0.3, value: 0.3 },
   },
   detailed: {
     label: '深度复盘',
@@ -315,6 +288,5 @@ export const aiStyles: Record<string, AIStyleConfig> = {
 - 泛泛而谈没有具体事例
 - 把所有问题归因于"时间不够""需求不明确"等外部因素`,
     temperature: 0.5,
-    scoreWeights: { structure: 0.2, content: 0.55, value: 0.25 },
   },
 }

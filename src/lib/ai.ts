@@ -7,7 +7,7 @@ import { getAIConfig } from './ai/config'
 import { createModelFromConfig, AIConfigError } from './ai/provider'
 
 /** 获取系统提示词模板 */
-export async function getSystemPrompt(key: 'check' | 'score' | 'generate'): Promise<string> {
+export async function getSystemPrompt(key: 'check' | 'generate'): Promise<string> {
   const db = getDb()
   const row = await db.query.systemPrompts.findFirst({
     where: eq(systemPrompts.key, key),
@@ -84,28 +84,6 @@ export interface CheckResponse {
   score?: number
 }
 
-export interface ScoreRequest {
-  content: string
-  structureCompleteness?: {
-    version: string
-    nextWeekPlan: 'required' | 'forbidden'
-  }
-}
-
-export interface ScoreResponse {
-  score: {
-    structure: number
-    content: number
-    value: number
-    overall: number
-  }
-  suggestions: string[]
-  rewriteExamples?: {
-    original: string
-    improved: string
-  }[]
-}
-
 async function getModel() {
   const db = getDb()
   const config = await getAIConfig(db)
@@ -140,51 +118,6 @@ export async function checkContent(request: CheckRequest): Promise<CheckResponse
     }
     console.error('checkContent error:', error)
     return { suggestions: [] }
-  }
-}
-
-export async function scoreReport(request: ScoreRequest): Promise<ScoreResponse> {
-  const template = await getSystemPrompt('score')
-  const basePrompt = renderPromptTemplate(template, {
-    content: request.content,
-  })
-  const structureRule = request.structureCompleteness
-    ? `\n\n结构完整度规则（版本 ${request.structureCompleteness.version}）：${request.structureCompleteness.nextWeekPlan === 'forbidden'
-      ? '模板明确禁止“下周计划”章节。缺少该章节不得降低 structure 分数；不得建议添加该章节。'
-      : '模板允许扩展，标准“下周计划”章节是 structure 的必要章节。明确空计划表达“（暂无可用的下周计划事项）”视为该章节完整；不得因空计划降低 structure 分数。'}\n仅按此规则评估 structure。不要改写周报内容。`
-    : ''
-  const prompt = `${basePrompt}${structureRule}`
-
-  try {
-    const model = await getModel()
-    const { object } = await generateObject({
-      model,
-      schema: z.object({
-        score: z.object({
-          structure: z.number(),
-          content: z.number(),
-          value: z.number(),
-          overall: z.number(),
-        }),
-        suggestions: z.array(z.string()),
-        rewriteExamples: z.array(z.object({
-          original: z.string(),
-          improved: z.string(),
-        })).optional(),
-      }),
-      prompt,
-      temperature: 0.7,
-      maxRetries: 0,
-    })
-
-    return {
-      score: object.score,
-      suggestions: object.suggestions,
-      rewriteExamples: object.rewriteExamples,
-    }
-  } catch (error) {
-    console.error('scoreReport error:', error)
-    throw error
   }
 }
 
