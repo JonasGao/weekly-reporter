@@ -18,8 +18,8 @@ describe('carry-forward snapshots', () => {
       scoreStatus: 'completed', createdAt: now, updatedAt: now,
     }).returning().get()
     db.insert(reportVariants).values([
-      { reportId: previous.id, variant: 'leadership' as const, sourceDraft: 'source', finalContent: `## 下周计划\n- ${marker} leadership`, finalStatus: 'current' as const, acceptedProposalId: 1, sourceRevision: 1, scoreStatus: 'completed' as const, createdAt: now, updatedAt: now },
-      { reportId: previous.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: `## 下周计划\n- ${marker} personal`, finalStatus: 'current' as const, acceptedProposalId: 2, sourceRevision: 1, scoreStatus: 'completed' as const, createdAt: now, updatedAt: now },
+      { reportId: previous.id, variant: 'leadership' as const, sourceDraft: 'source', finalContent: `## 下周计划\n- ${marker} leadership`, finalStatus: 'current' as const, acceptedProposalId: 1, sourceRevision: 1 as const, createdAt: now, updatedAt: now },
+      { reportId: previous.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: `## 下周计划\n- ${marker} personal`, finalStatus: 'current' as const, acceptedProposalId: 2, sourceRevision: 1 as const, createdAt: now, updatedAt: now },
     ]).run()
 
     const snapshot = await createCarryForwardSnapshot(target, 'personal', now)
@@ -44,7 +44,7 @@ describe('carry-forward snapshots', () => {
       scoreStatus: 'completed', createdAt: now, updatedAt: now,
     }).returning().get()
     db.insert(reportVariants).values({
-      reportId: older.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: '## 下周计划\n- must not backfill', finalStatus: 'current' as const, acceptedProposalId: 3, sourceRevision: 1, scoreStatus: 'completed' as const, createdAt: now, updatedAt: now,
+      reportId: older.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: '## 下周计划\n- must not backfill', finalStatus: 'current' as const, acceptedProposalId: 3, sourceRevision: 1 as const, createdAt: now, updatedAt: now,
     }).run()
     const target = db.insert(reports).values({
       title: `${marker} target`, content: 'target content', weekStart: '2027-01-11', weekEnd: '2027-01-17',
@@ -72,7 +72,7 @@ describe('carry-forward snapshots', () => {
       scoreStatus: 'completed', createdAt: now, updatedAt: now,
     }).returning().get()
     db.insert(reportVariants).values({
-      reportId: previous.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: `## 下周计划\n\n## 其他\n- ${marker} ignored`, finalStatus: 'current' as const, acceptedProposalId: 4, sourceRevision: 1, scoreStatus: 'completed' as const, createdAt: now, updatedAt: now,
+      reportId: previous.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: `## 下周计划\n\n## 其他\n- ${marker} ignored`, finalStatus: 'current' as const, acceptedProposalId: 4, sourceRevision: 1 as const, createdAt: now, updatedAt: now,
     }).run()
     const emptySnapshot = await createCarryForwardSnapshot(emptyTarget, 'personal', now)
     expect(emptySnapshot).toMatchObject({ status: 'no-plan', parseStatus: 'empty', source: { reportId: previous.id }, candidates: [] })
@@ -86,7 +86,7 @@ describe('carry-forward snapshots', () => {
       scoreStatus: 'completed', createdAt: now, updatedAt: now,
     }).returning().get()
     db.insert(reportVariants).values({
-      reportId: failedPrevious.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: `## 下周计划\n${marker} prose only`, finalStatus: 'current' as const, acceptedProposalId: 5, sourceRevision: 1, scoreStatus: 'completed' as const, createdAt: now, updatedAt: now,
+      reportId: failedPrevious.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: `## 下周计划\n${marker} prose only`, finalStatus: 'current' as const, acceptedProposalId: 5, sourceRevision: 1 as const, createdAt: now, updatedAt: now,
     }).run()
     const failedSnapshot = await createCarryForwardSnapshot(failedTarget, 'personal', now)
     expect(failedSnapshot).toMatchObject({ status: 'parse-failed', parseStatus: 'failed', source: { reportId: failedPrevious.id }, candidates: [] })

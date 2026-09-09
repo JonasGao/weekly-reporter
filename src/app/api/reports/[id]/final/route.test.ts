@@ -7,8 +7,6 @@ const mocks = vi.hoisted(() => ({
   findSession: vi.fn(),
   returning: vi.fn(),
   transactionReturning: vi.fn(),
-  triggerScoring: vi.fn(),
-  triggerLegacyScoring: vi.fn(),
   set: vi.fn(),
   insert: vi.fn(),
   insertRun: vi.fn(),
@@ -50,11 +48,6 @@ vi.mock('@/lib/db', () => ({
   }),
 }))
 
-vi.mock('@/lib/scoring', () => ({
-  triggerAsyncVariantScoring: mocks.triggerScoring,
-  triggerAsyncScoring: mocks.triggerLegacyScoring,
-}))
-
 import { PUT } from './route'
 
 const existingVariant = {
@@ -92,8 +85,6 @@ describe('PUT /api/reports/[id]/final', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.findVariant.mockResolvedValue(existingVariant)
-    mocks.triggerScoring.mockResolvedValue({ success: true })
-    mocks.triggerLegacyScoring.mockResolvedValue({ success: true })
     mocks.insertRun.mockReturnValue(undefined)
     mocks.transactionReturning.mockReturnValue(existingVariant)
   })
@@ -105,7 +96,6 @@ describe('PUT /api/reports/[id]/final', () => {
     expect(response.status).toBe(409)
     expect(body.code).toBe('SOURCE_REVISION_CONFLICT')
     expect(mocks.returning).not.toHaveBeenCalled()
-    expect(mocks.triggerScoring).not.toHaveBeenCalled()
   })
 
   it('saves and scores the selected audience variant when the revision matches', async () => {
@@ -116,7 +106,6 @@ describe('PUT /api/reports/[id]/final', () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({ id: 10, variant: 'leadership', finalContent: '新终版' })
-    await vi.waitFor(() => expect(mocks.triggerScoring).toHaveBeenCalledWith(10))
   })
 
   it('retains the adopted contract when a direct edit submits different template text', async () => {
@@ -147,7 +136,6 @@ describe('PUT /api/reports/[id]/final', () => {
     }), { params: Promise.resolve({ id: '3' }) })
 
     expect(response.status).toBe(200)
-    expect(mocks.triggerLegacyScoring).toHaveBeenCalledWith(3)
     expect(mocks.findProposal).not.toHaveBeenCalled()
     expect(mocks.insert).not.toHaveBeenCalled()
   })
