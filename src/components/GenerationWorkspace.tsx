@@ -136,13 +136,13 @@ interface PlanOverrideRecord {
   itemId: string
   action: 'keep' | 'drop' | 'rewrite' | 're-add'
   replacementText: string | null
-  source: 'carry-forward' | 'this-week-new'
+  source: 'carry-forward' | 'this-week-new' | 'baseline'
   createdAt: string | Date
 }
 
 interface PlanOverrideItemState {
   itemId: string
-  source: 'carry-forward' | 'this-week-new'
+  source: 'carry-forward' | 'this-week-new' | 'baseline'
   originalText: string
   effectiveText: string | null
   latestAction: 'keep' | 'drop' | 'rewrite' | 're-add'
@@ -342,7 +342,7 @@ function PlanOverrideRow({
 }: {
   itemId: string
   text: string
-  source: 'carry-forward' | 'this-week-new'
+  source: 'carry-forward' | 'this-week-new' | 'baseline'
   state?: PlanOverrideItemState
   disabled: boolean
   onAction: (action: PlanOverrideRecord['action'], itemId: string, text?: string) => Promise<boolean>
@@ -352,12 +352,20 @@ function PlanOverrideRow({
   const dropped = state?.latestAction === 'drop'
   const effectiveText = state?.effectiveText ?? text
 
+  const SOURCE_LABELS = {
+    'carry-forward': 'carry-forward',
+    'baseline': 'baseline',
+    'this-week-new': '本周新增'
+  } as const
+
+  const sourceLabel = SOURCE_LABELS[source]
+
   return (
     <li className="rounded-lg border border-border bg-background p-3" data-plan-item-id={itemId}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className={`break-words text-sm ${dropped ? 'line-through text-muted-foreground' : ''}`}>{effectiveText || text}</p>
-          <p className="mt-1 text-xs text-muted-foreground">[{itemId}] · {source === 'carry-forward' ? 'carry-forward' : '本周新增'} · {state ? `${state.latestAction} → ${state.included ? 'included' : 'excluded'}` : 'no user override'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">[{itemId}] · {sourceLabel} · {state ? `${state.latestAction} → ${state.included ? 'included' : 'excluded'}` : 'no user override'}</p>
         </div>
         <div className="flex flex-wrap gap-1">
           {dropped ? (
@@ -397,6 +405,7 @@ function PlanOverridePanel({
   const overrideState = detail.planOverrideState ?? []
   const records = detail.planOverrides ?? []
   const newItems = overrideState.filter((item) => item.source === 'this-week-new')
+  const baselineItems = overrideState.filter((item) => item.source === 'baseline')
   const stateByItem = new Map(overrideState.map((item) => [item.itemId, item]))
   const recordDisabled = disabled || saving
 
@@ -417,6 +426,16 @@ function PlanOverridePanel({
             </ul>
           ) : <p className="text-xs text-muted-foreground">No carry-forward candidates.</p>}
         </div>
+        {baselineItems.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Baseline items (from previous accepted proposal)</p>
+            <ul className="space-y-2">
+              {baselineItems.map((item) => (
+                <PlanOverrideRow key={item.itemId} itemId={item.itemId} text={item.originalText} source="baseline" state={item} disabled={recordDisabled} onAction={(action, itemId, text) => onAction(action, itemId, text)} />
+              ))}
+            </ul>
+          </div>
+        )}
         {newItems.length > 0 && (
           <div>
             <p className="mb-2 text-xs font-medium text-muted-foreground">This-week additions</p>

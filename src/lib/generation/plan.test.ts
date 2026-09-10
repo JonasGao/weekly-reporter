@@ -184,7 +184,7 @@ describe('generation plan merge', () => {
         text: '基线中的稳定事项',
         source: 'baseline',
         candidateId: null,
-        itemId: null,
+        itemId: expect.stringMatching(/^baseline-[0-9a-f]{8}$/),
         publicSource: 'editing-baseline',
       },
     ])

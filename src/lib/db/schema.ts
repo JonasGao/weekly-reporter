@@ -21,7 +21,7 @@ export type GenerationMessagePartType =
 export type GenerationProposalStatus = 'pending' | 'accepted' | 'superseded'
 export type PlanJudgment = 'carry' | 'drop' | 'uncertain'
 export type PlanOverrideAction = 'keep' | 'drop' | 'rewrite' | 're-add'
-export type PlanOverrideSource = 'carry-forward' | 'this-week-new'
+export type PlanOverrideSource = 'carry-forward' | 'this-week-new' | 'baseline'
 
 export const reports = sqliteTable('reports', {
   id: integer('id').primaryKey({ autoIncrement: true }),

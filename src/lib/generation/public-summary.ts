@@ -32,7 +32,7 @@ export interface PublicGenerationSummary {
     action: 'keep' | 'drop' | 'rewrite' | 're-add'
     result: string
     replacementText: string | 'none'
-    source: 'carry-forward' | 'this-week-new'
+    source: 'carry-forward' | 'this-week-new' | 'baseline'
   }>
   planItems: Array<{
     text: string
