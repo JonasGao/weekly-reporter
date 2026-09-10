@@ -4,7 +4,7 @@ set -euo pipefail
 # Post an event to the weekly-reporter timeline API
 # Usage: post-event.sh "<content>" [--time <ISO8601-timestamp>]
 
-WEEKLY_REPORTER_URL="${WEEKLY_REPORTER_URL:-http://localhost:3000}"
+WEEKLY_REPORTER_URL="${WEEKLY_REPORTER_URL:-http://localhost:6868}"
 API_ENDPOINT="${WEEKLY_REPORTER_URL}/api/events"
 
 content=""
