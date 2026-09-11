@@ -1,7 +1,6 @@
 ---
 name: record-daily-event
 description: Record daily work content into the weekly-reporter timeline.
-disable-model-invocation: true
 ---
 
 Summarize and create one work entry from the user's request. If the user gives quoted content e.g. "Fixed auth bug", add the raw quoted text to the timeline. When no instruction is given, prompt: "What event should I log?", then build the entry. Preview the event to theuser for confirmation before writing to the timeline; submit only after user approval.
