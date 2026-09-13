@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { expandInputPath } from '@/lib/collect/paths'
+import { TAG_CHARSET_REGEX } from '@/lib/tags'
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/
 
@@ -117,3 +118,14 @@ export const systemPromptSchema = z.object({
 })
 
 export type SystemPromptInput = z.infer<typeof systemPromptSchema>
+
+// --- 标签重命名校验 ---
+
+const tagCharsetMessage = 'Tag name may contain only Chinese characters, letters, and digits'
+
+export const tagRenameSchema = z.object({
+  from: z.string().regex(TAG_CHARSET_REGEX, tagCharsetMessage),
+  to: z.string().regex(TAG_CHARSET_REGEX, tagCharsetMessage),
+})
+
+export type TagRenameInput = z.infer<typeof tagRenameSchema>

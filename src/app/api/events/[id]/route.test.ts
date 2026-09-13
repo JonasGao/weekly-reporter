@@ -1,38 +1,54 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { PUT, DELETE } from './route'
+import { syncEventTags } from '@/lib/tags'
+
+vi.mock('@/lib/tags', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/tags')>()
+  return { ...actual, syncEventTags: vi.fn() }
+})
+
+const createMockChain = () => {
+  const mockOrderBy = vi.fn()
+  const mockLimit = vi.fn()
+  const mockWhereResult = { orderBy: mockOrderBy, limit: mockLimit }
+  const mockWhere = vi.fn().mockReturnValue(mockWhereResult)
+  const mockFromResult = { where: mockWhere }
+  const mockFrom = vi.fn().mockReturnValue(mockFromResult)
+  const mockSelect = vi.fn().mockReturnValue({ from: mockFrom })
+
+  // For DELETE: tx.delete(...).where(...).run()
+  const mockRun = vi.fn()
+  const mockWhereDelete = vi.fn().mockReturnValue({ run: mockRun })
+  const mockDelete = vi.fn().mockReturnValue({ where: mockWhereDelete })
+
+  // For PUT: tx.update(...).set(...).where(...).returning().get()
+  const mockGetUpdate = vi.fn()
+  const mockReturningUpdate = vi.fn().mockReturnValue({ get: mockGetUpdate })
+  const mockWhereUpdate = vi.fn().mockReturnValue({ returning: mockReturningUpdate })
+  const mockSet = vi.fn().mockReturnValue({ where: mockWhereUpdate })
+  const mockUpdate = vi.fn().mockReturnValue({ set: mockSet })
+
+  const chain = {
+    select: mockSelect,
+    from: mockFrom,
+    where: mockWhere,
+    orderBy: mockOrderBy,
+    limit: mockLimit,
+    update: mockUpdate,
+    set: mockSet,
+    delete: mockDelete,
+    returning: mockReturningUpdate,
+    get: mockGetUpdate,
+    run: mockRun,
+    transaction: null as unknown as ReturnType<typeof vi.fn>,
+  }
+  chain.transaction = vi.fn((cb: (tx: typeof chain) => unknown) => cb(chain))
+  return chain
+}
+
+let mockChain: ReturnType<typeof createMockChain> | null = null
 
 vi.mock('@/lib/db', () => {
-  let mockChain: ReturnType<typeof createMockChain> | null = null
-
-  const createMockChain = () => {
-    const mockOrderBy = vi.fn()
-    const mockLimit = vi.fn()
-    const mockWhereResult = { orderBy: mockOrderBy, limit: mockLimit }
-    const mockWhere = vi.fn().mockReturnValue(mockWhereResult)
-    const mockFromResult = { where: mockWhere }
-    const mockFrom = vi.fn().mockReturnValue(mockFromResult)
-    const mockSelect = vi.fn().mockReturnValue({ from: mockFrom })
-    const mockReturningDelete = vi.fn()
-    const mockWhereDelete = vi.fn().mockReturnValue({ returning: mockReturningDelete })
-    const mockDelete = vi.fn().mockReturnValue({ where: mockWhereDelete })
-    const mockReturningUpdate = vi.fn()
-    const mockWhereUpdate = vi.fn().mockReturnValue({ returning: mockReturningUpdate })
-    const mockSet = vi.fn().mockReturnValue({ where: mockWhereUpdate })
-    const mockUpdate = vi.fn().mockReturnValue({ set: mockSet })
-
-    return {
-      select: mockSelect,
-      from: mockFrom,
-      where: mockWhere,
-      orderBy: mockOrderBy,
-      limit: mockLimit,
-      update: mockUpdate,
-      set: mockSet,
-      delete: mockDelete,
-      returning: mockReturningUpdate,
-    }
-  }
-
   return {
     getDb: vi.fn(() => {
       if (!mockChain) {
@@ -45,6 +61,7 @@ vi.mock('@/lib/db', () => {
 
 describe('/api/events/[id]', () => {
   beforeEach(() => {
+    mockChain = null
     vi.clearAllMocks()
   })
 
@@ -53,7 +70,7 @@ describe('/api/events/[id]', () => {
   })
 
   describe('PUT', () => {
-    it('should update event content', async () => {
+    it('should update event content and sync tags', async () => {
       const existingEvent = {
         id: 1,
         content: 'Original content',
@@ -68,7 +85,7 @@ describe('/api/events/[id]', () => {
 
       const updatedEvent = {
         ...existingEvent,
-        content: '更新后的内容',
+        content: '更新后的内容 #成果',
         isImportant: true,
         updatedAt: new Date('2024-01-11T10:00:00'),
       }
@@ -76,13 +93,13 @@ describe('/api/events/[id]', () => {
       const { getDb } = await import('@/lib/db')
       const db = getDb()
       db.limit.mockResolvedValueOnce([existingEvent])
-      db.returning.mockResolvedValueOnce([updatedEvent])
+      db.get.mockReturnValueOnce(updatedEvent)
 
       const request = new Request('http://localhost/api/events/1', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: '更新后的内容',
+          content: '更新后的内容 #成果',
           isImportant: true,
         }),
       })
@@ -91,13 +108,15 @@ describe('/api/events/[id]', () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(data.content).toBe('更新后的内容')
+      expect(data.content).toBe('更新后的内容 #成果')
       expect(data.isImportant).toBe(true)
       expect(db.update).toHaveBeenCalled()
       expect(db.set).toHaveBeenCalled()
+      expect(db.transaction).toHaveBeenCalled()
+      expect(syncEventTags).toHaveBeenCalledWith(expect.anything(), 1, ['成果'])
     })
 
-    it('should update event time', async () => {
+    it('should update event time without syncing tags (no content change)', async () => {
       const existingEvent = {
         id: 1,
         content: 'Test event',
@@ -119,7 +138,7 @@ describe('/api/events/[id]', () => {
       const { getDb } = await import('@/lib/db')
       const db = getDb()
       db.limit.mockResolvedValueOnce([existingEvent])
-      db.returning.mockResolvedValueOnce([updatedEvent])
+      db.get.mockReturnValueOnce(updatedEvent)
 
       const request = new Request('http://localhost/api/events/1', {
         method: 'PUT',
@@ -133,6 +152,7 @@ describe('/api/events/[id]', () => {
 
       expect(response.status).toBe(200)
       expect(db.set).toHaveBeenCalled()
+      expect(syncEventTags).not.toHaveBeenCalled()
     })
 
     it('should return 404 for non-existent event', async () => {
@@ -182,7 +202,7 @@ describe('/api/events/[id]', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('内容不能为空')
+      expect(data.error).toBe('Content is required')
       expect(data.code).toBe('INVALID_CONTENT')
     })
 
@@ -215,7 +235,7 @@ describe('/api/events/[id]', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('内容不能为空')
+      expect(data.error).toBe('Content is required')
       expect(data.code).toBe('INVALID_CONTENT')
     })
 
@@ -248,7 +268,7 @@ describe('/api/events/[id]', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('时间格式无效')
+      expect(data.error).toBe('Invalid event time')
       expect(data.code).toBe('INVALID_EVENT_TIME')
     })
 
@@ -281,7 +301,7 @@ describe('/api/events/[id]', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('isImportant 必须是布尔值')
+      expect(data.error).toBe('isImportant must be a boolean')
       expect(data.code).toBe('INVALID_IS_IMPORTANT')
     })
 
@@ -312,11 +332,11 @@ describe('/api/events/[id]', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('请求体格式无效')
+      expect(data.error).toBe('Invalid request body')
       expect(data.code).toBe('INVALID_BODY')
     })
 
-    it('should accept boolean false for isImportant', async () => {
+    it('should accept boolean false for isImportant without syncing tags', async () => {
       const existingEvent = {
         id: 1,
         content: 'Original content',
@@ -338,7 +358,7 @@ describe('/api/events/[id]', () => {
       const { getDb } = await import('@/lib/db')
       const db = getDb()
       db.limit.mockResolvedValueOnce([existingEvent])
-      db.returning.mockResolvedValueOnce([updatedEvent])
+      db.get.mockReturnValueOnce(updatedEvent)
 
       const request = new Request('http://localhost/api/events/1', {
         method: 'PUT',
@@ -352,11 +372,12 @@ describe('/api/events/[id]', () => {
 
       expect(response.status).toBe(200)
       expect(db.set).toHaveBeenCalled()
+      expect(syncEventTags).not.toHaveBeenCalled()
     })
   })
 
   describe('DELETE', () => {
-    it('should delete manual event', async () => {
+    it('should delete manual event with tag cascade', async () => {
       const existingEvent = {
         id: 1,
         content: 'Test event',
@@ -372,7 +393,6 @@ describe('/api/events/[id]', () => {
       const { getDb } = await import('@/lib/db')
       const db = getDb()
       db.limit.mockResolvedValueOnce([existingEvent])
-      db.returning.mockResolvedValueOnce([existingEvent])
 
       const request = new Request('http://localhost/api/events/1', {
         method: 'DELETE',
@@ -381,7 +401,10 @@ describe('/api/events/[id]', () => {
       const response = await DELETE(request, { params })
 
       expect(response.status).toBe(204)
-      expect(db.delete).toHaveBeenCalled()
+      expect(db.transaction).toHaveBeenCalled()
+      // delete().where().run() called twice: eventTags + rawEvents
+      expect(db.delete).toHaveBeenCalledTimes(2)
+      expect(db.run).toHaveBeenCalledTimes(2)
     })
 
     it('should reject deletion of non-manual event', async () => {

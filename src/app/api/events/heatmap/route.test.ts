@@ -126,7 +126,7 @@ describe('/api/events/heatmap', () => {
     const data = await response.json()
 
     expect(response.status).toBe(500)
-    expect(data.error).toBe('获取热力图数据失败')
+    expect(data.error).toBe('Failed to fetch heatmap data')
     expect(data.code).toBe('FETCH_ERROR')
   })
 

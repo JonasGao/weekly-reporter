@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { rawEvents, RawEvent } from '@/lib/db/schema'
+import { rawEvents, RawEvent, eventTags } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { parseTags, syncEventTags } from '@/lib/tags'
 
 type EventUpdateData = Partial<Pick<RawEvent, 'content' | 'eventTime' | 'isImportant' | 'updatedAt'>>
 
@@ -84,12 +85,14 @@ export async function PUT(
       updateData.isImportant = body.isImportant
     }
     
-    const updated = await db.update(rawEvents)
-      .set(updateData)
-      .where(eq(rawEvents.id, id))
-      .returning()
-    
-    return NextResponse.json(updated[0])
+    const updated = db.transaction((tx) => {
+      const result = tx.update(rawEvents).set(updateData).where(eq(rawEvents.id, id)).returning().get()
+      if (body.content !== undefined && event[0].source === 'manual') {
+        syncEventTags(tx, id, parseTags(body.content))
+      }
+      return result
+    })
+    return NextResponse.json(updated)
   } catch (error) {
     console.error('Error updating event:', error)
     return NextResponse.json(
@@ -131,9 +134,10 @@ export async function DELETE(
       )
     }
     
-    await db.delete(rawEvents)
-      .where(eq(rawEvents.id, id))
-    
+    db.transaction((tx) => {
+      tx.delete(eventTags).where(eq(eventTags.eventId, id)).run()
+      tx.delete(rawEvents).where(eq(rawEvents.id, id)).run()
+    })
     return new NextResponse(null, { status: 204 })
   } catch (error) {
     console.error('Error deleting event:', error)

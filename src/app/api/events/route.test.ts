@@ -1,8 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { GET, POST } from './route'
+import { syncEventTags } from '@/lib/tags'
+
+vi.mock('@/lib/tags', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/tags')>()
+  return { ...actual, syncEventTags: vi.fn() }
+})
 
 const createMockChain = () => {
   const mockLimit = vi.fn()
+  const mockGetReturning = vi.fn()
   // orderBy() returns an object with limit(); limit() returns the final events
   const mockOrderByResult = { limit: mockLimit }
   const mockOrderBy = vi.fn().mockReturnValue(mockOrderByResult)
@@ -13,8 +20,9 @@ const createMockChain = () => {
   const mockFromResult = { $dynamic: mockDynamic, where: mockWhere, orderBy: mockOrderBy, limit: mockLimit }
   const mockFrom = vi.fn().mockReturnValue(mockFromResult)
   const mockSelect = vi.fn().mockReturnValue({ from: mockFrom })
-  const mockReturning = vi.fn()
-  const mockValuesResult = { returning: mockReturning }
+  // For POST: tx.insert(...).values(...).returning().get() — get() returns a single row.
+  const mockReturningInsert = vi.fn().mockReturnValue({ get: mockGetReturning })
+  const mockValuesResult = { returning: mockReturningInsert }
   const mockValues = vi.fn().mockReturnValue(mockValuesResult)
   const mockInsert = vi.fn().mockReturnValue({ values: mockValues })
   const mockFindMany = vi.fn().mockResolvedValue([])
@@ -24,7 +32,7 @@ const createMockChain = () => {
     },
   }
 
-  return {
+  const chain = {
     select: mockSelect,
     from: mockFrom,
     $dynamic: mockDynamic,
@@ -33,9 +41,13 @@ const createMockChain = () => {
     limit: mockLimit,
     insert: mockInsert,
     values: mockValues,
-    returning: mockReturning,
+    returning: mockReturningInsert,
+    get: mockGetReturning,
     query: mockQuery,
+    transaction: null as unknown as ReturnType<typeof vi.fn>,
   }
+  chain.transaction = vi.fn((cb: (tx: typeof chain) => unknown) => cb(chain))
+  return chain
 }
 
 let mockChain: ReturnType<typeof createMockChain> | null = null
@@ -130,7 +142,7 @@ describe('/api/events', () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toBe('获取事件列表失败')
+      expect(data.error).toBe('Failed to fetch events')
       expect(data.code).toBe('FETCH_ERROR')
     })
 
@@ -232,7 +244,7 @@ describe('/api/events', () => {
   })
 
   describe('POST', () => {
-    it('should create new memo event', async () => {
+    it('should create new memo event and sync tags', async () => {
       const mockEvent = {
         id: 1,
         content: '完成评审 #成果 #工作',
@@ -247,7 +259,7 @@ describe('/api/events', () => {
 
       const { getDb } = await import('@/lib/db')
       const db = getDb()
-      db.returning.mockResolvedValueOnce([mockEvent])
+      db.get.mockReturnValueOnce(mockEvent)
 
       const request = new Request('http://localhost/api/events', {
         method: 'POST',
@@ -261,11 +273,11 @@ describe('/api/events', () => {
       const data = await response.json()
 
       expect(response.status).toBe(201)
-      expect(data.sectionType).toBe('routine')
       expect(data.content).toBe('完成评审 #成果 #工作')
       expect(data.source).toBe('manual')
       expect(db.insert).toHaveBeenCalled()
-      expect(db.values).toHaveBeenCalled()
+      expect(db.transaction).toHaveBeenCalled()
+      expect(syncEventTags).toHaveBeenCalledWith(expect.anything(), 1, ['成果', '工作'])
     })
 
     it('should reject empty content', async () => {
@@ -280,7 +292,7 @@ describe('/api/events', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('内容不能为空')
+      expect(data.error).toBe('Content is required')
       expect(data.code).toBe('INVALID_CONTENT')
     })
 
@@ -296,7 +308,7 @@ describe('/api/events', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('内容不能为空')
+      expect(data.error).toBe('Content is required')
       expect(data.code).toBe('INVALID_CONTENT')
     })
 
@@ -312,7 +324,7 @@ describe('/api/events', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('内容不能为空')
+      expect(data.error).toBe('Content is required')
       expect(data.code).toBe('INVALID_CONTENT')
     })
 
@@ -329,7 +341,7 @@ describe('/api/events', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('时间格式无效')
+      expect(data.error).toBe('Invalid event time')
       expect(data.code).toBe('INVALID_EVENT_TIME')
     })
 
@@ -348,7 +360,7 @@ describe('/api/events', () => {
 
       const { getDb } = await import('@/lib/db')
       const db = getDb()
-      db.returning.mockResolvedValueOnce([mockEvent])
+      db.get.mockReturnValueOnce(mockEvent)
 
       const request = new Request('http://localhost/api/events', {
         method: 'POST',
@@ -379,7 +391,7 @@ describe('/api/events', () => {
 
       const { getDb } = await import('@/lib/db')
       const db = getDb()
-      db.returning.mockResolvedValueOnce([mockEvent])
+      db.get.mockReturnValueOnce(mockEvent)
 
       const request = new Request('http://localhost/api/events', {
         method: 'POST',

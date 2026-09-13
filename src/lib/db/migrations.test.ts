@@ -160,7 +160,8 @@ describe('applyDatabaseMigrations', () => {
     expect(columnNames(sqlite, 'generation_sessions')).toContain('carry_forward_snapshot')
     expect(columnNames(sqlite, 'generation_proposals')).toEqual(expect.arrayContaining(['public_summary', 'baseline_content']))
     expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'generation_plan_overrides'").get()).toBeTruthy()
-    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations').get()).toEqual({ count: 33 })
+    expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'event_tags'").get()).toBeTruthy()
+    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations').get()).toEqual({ count: 34 })
 
     sqlite.close()
   })
@@ -195,7 +196,7 @@ describe('applyDatabaseMigrations', () => {
     expect(sqlite.prepare('SELECT * FROM report_variants').all()).toEqual([])
     expect(sqlite.prepare('SELECT COUNT(*) AS count FROM report_event_snapshots').get()).toEqual({ count: 0 })
     expect(sqlite.prepare('SELECT MAX(created_at) AS createdAt FROM __drizzle_migrations').get()).toEqual({
-      createdAt: 1789074000002,
+      createdAt: 1789285862361,
     })
 
     sqlite.close()

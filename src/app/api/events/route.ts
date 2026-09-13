@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { desc, eq, between, sql } from 'drizzle-orm'
-import { rawEvents, collectSources } from '@/lib/db/schema'
+import { rawEvents, eventTags } from '@/lib/db/schema'
+import { parseTags, syncEventTags, TAG_CHARSET_REGEX } from '@/lib/tags'
 
 export async function GET(request: Request) {
   try {
@@ -14,24 +15,37 @@ export async function GET(request: Request) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
     const cursorId = searchParams.get('cursorId') ? parseInt(searchParams.get('cursorId')!) : null
     const cursorTime = searchParams.get('cursorTime') ? parseInt(searchParams.get('cursorTime')!) : null
+    const tagsParam = searchParams.get('tags')
+
+    let filterTags: string[] = []
+    if (tagsParam) {
+      filterTags = tagsParam.split(',').map(t => t.trim()).filter(t => TAG_CHARSET_REGEX.test(t))
+    }
 
     const conditions: ReturnType<typeof eq>[] = []
 
-    if (weekStart && weekEnd) {
-      const start = new Date(weekStart)
-      const end = new Date(weekEnd)
-      end.setHours(23, 59, 59, 999)
-      conditions.push(between(rawEvents.eventTime, start, end))
-    }
-
-    if (dateParam) {
-      const dateObj = new Date(dateParam + 'T00:00:00')
-      if (!isNaN(dateObj.getTime())) {
-        const dayStart = new Date(dateObj)
-        const dayEnd = new Date(dateObj)
-        dayEnd.setHours(23, 59, 59, 999)
-        conditions.push(between(rawEvents.eventTime, dayStart, dayEnd))
+    // Tag filtering is full-volume (user chose 全量) — skip date/week conditions when tags are present.
+    if (filterTags.length === 0) {
+      if (weekStart && weekEnd) {
+        const start = new Date(weekStart)
+        const end = new Date(weekEnd)
+        end.setHours(23, 59, 59, 999)
+        conditions.push(between(rawEvents.eventTime, start, end))
       }
+
+      if (dateParam) {
+        const dateObj = new Date(dateParam + 'T00:00:00')
+        if (!isNaN(dateObj.getTime())) {
+          const dayStart = new Date(dateObj)
+          const dayEnd = new Date(dateObj)
+          dayEnd.setHours(23, 59, 59, 999)
+          conditions.push(between(rawEvents.eventTime, dayStart, dayEnd))
+        }
+      }
+    } else {
+      conditions.push(
+        sql`EXISTS (SELECT 1 FROM ${eventTags} WHERE ${eventTags.eventId} = ${rawEvents.id} AND ${eventTags.tagName} IN ${sql.join(filterTags.map(t => sql`${t}`), sql`, `)})`
+      )
     }
 
     // source 筛选：manual = 手动, auto = 非手动（自动采集）
@@ -122,16 +136,19 @@ export async function POST(request: Request) {
     }
     
     const now = new Date()
-    const newEvent = await db.insert(rawEvents).values({
-      content,
-      eventTime: eventTime ? new Date(eventTime) : now,
-      source: 'manual',
-      isImportant: false,
-      createdAt: now,
-      updatedAt: now,
-    }).returning()
-    
-    return NextResponse.json(newEvent[0], { status: 201 })
+    const newEvent = db.transaction((tx) => {
+      const event = tx.insert(rawEvents).values({
+        content,
+        eventTime: eventTime ? new Date(eventTime) : now,
+        source: 'manual',
+        isImportant: false,
+        createdAt: now,
+        updatedAt: now,
+      }).returning().get()
+      syncEventTags(tx, event.id, parseTags(content))
+      return event
+    })
+    return NextResponse.json(newEvent, { status: 201 })
   } catch (error) {
     console.error('Error creating event:', error)
     return NextResponse.json(

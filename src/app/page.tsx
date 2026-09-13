@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { QuickInputBar } from '@/components/QuickInputBar'
 import { TimelineView } from '@/components/TimelineView'
 import { SourceFilterPanel, type SourceFilter } from '@/components/SourceFilterPanel'
+import { TagFilterPanel } from '@/components/TagFilterPanel'
 import { ActivityHeatmap, type HeatmapData } from '@/components/ActivityHeatmap'
 import { Button } from '@/components/ui/button'
 import { Loader2, Calendar, X } from 'lucide-react'
@@ -22,6 +23,15 @@ export default function TimelinePage() {
     }
     return []
   })
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('selectedTags')
+      try { return saved ? JSON.parse(saved) : [] }
+      catch { return [] }
+    }
+    return []
+  })
+  const [tagsVersion, setTagsVersion] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -36,7 +46,10 @@ export default function TimelinePage() {
       if (selectedSources.length > 0 && selectedSources.length < 2) {
         params.set('source', selectedSources[0])
       }
-      if (selectedHeatmapDate) {
+      // Tag filtering is full-volume — drop the date param when tags are present.
+      if (selectedTags.length > 0) {
+        params.set('tags', selectedTags.join(','))
+      } else if (selectedHeatmapDate) {
         params.set('date', selectedHeatmapDate)
       }
       if (cursor) {
@@ -61,7 +74,7 @@ export default function TimelinePage() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [selectedSources, selectedHeatmapDate])
+  }, [selectedSources, selectedTags, selectedHeatmapDate])
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasMore || nextCursor === null) return
@@ -76,7 +89,7 @@ export default function TimelinePage() {
     setNextCursor(null)
     setHasMore(true)
     loadEvents()
-  }, [selectedSources, selectedHeatmapDate, completionVersion])
+  }, [selectedSources, selectedTags, selectedHeatmapDate, completionVersion])
 
   // 滚动到底部自动加载更多
   useEffect(() => {
@@ -113,6 +126,10 @@ export default function TimelinePage() {
     sessionStorage.setItem('selectedSources', JSON.stringify(selectedSources))
   }, [selectedSources])
 
+  useEffect(() => {
+    sessionStorage.setItem('selectedTags', JSON.stringify(selectedTags))
+  }, [selectedTags])
+
   const handleSubmit = async ({ content }: { content: string }) => {
     await fetch('/api/events', {
       method: 'POST',
@@ -120,6 +137,7 @@ export default function TimelinePage() {
       body: JSON.stringify({ content }),
     })
     loadEvents(undefined, false)
+    setTagsVersion(v => v + 1)
   }
 
   const handleEdit = async (id: number, data: Partial<RawEvent>) => {
@@ -129,6 +147,7 @@ export default function TimelinePage() {
       body: JSON.stringify(data),
     })
     loadEvents(undefined, false)
+    setTagsVersion(v => v + 1)
   }
 
   const handleDelete = async (id: number) => {
@@ -146,6 +165,21 @@ export default function TimelinePage() {
 
   const handleClearFilters = () => {
     setSelectedSources([])
+  }
+
+  const handleTagSelect = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
+  }
+
+  const handleClearTags = () => {
+    setSelectedTags([])
+  }
+
+  const handleTagsChanged = () => {
+    setTagsVersion(v => v + 1)
+    loadEvents(undefined, false)
   }
 
   return (
@@ -208,6 +242,13 @@ export default function TimelinePage() {
             selectedSources={selectedSources}
             onSourceSelect={handleSourceSelect}
             onClearFilters={handleClearFilters}
+          />
+          <TagFilterPanel
+            selectedTags={selectedTags}
+            onTagSelect={handleTagSelect}
+            onClearTags={handleClearTags}
+            onTagsChanged={handleTagsChanged}
+            tagsVersion={tagsVersion}
           />
         </div>
       </div>
