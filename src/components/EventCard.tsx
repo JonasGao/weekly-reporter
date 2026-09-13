@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Edit2, Trash2, FileText, GitBranch } from 'lucide-react'
 import type { RawEvent } from '@/lib/db/schema'
-import { formatSystemDateTime, formatSystemRelativeTime } from '@/lib/time-format'
+import { EventTimestamp } from './EventTimestamp'
 
 interface EventCardProps {
   event: RawEvent
@@ -38,14 +38,6 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
       e.preventDefault()
       handleSubmit()
     }
-  }
-
-  const renderTime = (eventTime: Date | string | number) => {
-    const date = eventTime instanceof Date ? eventTime : new Date(eventTime)
-    const msDiff = new Date().getTime() - date.getTime()
-    const twoHoursMs = 2 * 60 * 60 * 1000
-    if (msDiff <= twoHoursMs) return formatSystemRelativeTime(date)
-    return formatSystemDateTime(date)
   }
 
   const handleDelete = async () => {
@@ -99,11 +91,7 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
               ) : (
                 <GitBranch className="h-3 w-3" />
               )}
-              <span>
-                <span suppressHydrationWarning>
-                {renderTime(event.eventTime)}
-                </span>
-              </span>
+              <EventTimestamp event={event} />
               {event.metadata?.repo && (
                 <>
                   <span className="text-muted-foreground/50">·</span>

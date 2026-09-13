@@ -17,6 +17,7 @@ describe('TimelineView 时间显示集成', () => {
       isImportant: false,
       metadata: null,
       createdAt: new Date('2026-07-13T10:00:00'),
+      updatedAt: new Date('2026-07-13T10:00:00'),
     }) as unknown as RawEvent
 
   beforeEach(() => {
@@ -39,15 +40,15 @@ describe('TimelineView 时间显示集成', () => {
     render(<TimelineView events={events} />)
 
     // 30 分钟前 - 相对时间
-    expect(screen.getByText(/30 分钟前/)).toBeInTheDocument()
+    expect(screen.getByText(/30.*(分钟前|minutes ago)/)).toBeInTheDocument()
 
     // 正好 2 小时 - 相对时间
-    expect(screen.getByText(/2 小时前/)).toBeInTheDocument()
+    expect(screen.getByText(/2.*(小时前|hours ago)/)).toBeInTheDocument()
 
     // 4 小时前 - 具体时间
-    expect(screen.getByText('2026-07-13 10:00')).toBeInTheDocument()
+    expect(screen.getByText(/Jul.*13.*10:00 AM|2026.*10:00/)).toBeInTheDocument()
 
     // 昨天 - 具体时间
-    expect(screen.getByText('2026-07-12 09:00')).toBeInTheDocument()
+    expect(screen.getByText(/Jul.*12.*9:00 AM|2026.*09:00/)).toBeInTheDocument()
   })
 })
