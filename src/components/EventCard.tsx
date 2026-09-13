@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Edit2, Trash2, FileText, GitBranch } from 'lucide-react'
 import type { RawEvent } from '@/lib/db/schema'
 import { EventTimestamp } from './EventTimestamp'
@@ -33,8 +33,22 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
     }
   }
 
-  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // IME composition: let the IME handle any key (Enter confirms candidate, Esc cancels candidate).
+    // Must be the FIRST check so Esc/Enter during composition go to the IME, not to save/exit.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) {
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      setEditContent(event.content)
+      setEditing(false)
+      return
+    }
     if (e.key === 'Enter' && !loading) {
+      if (e.shiftKey) {
+        return // textarea inserts a real \n naturally
+      }
       e.preventDefault()
       handleSubmit()
     }
@@ -63,10 +77,12 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
           <div className="flex-1 space-y-2">
             {editing ? (
               <div className="relative space-y-2">
-                <Input
+                <Textarea
                   ref={(el) => {
                     if (el) el.focus()
                   }}
+                  rows={3}
+                  className="resize-none overflow-y-auto field-sizing-fixed"
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   onKeyDown={handleEditKeyDown}
@@ -82,7 +98,7 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
                 </div>
               </div>
             ) : (
-              <p className="text-sm">{event.content}</p>
+              <p className="text-sm whitespace-pre-line">{event.content}</p>
             )}
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
