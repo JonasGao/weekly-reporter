@@ -7,6 +7,14 @@ import { Input } from '@/components/ui/input'
 import { RefreshCw, RotateCcw, Download, Trash2, Edit, ChevronLeft, ChevronRight, Search, X, Loader2, CheckCircle2, XCircle, Clock, ToggleLeft, ToggleRight, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Briefcase, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatSystemDate, formatSystemDateTime, formatSystemRelativeTime } from '@/lib/time-format'
+import {
+  syncSource,
+  fetchRepo,
+  toggleSource,
+  deleteSource,
+  bulkUpdateScope,
+  bulkDelete,
+} from '@/lib/collect/source-commands'
 
 interface CollectSource {
   id: number
@@ -210,60 +218,29 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     return { text: `${items[0]} +${items.length - 1}`, full: items.join(', ') }
   }
 
-  async function handleSync(sourceId: number) {
+  async function runSync(sourceId: number, opts?: { resync?: boolean }) {
+    if (opts?.resync && !confirm('Resync will fetch all historical commits without duplicating existing records. Continue?')) return
     setSyncingIds(prev => new Set(prev).add(sourceId))
     try {
-      const res = await fetch('/api/collect/git-remote/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceId }),
-      })
-      const data = await res.json()
-
-      if (data.result?.status === 'success') {
-        toast.success(`${data.result.eventsCount} events synced`)
-        if (data.result.warnings?.length) {
-          toast.warning(data.result.warnings.join('\n'))
+      const result = await syncSource(sourceId, opts)
+      if (result.ok) {
+        toast.success(
+          opts?.resync
+            ? `Resync complete. Added ${result.eventsCount} events`
+            : `${result.eventsCount} events synced`,
+        )
+        if (result.warnings?.length) {
+          toast.warning(result.warnings.join('\n'))
         }
-      } else if (data.result?.autoDisabled) {
+      } else if (result.autoDisabled) {
         toast.error('Path not found; source marked unavailable')
       } else {
-        toast.error(data.error || 'Sync failed')
+        toast.error(result.error || (opts?.resync ? 'Resync failed' : 'Sync failed'))
       }
 
       fetchSources()
     } catch (error) {
-      toast.error('Sync failed')
-    } finally {
-      setSyncingIds(prev => { const n = new Set(prev); n.delete(sourceId); return n })
-    }
-  }
-
-  async function handleResync(sourceId: number) {
-    if (!confirm('Resync will fetch all historical commits without duplicating existing records. Continue?')) return
-    setSyncingIds(prev => new Set(prev).add(sourceId))
-    try {
-      const res = await fetch('/api/collect/git-remote/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceId, resync: true }),
-      })
-      const data = await res.json()
-
-      if (data.result?.status === 'success') {
-        toast.success(`Resync complete. Added ${data.result.eventsCount} events`)
-        if (data.result.warnings?.length) {
-          toast.warning(data.result.warnings.join('\n'))
-        }
-      } else if (data.result?.autoDisabled) {
-        toast.error('Path not found; source marked unavailable')
-      } else {
-        toast.error(data.error || 'Resync failed')
-      }
-
-      fetchSources()
-    } catch (error) {
-      toast.error('Resync failed')
+      toast.error(opts?.resync ? 'Resync failed' : 'Sync failed')
     } finally {
       setSyncingIds(prev => { const n = new Set(prev); n.delete(sourceId); return n })
     }
@@ -272,17 +249,11 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
   async function handleFetch(sourceId: number) {
     setFetchingIds(prev => new Set(prev).add(sourceId))
     try {
-      const res = await fetch('/api/collect/git-local/fetch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceId }),
-      })
-      const data = await res.json()
-
-      if (res.ok && data.result?.status === 'success') {
+      const result = await fetchRepo(sourceId)
+      if (result.ok) {
         toast.success('Repository fetch complete')
       } else {
-        toast.error(data.error || 'Repository fetch failed')
+        toast.error(result.error || 'Repository fetch failed')
       }
     } catch {
       toast.error('Repository fetch failed')
@@ -297,14 +268,10 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     setTogglingIds(prev => new Set(prev).add(sourceId))
     setSources(prev => prev.map(s => s.id === sourceId ? { ...s, status: newStatus as any, enabled: newStatus === 'enabled' } : s))
     try {
-      const res = await fetch(`/api/collect/sources/${sourceId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      })
-      if (!res.ok) {
+      const result = await toggleSource(sourceId, newStatus)
+      if (!result.ok) {
         setSources(prev => prev.map(s => s.id === sourceId ? { ...s, status: currentStatus as any, enabled: currentStatus === 'enabled' } : s))
-        toast.error('Failed to update status')
+        toast.error(result.error || 'Failed to update status')
       }
     } catch {
       setSources(prev => prev.map(s => s.id === sourceId ? { ...s, status: currentStatus as any, enabled: currentStatus === 'enabled' } : s))
@@ -318,12 +285,8 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
     if (!confirm('Delete this source?')) return
 
     try {
-      const res = await fetch(`/api/collect/sources/${sourceId}`, {
-        method: 'DELETE',
-      })
-      const data = await res.json()
-
-      if (data.success) {
+      const result = await deleteSource(sourceId)
+      if (result.ok) {
         toast.success('Deleted successfully')
         if (sources.length === 1 && page > 1) {
           setPage(page - 1)
@@ -331,7 +294,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
           fetchSources()
         }
       } else {
-        toast.error(data.error || 'Delete failed')
+        toast.error(result.error || 'Delete failed')
       }
     } catch (error) {
       toast.error('Delete failed')
@@ -363,23 +326,13 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
     try {
       setBulkUpdating(true)
-      const res = await fetch('/api/collect/sources/bulk-update-scope', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ids: Array.from(selectedIds),
-          projectScope: newScope,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        toast.success(`Updated project scope for ${data.updatedCount} sources`)
+      const result = await bulkUpdateScope(Array.from(selectedIds), newScope)
+      if (result.ok) {
+        toast.success(`Updated project scope for ${result.updatedCount} sources`)
         setSelectedIds(new Set())
         fetchSources()
       } else {
-        toast.error(data.error || 'Update failed')
+        toast.error(result.error || 'Update failed')
       }
     } catch (error) {
       toast.error('Update failed')
@@ -394,16 +347,9 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
 
     try {
       setBulkUpdating(true)
-      const res = await fetch('/api/collect/sources/bulk-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: Array.from(selectedIds) }),
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        toast.success(`Deleted ${data.deletedCount} sources`)
+      const result = await bulkDelete(Array.from(selectedIds))
+      if (result.ok) {
+        toast.success(`Deleted ${result.deletedCount} sources`)
         if (selectedIds.size >= sources.length && page > 1) {
           setSelectedIds(new Set())
           setPage(page - 1)
@@ -412,7 +358,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
           fetchSources()
         }
       } else {
-        toast.error(data.error || 'Delete failed')
+        toast.error(result.error || 'Delete failed')
       }
     } catch {
       toast.error('Delete failed')
@@ -780,7 +726,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                           variant="default"
                           className="h-7 px-2 text-xs"
                           disabled={isSourceBusy || source.config.authorEmails.length === 0}
-                          onClick={() => handleSync(source.id)}
+                          onClick={() => runSync(source.id)}
                           title={source.config.authorEmails.length === 0 ? 'Configure emails first' : 'Sync'}
                         >
                           {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
@@ -791,7 +737,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                           className="h-7 w-7 p-0"
                           title={source.config.authorEmails.length === 0 ? 'Configure emails first' : 'Resync (fetch all history without duplicates)'}
                           disabled={isSourceBusy || source.config.authorEmails.length === 0}
-                          onClick={() => handleResync(source.id)}
+                          onClick={() => runSync(source.id, { resync: true })}
                         >
                           <RotateCcw className="h-3 w-3" />
                         </Button>
