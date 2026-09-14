@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,8 +15,9 @@ import {
   bulkUpdateScope,
   bulkDelete,
 } from '@/lib/collect/source-commands'
+import { useSourceListQuery } from './collect/useSourceListQuery'
 
-interface CollectSource {
+export interface CollectSource {
   id: number
   type: string
   name: string
@@ -47,58 +48,16 @@ function getSortIcon(col: SortableColumn, sortBy: string, sortOrder: string) {
 }
 
 export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => void) => void }) {
-  const [sources, setSources] = useState<CollectSource[]>([])
-  const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [searchInput, setSearchInput] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('sourceSearch') || ''
-    }
-    return ''
-  })
-  const [searchTerm, setSearchTerm] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('sourceSearch') || ''
-    }
-    return ''
-  })
-  const [syncStatusFilter, setSyncStatusFilter] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('sourceSyncStatus') || ''
-    }
-    return ''
-  })
-  const [sourceStatusFilter, setSourceStatusFilter] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('sourceStatusFilter') || ''
-    }
-    return ''
-  })
-  const [typeFilter, setTypeFilter] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('sourceType') || ''
-    }
-    return ''
-  })
-  const [scopeFilter, setScopeFilter] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('sourceScope') || ''
-    }
-    return ''
-  })
-  const [sortBy, setSortBy] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('sourceSortBy') || ''
-    }
-    return ''
-  })
-  const [sortOrder, setSortOrder] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('sourceSortOrder') || 'desc'
-    }
-    return 'desc'
-  })
+  const {
+    sources, setSources, total, loading, page, setPage, filters, refetch,
+  } = useSourceListQuery()
+  const {
+    searchInput, searchTerm, syncStatusFilter, sourceStatusFilter,
+    typeFilter, scopeFilter, sortBy, sortOrder,
+    setSearchInput, setSearchTerm, setSyncStatusFilter, setSourceStatusFilter,
+    setTypeFilter, setScopeFilter, setSort,
+  } = filters
+
   const [syncingIds, setSyncingIds] = useState<Set<number>>(new Set())
   const [fetchingIds, setFetchingIds] = useState<Set<number>>(new Set())
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set())
@@ -107,69 +66,13 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
   const pageSize = 20
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const trimmed = searchInput.trim()
-      setSearchTerm(trimmed)
-      sessionStorage.setItem('sourceSearch', trimmed)
-      setPage(prev => prev !== 1 ? 1 : prev)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [searchInput])
-
-  const fetchSources = useCallback(async (targetPage?: number) => {
-    const p = targetPage ?? page
-    try {
-      setLoading(true)
-      const params = new URLSearchParams({ page: String(p), pageSize: String(pageSize) })
-      if (searchTerm) params.set('name', searchTerm)
-      if (typeFilter) params.set('type', typeFilter)
-      if (syncStatusFilter) params.set('syncStatus', syncStatusFilter)
-      if (sourceStatusFilter) params.set('sourceStatus', sourceStatusFilter)
-      if (scopeFilter) params.set('projectScope', scopeFilter)
-      if (sortBy) {
-        params.set('sortBy', sortBy)
-        params.set('sortOrder', sortOrder)
-      }
-      const res = await fetch(`/api/collect/sources?${params}`)
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || `HTTP ${res.status}`)
-      }
-
-      const data = await res.json()
-      setSources(data.sources || [])
-      setTotal(data.total || 0)
-    } catch (error) {
-      console.error('Failed to fetch sources:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to load sources')
-    } finally {
-      setLoading(false)
-    }
-  }, [page, searchTerm, syncStatusFilter, sourceStatusFilter, typeFilter, scopeFilter, sortBy, sortOrder])
-
-  const fetchSourcesRef = useRef(fetchSources)
-
-  useEffect(() => {
-    fetchSourcesRef.current = fetchSources
-  })
-
-  const stableFetchSources = useCallback((targetPage?: number) => {
-    return fetchSourcesRef.current(targetPage)
-  }, [])
-
-  useEffect(() => {
-    fetchSources()
-  }, [fetchSources])
-
-  useEffect(() => {
     if (onRefresh) {
       onRefresh(() => {
         setPage(1)
-        stableFetchSources(1)
+        refetch(1)
       })
     }
-  }, [onRefresh, stableFetchSources])
+  }, [onRefresh, setPage, refetch])
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
@@ -238,7 +141,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
         toast.error(result.error || (opts?.resync ? 'Resync failed' : 'Sync failed'))
       }
 
-      fetchSources()
+      refetch()
     } catch (error) {
       toast.error(opts?.resync ? 'Resync failed' : 'Sync failed')
     } finally {
@@ -291,7 +194,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
         if (sources.length === 1 && page > 1) {
           setPage(page - 1)
         } else {
-          fetchSources()
+          refetch()
         }
       } else {
         toast.error(result.error || 'Delete failed')
@@ -330,7 +233,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
       if (result.ok) {
         toast.success(`Updated project scope for ${result.updatedCount} sources`)
         setSelectedIds(new Set())
-        fetchSources()
+        refetch()
       } else {
         toast.error(result.error || 'Update failed')
       }
@@ -355,7 +258,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
           setPage(page - 1)
         } else {
           setSelectedIds(new Set())
-          fetchSources()
+          refetch()
         }
       } else {
         toast.error(result.error || 'Delete failed')
@@ -368,25 +271,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
   }
 
   function handleSort(column: SortableColumn) {
-    let newSortBy: string
-    let newSortOrder: string
-    if (sortBy === column) {
-      if (sortOrder === 'asc') {
-        newSortBy = column
-        newSortOrder = 'desc'
-      } else {
-        newSortBy = ''
-        newSortOrder = 'desc'
-      }
-    } else {
-      newSortBy = column
-      newSortOrder = 'asc'
-    }
-    setSortBy(newSortBy)
-    setSortOrder(newSortOrder)
-    sessionStorage.setItem('sourceSortBy', newSortBy)
-    sessionStorage.setItem('sourceSortOrder', newSortOrder)
-    setPage(1)
+    setSort(column)
   }
 
   function SortHeader({ column, label }: { column: SortableColumn; label: string }) {
@@ -446,12 +331,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                 name="sourceType"
                 value={option.value}
                 checked={typeFilter === option.value}
-                onChange={e => {
-                  const val = e.target.value
-                  setTypeFilter(val)
-                  sessionStorage.setItem('sourceType', val)
-                  setPage(prev => prev !== 1 ? 1 : prev)
-                }}
+                onChange={e => setTypeFilter(e.target.value)}
                 className="sr-only"
               />
               {option.label}
@@ -478,12 +358,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                 name="syncStatus"
                 value={option.value}
                 checked={syncStatusFilter === option.value}
-                onChange={e => {
-                  const val = e.target.value
-                  setSyncStatusFilter(val)
-                  sessionStorage.setItem('sourceSyncStatus', val)
-                  setPage(prev => prev !== 1 ? 1 : prev)
-                }}
+                onChange={e => setSyncStatusFilter(e.target.value)}
                 className="sr-only"
               />
               {option.label}
@@ -510,12 +385,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                 name="sourceStatus"
                 value={option.value}
                 checked={sourceStatusFilter === option.value}
-                onChange={e => {
-                  const val = e.target.value
-                  setSourceStatusFilter(val)
-                  sessionStorage.setItem('sourceStatusFilter', val)
-                  setPage(prev => prev !== 1 ? 1 : prev)
-                }}
+                onChange={e => setSourceStatusFilter(e.target.value)}
                 className="sr-only"
               />
               {option.label}
@@ -541,12 +411,7 @@ export function CollectSourceList({ onRefresh }: { onRefresh?: (fetchFn: () => v
                 name="sourceScope"
                 value={option.value}
                 checked={scopeFilter === option.value}
-                onChange={e => {
-                  const val = e.target.value
-                  setScopeFilter(val)
-                  sessionStorage.setItem('sourceScope', val)
-                  setPage(prev => prev !== 1 ? 1 : prev)
-                }}
+                onChange={e => setScopeFilter(e.target.value)}
                 className="sr-only"
               />
               {option.label}
