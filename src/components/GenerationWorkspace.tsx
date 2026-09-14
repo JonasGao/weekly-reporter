@@ -27,7 +27,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { DEFAULT_GENERATION_INSTRUCTION } from '@/lib/generation/context'
 import {
-  finalizeStreamingMarkdown,
   type StreamingMarkdown,
 } from '@/lib/generation/streaming-markdown'
 import type { AudienceVariant, ReportVariant } from '@/lib/db/schema'
@@ -570,7 +569,7 @@ export function GenerationWorkspace({
     waitForTextQueue,
     resetLiveOutput,
     setLiveToolState,
-    setLiveText,
+    finalizeLiveText,
   } = useStreamingReveal({ detail, streaming, liveUser })
 
   const loadSessions = useCallback(async (preferredId?: number) => {
@@ -678,14 +677,14 @@ export function GenerationWorkspace({
       if (pending.trim()) handle(JSON.parse(pending) as GenerationStreamEvent)
       flushLiveReasoning()
       await waitForTextQueue()
-      setLiveText((current) => finalizeStreamingMarkdown(current))
+      finalizeLiveText()
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
       await Promise.all([loadDetail(sessionId, true), loadSessions(sessionId)])
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'AI generation failed')
       flushLiveReasoning()
       await waitForTextQueue()
-      setLiveText((current) => finalizeStreamingMarkdown(current))
+      finalizeLiveText()
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
       await loadDetail(sessionId, true).catch(() => undefined)
     } finally {

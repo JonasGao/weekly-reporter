@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   appendRevealedMarkdown,
+  finalizeStreamingMarkdown,
   type StreamingMarkdown,
 } from '@/lib/generation/streaming-markdown'
 
@@ -41,7 +42,7 @@ export interface StreamingRevealHandle {
   waitForTextQueue: () => Promise<void>
   resetLiveOutput: () => void
   setLiveToolState: React.Dispatch<React.SetStateAction<string>>
-  setLiveText: React.Dispatch<React.SetStateAction<StreamingMarkdown>>
+  finalizeLiveText: () => void
 }
 
 export function useStreamingReveal({
@@ -157,6 +158,10 @@ export function useStreamingReveal({
     setLiveToolState('')
   }, [cancelTextReveal])
 
+  const finalizeLiveText = useCallback(() => {
+    setLiveText((current) => finalizeStreamingMarkdown(current))
+  }, [])
+
   const cancelTranscriptFollow = useCallback(() => {
     if (transcriptFollowFrameRef.current !== null) cancelAnimationFrame(transcriptFollowFrameRef.current)
     transcriptFollowFrameRef.current = null
@@ -234,6 +239,6 @@ export function useStreamingReveal({
     waitForTextQueue,
     resetLiveOutput,
     setLiveToolState,
-    setLiveText,
+    finalizeLiveText,
   }
 }
