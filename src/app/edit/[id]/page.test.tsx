@@ -21,9 +21,9 @@ describe('EditReportPage', () => {
 
   it('loads both persisted audience variants without the old variable toolbar', async () => {
     render(<EditReportPage />)
-    await waitFor(() => expect(screen.getByText('个人版')).toBeInTheDocument())
-    expect(screen.getByText('领导版')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /插入变量/i })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Personal')).toBeInTheDocument())
+    expect(screen.getByText('Leadership')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /insert variable/i })).not.toBeInTheDocument()
   })
 
   it('starts generation from a persistent conversation and keeps long source drafts constrained', async () => {
@@ -56,11 +56,11 @@ describe('EditReportPage', () => {
 
     render(<EditReportPage />)
 
-    expect(await screen.findByRole('heading', { name: '创建 AI 生成会话' })).toBeInTheDocument()
-    expect((screen.getByLabelText('初始生成指令（可编辑）') as HTMLTextAreaElement).value).toContain('propose_final_report')
-    expect(screen.getByRole('button', { name: '创建会话并发送' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Create AI generation session' })).toBeInTheDocument()
+    expect((screen.getByLabelText('Initial instruction (editable)') as HTMLTextAreaElement).value).toContain('propose_final_report')
+    expect(screen.getByRole('button', { name: 'Create session and send' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '周报内容' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Report content' }))
     const sourceScroll = screen.getByTestId('source-draft-scroll')
     expect(sourceScroll).toHaveClass('overflow-y-auto')
     expect(sourceScroll.className).toContain('max-h-')

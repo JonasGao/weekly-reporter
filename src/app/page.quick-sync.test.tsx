@@ -120,7 +120,7 @@ describe('TimelinePage quick sync coordination', () => {
     await screen.findByText('旧事件')
     expect(screen.getByText('热力图事件 1')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '同步全部采集源' }))
+    await user.click(screen.getByRole('button', { name: 'Sync all sources' }))
 
     await screen.findByText('同步后的新事件')
     await waitFor(() => {
@@ -139,10 +139,10 @@ describe('TimelinePage quick sync coordination', () => {
     )
 
     await screen.findByText('旧事件')
-    await user.click(screen.getByRole('button', { name: '同步全部采集源' }))
+    await user.click(screen.getByRole('button', { name: 'Sync all sources' }))
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('同步响应格式无效')
+      expect(toast.error).toHaveBeenCalledWith('Invalid sync response format')
     })
     const requestUrls = mockFetch.mock.calls.map(([input]) => String(input))
     expect(requestUrls.filter((url) => url.startsWith('/api/events?'))).toHaveLength(1)

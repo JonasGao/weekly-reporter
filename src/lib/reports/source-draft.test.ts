@@ -36,7 +36,7 @@ describe('buildSourceDraft', () => {
   })
 
   it('returns an explicit empty draft', () => {
-    expect(buildSourceDraft([], 'personal')).toBe('- 本周暂无事件')
+    expect(buildSourceDraft([], 'personal')).toBe('- No events this week')
   })
 
 })

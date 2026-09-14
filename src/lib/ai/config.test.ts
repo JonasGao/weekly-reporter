@@ -108,7 +108,7 @@ describe('AI Config', () => {
       expect(config!.model).toBe('gpt-4o')
     })
 
-    it('defaults protocol to openai', async () => {
+    it('defaults protocol to openai-compatible', async () => {
       await saveAIConfig(testDb, {
         apiUrl: 'https://api.example.com/v1',
         apiKey: 'test-key',
@@ -116,7 +116,7 @@ describe('AI Config', () => {
       })
 
       const config = await getAIConfig(testDb)
-      expect(config!.protocol).toBe('openai')
+      expect(config!.protocol).toBe('openai-compatible')
     })
   })
 

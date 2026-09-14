@@ -7,7 +7,7 @@ const mockSources = Array.from({ length: 5 }, (_, i) => ({
   id: i + 1,
   type: 'git-remote',
   name: `source-${i + 1}`,
-  projectScope: (i % 2 === 0 ? 'work' : 'personal') as const,
+  projectScope: (i % 2 === 0 ? 'work' : 'personal') as 'work' | 'personal',
   config: {
     owner: 'owner',
     repo: `repo-${i + 1}`,
@@ -57,7 +57,7 @@ describe('CollectSourceList search focus', () => {
     const user = userEvent.setup()
     render(<CollectSourceList />)
 
-    const input = await screen.findByPlaceholderText('搜索名称…')
+    const input = await screen.findByPlaceholderText('Search by name…')
     expect(input).toBeInTheDocument()
 
     await user.click(input)
@@ -74,7 +74,7 @@ describe('CollectSourceList search focus', () => {
     const user = userEvent.setup()
     render(<CollectSourceList />)
 
-    const input = await screen.findByPlaceholderText('搜索名称…')
+    const input = await screen.findByPlaceholderText('Search by name…')
     const inputElement = input as HTMLElement
 
     // Track if input is removed from DOM during typing
@@ -114,7 +114,7 @@ describe('CollectSourceList search focus', () => {
 
     render(<CollectSourceList />)
 
-    expect(await screen.findByTitle('手动 Fetch')).toBeInTheDocument()
-    expect(screen.getAllByTitle('手动 Fetch')).toHaveLength(1)
+    expect(await screen.findByTitle('Manual fetch')).toBeInTheDocument()
+    expect(screen.getAllByTitle('Manual fetch')).toHaveLength(1)
   })
 })

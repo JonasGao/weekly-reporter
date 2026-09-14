@@ -94,7 +94,7 @@ describe('/api/snippets', () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toBe('获取句子片段失败')
+      expect(data.error).toBe('Failed to load snippets')
       expect(data.code).toBe('FETCH_ERROR')
     })
   })
@@ -159,7 +159,7 @@ describe('/api/snippets', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('内容不能为空')
+      expect(data.error).toBe('Content is required')
       expect(data.code).toBe('INVALID_INPUT')
     })
 
@@ -176,7 +176,7 @@ describe('/api/snippets', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('内容长度不能超过500个字符')
+      expect(data.error).toBe('Content must be 500 characters or fewer')
       expect(data.code).toBe('INVALID_INPUT')
     })
 
@@ -191,7 +191,7 @@ describe('/api/snippets', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('分类必须为字符串')
+      expect(data.error).toBe('Category must be a string')
       expect(data.code).toBe('INVALID_INPUT')
     })
 
@@ -208,7 +208,7 @@ describe('/api/snippets', () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toBe('创建句子片段失败')
+      expect(data.error).toBe('Failed to create snippet')
       expect(data.code).toBe('CREATE_ERROR')
     })
 

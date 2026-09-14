@@ -24,7 +24,8 @@ describe('ReportCard', () => {
     render(<ReportCard report={baseReport} onDelete={onDelete} />)
 
     expect(screen.getByText('测试周报')).toBeInTheDocument()
-    expect(screen.getByText('01/08 - 01/14')).toBeInTheDocument()
+    expect(screen.getByText(/Jan 8, 2024/)).toBeInTheDocument()
+    expect(screen.getByText(/Jan 14, 2024/)).toBeInTheDocument()
   })
 
   it('should format different week ranges correctly', () => {
@@ -37,7 +38,8 @@ describe('ReportCard', () => {
     const onDelete = vi.fn()
     render(<ReportCard report={report} onDelete={onDelete} />)
 
-    expect(screen.getByText('12/30 - 01/05')).toBeInTheDocument()
+    expect(screen.getByText(/Dec 30, 2024/)).toBeInTheDocument()
+    expect(screen.getByText(/Jan 5, 2025/)).toBeInTheDocument()
   })
 
   it('should call onDelete when delete button is clicked and confirmed', () => {
@@ -46,7 +48,7 @@ describe('ReportCard', () => {
 
     render(<ReportCard report={baseReport} onDelete={onDelete} />)
 
-    const deleteButton = screen.getByRole('button', { name: /删除/i })
+    const deleteButton = screen.getByRole('button', { name: 'Delete' })
     fireEvent.click(deleteButton)
 
     expect(onDelete).toHaveBeenCalledWith(1)

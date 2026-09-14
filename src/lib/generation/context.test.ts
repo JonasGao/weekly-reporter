@@ -15,7 +15,7 @@ describe('generation context', () => {
 - 参加项目评审并确认下一步计划`
 
     expect(buildSourceOverview(source, 'leadership')).toBe(
-      '领导版原稿共 3 条事件，涉及 1 个仓库/项目：weekly-reporter。\n1. 完成流式生成接口\n2. 修复生产数据库迁移\n3. 参加项目评审并确认下一步计划',
+      '领导版 source draft: 3 events. 1 repositories/projects: weekly-reporter.\n1. 完成流式生成接口\n2. 修复生产数据库迁移\n3. 参加项目评审并确认下一步计划',
     )
   })
 

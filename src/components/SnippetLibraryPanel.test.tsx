@@ -70,7 +70,7 @@ describe('SnippetLibraryPanel', () => {
       render(<SnippetLibraryPanel />)
 
       await waitFor(() => {
-        expect(screen.getByText('分类筛选')).toBeInTheDocument()
+        expect(screen.getByText('Filter by category')).toBeInTheDocument()
       })
     })
 
@@ -100,7 +100,7 @@ describe('SnippetLibraryPanel', () => {
       render(<SnippetLibraryPanel />)
 
       await waitFor(() => {
-        expect(screen.getByText('3 条片段')).toBeInTheDocument()
+        expect(screen.getByText('3 snippets')).toBeInTheDocument()
       })
     })
   })
@@ -134,7 +134,7 @@ describe('SnippetLibraryPanel', () => {
 
       await waitFor(() => {
         expect(mockOnSelect).toHaveBeenCalledWith('本周完成了核心功能的开发')
-        expect(toast.success).toHaveBeenCalledWith('已插入片段')
+        expect(toast.success).toHaveBeenCalledWith('Snippet inserted')
       })
     })
 
@@ -154,12 +154,12 @@ describe('SnippetLibraryPanel', () => {
       mockClipboardWrite.mockResolvedValueOnce(undefined)
 
       // Click copy button (first snippet)
-      const copyButtons = screen.getAllByLabelText('复制')
+      const copyButtons = screen.getAllByLabelText('Copy')
       fireEvent.click(copyButtons[0])
 
       await waitFor(() => {
         expect(mockClipboardWrite).toHaveBeenCalledWith('本周完成了核心功能的开发')
-        expect(toast.success).toHaveBeenCalledWith('已复制到剪贴板')
+        expect(toast.success).toHaveBeenCalledWith('Copied to clipboard')
       })
     })
 
@@ -178,12 +178,12 @@ describe('SnippetLibraryPanel', () => {
       mockClipboardWrite.mockResolvedValueOnce(undefined)
 
       // Click copy button
-      const copyButtons = screen.getAllByLabelText('复制')
+      const copyButtons = screen.getAllByLabelText('Copy')
       fireEvent.click(copyButtons[0])
 
       await waitFor(() => {
         // Should show Check icon (green checkmark)
-        const checkIcons = screen.getAllByLabelText('复制')
+        const checkIcons = screen.getAllByLabelText('Copy')
         expect(checkIcons[0]).toBeInTheDocument()
       })
     })
@@ -204,11 +204,11 @@ describe('SnippetLibraryPanel', () => {
       mockClipboardWrite.mockRejectedValueOnce(new Error('Copy failed'))
 
       // Click copy button
-      const copyButtons = screen.getAllByLabelText('复制')
+      const copyButtons = screen.getAllByLabelText('Copy')
       fireEvent.click(copyButtons[0])
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith('复制失败')
+        expect(toast.error).toHaveBeenCalledWith('Copy failed')
       })
     })
   })

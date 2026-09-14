@@ -43,7 +43,7 @@ describe('/api/ai/polish-event', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('事件内容不能为空')
+      expect(data.error).toBe('Event content is required')
       expect(data.code).toBe('INVALID_INPUT')
     })
 
@@ -58,7 +58,7 @@ describe('/api/ai/polish-event', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('事件内容不能为空')
+      expect(data.error).toBe('Event content is required')
       expect(data.code).toBe('INVALID_INPUT')
     })
 
@@ -73,7 +73,7 @@ describe('/api/ai/polish-event', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('事件内容不能为空')
+      expect(data.error).toBe('Event content is required')
       expect(data.code).toBe('INVALID_INPUT')
     })
   })
@@ -177,7 +177,7 @@ describe('/api/ai/polish-event', () => {
       expect(response.status).toBe(200)
       expect(data).toHaveProperty('polishedContent')
       expect(data).toHaveProperty('style')
-      expect(data.message).toBe('事件润色成功')
+      expect(data.message).toBe('Event polished successfully')
     })
 
     it('should return AI_NOT_CONFIGURED when AI is not configured', async () => {
@@ -211,7 +211,7 @@ describe('/api/ai/polish-event', () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toBe('事件润色失败')
+      expect(data.error).toBe('Failed to polish event')
       expect(data.code).toBe('POLISH_ERROR')
     })
 
@@ -231,7 +231,7 @@ describe('/api/ai/polish-event', () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toBe('事件润色失败')
+      expect(data.error).toBe('Failed to polish event')
       expect(data.code).toBe('POLISH_ERROR')
     })
   })

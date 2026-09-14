@@ -36,11 +36,11 @@ describe('NewReportPage', () => {
     mockFetch.mockResolvedValueOnce(response(previewResponse))
     render(<NewReportPage />)
 
-    expect(screen.getByRole('heading', { name: '新建周报' })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('正在加载原稿')
-    await screen.findByText('原稿预览（只读）')
+    expect(screen.getByRole('heading', { name: 'New Report' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading source draft')
+    await screen.findByText('Source draft preview (read-only)')
     await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/reports/preview', expect.objectContaining({ method: 'POST' })))
-    expect(screen.getByRole('button', { name: '创建' })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Create' })).not.toBeDisabled()
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockPush).not.toHaveBeenCalled()
   })
@@ -49,21 +49,21 @@ describe('NewReportPage', () => {
     mockFetch.mockResolvedValueOnce(response(previewResponse))
     render(<NewReportPage />)
 
-    await screen.findByText('原稿预览（只读）')
+    await screen.findByText('Source draft preview (read-only)')
     await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/reports/preview', expect.objectContaining({ method: 'POST' })))
 
     expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({
       weekStart: expect.any(String),
       weekEnd: expect.any(String),
     })
-    expect(screen.getByText('原稿预览（只读）')).toBeInTheDocument()
+    expect(screen.getByText('Source draft preview (read-only)')).toBeInTheDocument()
     expect(screen.getByText('领导事项')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /个人版/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '创建' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '预览原稿' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Personal/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Preview source draft' })).not.toBeInTheDocument()
     expect(mockPush).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('tab', { name: /个人版/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Personal/ }))
     expect(await screen.findByText('个人事项')).toBeInTheDocument()
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
@@ -74,8 +74,8 @@ describe('NewReportPage', () => {
       .mockResolvedValueOnce(response({ report: { id: 7 } }))
     render(<NewReportPage />)
 
-    await screen.findByText('原稿预览（只读）')
-    fireEvent.click(screen.getByRole('button', { name: '创建' }))
+    await screen.findByText('Source draft preview (read-only)')
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
     expect(mockFetch.mock.calls[1][0]).toBe('/api/reports')
@@ -98,8 +98,8 @@ describe('NewReportPage', () => {
       }))
     render(<NewReportPage />)
 
-    await screen.findByText('原稿预览（只读）')
-    fireEvent.click(screen.getByRole('button', { name: '下一周' }))
+    await screen.findByText('Source draft preview (read-only)')
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }))
 
     await screen.findByText('下一周领导事项')
     expect(screen.queryByText('领导事项')).not.toBeInTheDocument()
@@ -113,8 +113,8 @@ describe('NewReportPage', () => {
     render(<NewReportPage />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('预览服务不可用')
-    expect(screen.getByRole('button', { name: '创建' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: '重试' }))
+    expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
 
     expect(await screen.findByText('领导事项')).toBeInTheDocument()
     expect(mockFetch).toHaveBeenCalledTimes(2)

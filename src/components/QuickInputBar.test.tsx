@@ -13,7 +13,7 @@ describe('QuickInputBar', () => {
   it('should render input with placeholder', () => {
     render(<QuickInputBar onSubmit={mockOnSubmit} />)
 
-    const input = screen.getByPlaceholderText('记录工作内容...')
+    const input = screen.getByPlaceholderText('Record a work item...')
     expect(input).toBeInTheDocument()
   })
 
@@ -21,7 +21,7 @@ describe('QuickInputBar', () => {
     const user = userEvent.setup()
     render(<QuickInputBar onSubmit={mockOnSubmit} />)
 
-    const input = screen.getByPlaceholderText('记录工作内容...')
+    const input = screen.getByPlaceholderText('Record a work item...')
     await user.type(input, '完成评审')
 
     await user.keyboard('{Enter}')
@@ -37,7 +37,7 @@ describe('QuickInputBar', () => {
     const user = userEvent.setup()
     render(<QuickInputBar onSubmit={mockOnSubmit} />)
 
-    const input = screen.getByPlaceholderText('记录工作内容...')
+    const input = screen.getByPlaceholderText('Record a work item...')
     await user.type(input, '完成评审')
 
     await user.keyboard('{Enter}')
@@ -51,7 +51,7 @@ describe('QuickInputBar', () => {
     const user = userEvent.setup()
     render(<QuickInputBar onSubmit={mockOnSubmit} />)
 
-    const input = screen.getByPlaceholderText('记录工作内容...')
+    const input = screen.getByPlaceholderText('Record a work item...')
     await user.type(input, '{enter}')
 
     expect(mockOnSubmit).not.toHaveBeenCalled()
@@ -61,7 +61,7 @@ describe('QuickInputBar', () => {
     const user = userEvent.setup()
     render(<QuickInputBar onSubmit={mockOnSubmit} />)
 
-    const input = screen.getByPlaceholderText('记录工作内容...')
+    const input = screen.getByPlaceholderText('Record a work item...')
     await user.type(input, '   {enter}')
 
     expect(mockOnSubmit).not.toHaveBeenCalled()
@@ -79,7 +79,7 @@ describe('QuickInputBar', () => {
     const user = userEvent.setup()
     render(<QuickInputBar onSubmit={slowSubmit} />)
 
-    const input = screen.getByPlaceholderText('记录工作内容...')
+    const input = screen.getByPlaceholderText('Record a work item...')
     await user.type(input, '完成评审')
 
     await user.keyboard('{Enter}')
@@ -98,7 +98,7 @@ describe('QuickInputBar', () => {
     const user = userEvent.setup()
     render(<QuickInputBar onSubmit={errorSubmit} />)
 
-    const input = screen.getByPlaceholderText('记录工作内容...')
+    const input = screen.getByPlaceholderText('Record a work item...')
     await user.type(input, '完成评审')
 
     await user.keyboard('{Enter}')

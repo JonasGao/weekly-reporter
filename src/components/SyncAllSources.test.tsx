@@ -62,7 +62,7 @@ describe('SyncAllSourcesButton', () => {
       </SyncAllSourcesProvider>,
     )
 
-    await user.click(screen.getByRole('button', { name: '同步全部采集源' }))
+    await user.click(screen.getByRole('button', { name: 'Sync all sources' }))
 
     expect(mockFetch).toHaveBeenCalledWith('/api/collect/git-remote/sync', {
       method: 'POST',
@@ -71,7 +71,7 @@ describe('SyncAllSourcesButton', () => {
     })
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith(
-        '同步完成：成功 2 个，新增 3 条事件',
+        'Sync complete: 2 succeeded, 3 new events',
       )
     })
   })
@@ -89,10 +89,10 @@ describe('SyncAllSourcesButton', () => {
       </SyncAllSourcesProvider>,
     )
 
-    await user.click(screen.getByRole('button', { name: '同步全部采集源' }))
+    await user.click(screen.getByRole('button', { name: 'Sync all sources' }))
 
     await waitFor(() => {
-      expect(toast.info).toHaveBeenCalledWith('没有符合条件的采集源可同步')
+      expect(toast.info).toHaveBeenCalledWith('No eligible sources to sync')
     })
     expect(toast.success).not.toHaveBeenCalled()
   })
@@ -117,7 +117,7 @@ describe('SyncAllSourcesButton', () => {
             status: 'failed',
             commitsCount: 0,
             eventsCount: 0,
-            error: '访问失败',
+            error: 'Access denied',
           },
         ],
       }),
@@ -130,14 +130,14 @@ describe('SyncAllSourcesButton', () => {
       </SyncAllSourcesProvider>,
     )
 
-    await user.click(screen.getByRole('button', { name: '同步全部采集源' }))
+    await user.click(screen.getByRole('button', { name: 'Sync all sources' }))
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
-        '同步完成：成功 1 个，失败 1 个',
+        'Sync complete: 1 succeeded, 1 failed',
         expect.objectContaining({
-          description: 'beta：访问失败',
-          action: expect.objectContaining({ label: '查看详情' }),
+          description: 'beta: Access denied',
+          action: expect.objectContaining({ label: 'View details' }),
         }),
       )
     })
@@ -171,7 +171,7 @@ describe('SyncAllSourcesButton', () => {
                 name: 'legacy',
                 status: 'failed',
                 commitsCount: 0,
-                error: '分支不存在',
+                error: 'Branch not found',
               },
             ],
           },
@@ -186,14 +186,14 @@ describe('SyncAllSourcesButton', () => {
       </SyncAllSourcesProvider>,
     )
 
-    await user.click(screen.getByRole('button', { name: '同步全部采集源' }))
+    await user.click(screen.getByRole('button', { name: 'Sync all sources' }))
 
     await waitFor(() => {
       expect(toast.warning).toHaveBeenCalledWith(
-        '同步完成，但有 1 个分支失败',
+        'Sync complete, but 1 branches failed',
         expect.objectContaining({
-          description: 'alpha / legacy：分支不存在',
-          action: expect.objectContaining({ label: '查看详情' }),
+          description: 'alpha / legacy: Branch not found',
+          action: expect.objectContaining({ label: 'View details' }),
         }),
       )
     })
@@ -215,7 +215,7 @@ describe('SyncAllSourcesButton', () => {
       </SyncAllSourcesProvider>,
     )
 
-    await user.click(screen.getByRole('button', { name: '同步全部采集源' }))
+    await user.click(screen.getByRole('button', { name: 'Sync all sources' }))
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('该仓库正在操作中，请稍后重试')
@@ -239,7 +239,7 @@ describe('SyncAllSourcesButton', () => {
                 name: 'legacy',
                 status: 'failed',
                 commitsCount: 0,
-                error: '分支不存在',
+                error: 'Branch not found',
               },
             ],
           },
@@ -249,7 +249,7 @@ describe('SyncAllSourcesButton', () => {
             status: 'failed',
             commitsCount: 0,
             eventsCount: 0,
-            error: '访问失败',
+            error: 'Access denied',
           },
         ],
       }),
@@ -262,11 +262,11 @@ describe('SyncAllSourcesButton', () => {
       </SyncAllSourcesProvider>,
     )
 
-    await user.click(screen.getByRole('button', { name: '同步全部采集源' }))
+    await user.click(screen.getByRole('button', { name: 'Sync all sources' }))
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
-        '同步完成：成功 1 个，失败 1 个，另有 1 个分支失败',
+        'Sync complete: 1 succeeded, 1 failed; 1 more branches failed',
         expect.any(Object),
       )
     })
@@ -288,10 +288,10 @@ describe('SyncAllSourcesButton', () => {
       </SyncAllSourcesProvider>,
     )
 
-    await user.click(screen.getByRole('button', { name: '同步全部采集源' }))
+    await user.click(screen.getByRole('button', { name: 'Sync all sources' }))
 
-    expect(screen.getByRole('button', { name: '同步全部采集源' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '同步中...' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Sync all sources' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Syncing...' })).toBeDisabled()
 
     resolveFetch({
       ok: true,
@@ -299,8 +299,8 @@ describe('SyncAllSourcesButton', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: '同步全部采集源' })).toBeEnabled()
-      expect(screen.getByRole('button', { name: '全部同步' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Sync all sources' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Sync all' })).toBeEnabled()
     })
   })
 })

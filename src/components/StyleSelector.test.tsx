@@ -62,7 +62,7 @@ describe('StyleSelector', () => {
     it('should render style selector', async () => {
       render(<StyleSelector onChange={mockOnChange} />)
 
-      expect(screen.getByText('AI 风格')).toBeInTheDocument()
+      expect(screen.getByText('AI style')).toBeInTheDocument()
 
       await waitFor(() => {
         // Should show the current style key in the trigger

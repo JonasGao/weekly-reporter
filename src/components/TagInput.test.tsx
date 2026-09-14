@@ -7,7 +7,7 @@ describe('TagInput', () => {
     const onChange = vi.fn()
     render(<TagInput value={[]} onChange={onChange} />)
 
-    const input = screen.getByPlaceholderText('输入后按 Enter 添加')
+    const input = screen.getByPlaceholderText('Type and press Enter to add')
     expect(input).toBeInTheDocument()
   })
 
@@ -23,7 +23,7 @@ describe('TagInput', () => {
     const onChange = vi.fn()
     render(<TagInput value={[]} onChange={onChange} />)
 
-    const input = screen.getByPlaceholderText('输入后按 Enter 添加')
+    const input = screen.getByPlaceholderText('Type and press Enter to add')
     fireEvent.change(input, { target: { value: 'new-tag' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
@@ -34,7 +34,7 @@ describe('TagInput', () => {
     const onChange = vi.fn()
     render(<TagInput value={[]} onChange={onChange} />)
 
-    const input = screen.getByPlaceholderText('输入后按 Enter 添加')
+    const input = screen.getByPlaceholderText('Type and press Enter to add')
     fireEvent.change(input, { target: { value: '  new-tag  ' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
@@ -45,7 +45,7 @@ describe('TagInput', () => {
     const onChange = vi.fn()
     render(<TagInput value={['existing']} onChange={onChange} />)
 
-    const input = screen.getByPlaceholderText('输入后按 Enter 添加')
+    const input = screen.getByPlaceholderText('Type and press Enter to add')
     fireEvent.change(input, { target: { value: 'existing' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
@@ -56,7 +56,7 @@ describe('TagInput', () => {
     const onChange = vi.fn()
     render(<TagInput value={[]} onChange={onChange} />)
 
-    const input = screen.getByPlaceholderText('输入后按 Enter 添加')
+    const input = screen.getByPlaceholderText('Type and press Enter to add')
     fireEvent.change(input, { target: { value: '   ' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
@@ -77,7 +77,7 @@ describe('TagInput', () => {
     const onChange = vi.fn()
     render(<TagInput value={[]} onChange={onChange} />)
 
-    const input = screen.getByPlaceholderText('输入后按 Enter 添加') as HTMLInputElement
+    const input = screen.getByPlaceholderText('Type and press Enter to add') as HTMLInputElement
     fireEvent.change(input, { target: { value: 'new-tag' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 

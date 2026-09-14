@@ -27,7 +27,7 @@ describe('Navigation quick sync action', () => {
       </SyncAllSourcesProvider>,
     )
 
-    const syncButton = screen.getByRole('button', { name: '同步全部采集源' })
+    const syncButton = screen.getByRole('button', { name: 'Sync all sources' })
     const settingsButton = screen.getByRole('button', { name: '设置' })
     expect(
       syncButton.compareDocumentPosition(settingsButton) &
@@ -42,7 +42,7 @@ describe('Navigation quick sync action', () => {
     )
 
     expect(
-      screen.queryByRole('button', { name: '同步全部采集源' }),
+      screen.queryByRole('button', { name: 'Sync all sources' }),
     ).not.toBeInTheDocument()
 
     mockPathname.mockReturnValue('/collect/new')
@@ -53,7 +53,7 @@ describe('Navigation quick sync action', () => {
     )
 
     expect(
-      screen.getByRole('button', { name: '同步全部采集源' }),
+      screen.getByRole('button', { name: 'Sync all sources' }),
     ).toBeInTheDocument()
   })
 })
