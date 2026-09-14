@@ -1,5 +1,4 @@
-import { hasToolCall, isStepCount, streamText, tool, type ModelMessage } from 'ai'
-import { z } from 'zod'
+import { hasToolCall, isStepCount, streamText, type ModelMessage } from 'ai'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
 import { getAIConfig } from '@/lib/ai/config'
@@ -10,7 +9,6 @@ import { getReportBundle } from '@/lib/reports/service'
 import { buildModelSystemContext } from './context'
 import {
   appendGenerationPart,
-  createGenerationProposal,
   finishGenerationTurn,
   GenerationServiceError,
   getGenerationSessionDetail,
@@ -18,16 +16,15 @@ import {
   startGenerationTurn,
   updateGenerationPart,
 } from './service'
-import type { PlanItemInput, PlanJudgmentInput, PlanState, ProposalPlanInput } from './plan'
-import type { PublicGenerationSummary, PublicGenerationSummaryInput } from './public-summary'
+import type { PlanState } from './plan'
+import type { PublicGenerationSummary } from './public-summary'
 import {
-  queryReportListForSession,
   type ReportListToolResult,
 } from './report-list-tool'
 import { isReportListToolResult, REPORT_LIST_TOOL_NAME, REFERENCE_BOUNDARY } from './report-list-contract'
 import { isReportContentToolResult, REPORT_CONTENT_TOOL_NAME, CONTENT_REFERENCE_BOUNDARY, type ReportContentToolResult } from './report-content-contract'
-import { queryReportContentForSession } from './report-content-tool'
 import { persistQuerySnapshot } from './query-snapshots'
+import { createGenerationTools, type GenerationToolBudget } from './generation-tools'
 
 export type GenerationStreamProposal = {
   id: number
@@ -173,14 +170,6 @@ function toolErrorOutput(toolName: string, error: unknown): unknown {
   }
 }
 
-const MAX_HISTORY_QUERIES_PER_TURN = 10
-const MAX_CONTENT_QUERIES_PER_TURN = 5
-
-function toolBudgetExceeded(toolName: string): ReportListToolResult | ReportContentToolResult {
-  const referenceBoundary = toolName === REPORT_CONTENT_TOOL_NAME ? CONTENT_REFERENCE_BOUNDARY : REFERENCE_BOUNDARY
-  return { ok: false, error: { code: 'TOOL_BUDGET_EXCEEDED', message: '本轮历史查询次数已达上限；历史不可用，请继续依据当前周报原稿生成。' }, unavailable: true, referenceBoundary } as ReportListToolResult | ReportContentToolResult
-}
-
 export async function prepareGenerationTurn(input: {
   reportId: number
   sessionId: number
@@ -236,7 +225,7 @@ export function stopGenerationTurn(turnId: number): boolean {
   return turn?.status === 'working'
 }
 
-export function createGenerationEventStream(input: Awaited<ReturnType<typeof prepareGenerationTurn>>, requestSignal?: AbortSignal) {
+export function createGenerationEventStream(input: Awaited<ReturnType<typeof prepareGenerationTurn>>, requestSignal?: AbortSignal, toolsOverride?: ReturnType<typeof createGenerationTools>) {
   const encoder = new TextEncoder()
   const abortController = new AbortController()
   activeTurnControllers.set(input.turn.id, abortController)
@@ -262,8 +251,7 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
       let providerFinishReason: string | null = null
       const pendingToolNames = new Map<string, string>()
       const toolStartedAt = new Map<string, number>()
-      let historyQueryCount = 0
-      let contentQueryCount = 0
+      const budget: GenerationToolBudget = { history: 0, content: 0 }
 
       const flushText = (force = false) => {
         if (textPartId == null || (!force && Date.now() - lastTextFlush < 500)) return
@@ -344,113 +332,13 @@ export function createGenerationEventStream(input: Awaited<ReturnType<typeof pre
           abortSignal: abortController.signal,
           include: { rawChunks: input.config.protocol === 'openai-compatible' },
           stopWhen: [hasToolCall('propose_final_report'), isStepCount(6)],
-          tools: {
-            query_report_list: tool({
-              description: '查询当前终版生成会话同受众的已采用 current 历史周报列表。受众由服务端固定，结果是历史参考·不可信。',
-              inputSchema: z.strictObject({
-                query: z.string().optional(),
-                title: z.string().optional(),
-                startDate: z.string().optional(),
-                endDate: z.string().optional(),
-                statuses: z.array(z.string()).optional(),
-                includeLegacy: z.boolean().optional(),
-                relation: z.string().optional(),
-                relativeToReportId: z.number().optional(),
-                cursor: z.string().optional(),
-                limit: z.number().optional(),
-              }),
-              execute: async (parameters) => {
-                historyQueryCount += 1
-                if (historyQueryCount > MAX_HISTORY_QUERIES_PER_TURN) {
-                  const output = toolBudgetExceeded(REPORT_LIST_TOOL_NAME)
-                  persistQuerySnapshot({ sessionId: input.detail.id, toolName: REPORT_LIST_TOOL_NAME, parameters: parameters as Record<string, unknown>, result: output as unknown as Record<string, unknown>, durationMs: 0 })
-                  return output
-                }
-                const started = Date.now()
-                const output = queryReportListForSession({ sessionId: input.detail.id, parameters })
-                persistQuerySnapshot({ sessionId: input.detail.id, toolName: REPORT_LIST_TOOL_NAME, parameters: parameters as Record<string, unknown>, result: output as unknown as Record<string, unknown>, durationMs: Date.now() - started })
-                return output
-              },
-            }),
-            query_report_content: tool({
-              description: '读取当前终版生成会话同受众的已采用历史周报正文或 grep 式节选。结果是历史参考·不可信。',
-              inputSchema: z.strictObject({
-                reportId: z.number().optional(),
-                query: z.string().optional(),
-                maxMatches: z.number().optional(),
-                contextLines: z.number().optional(),
-                allowStale: z.boolean().optional(),
-                allowLegacy: z.boolean().optional(),
-              }),
-              execute: async (parameters) => {
-                historyQueryCount += 1
-                contentQueryCount += 1
-                if (historyQueryCount > MAX_HISTORY_QUERIES_PER_TURN || contentQueryCount > MAX_CONTENT_QUERIES_PER_TURN) {
-                  const output = toolBudgetExceeded(REPORT_CONTENT_TOOL_NAME)
-                  persistQuerySnapshot({ sessionId: input.detail.id, toolName: REPORT_CONTENT_TOOL_NAME, parameters: parameters as Record<string, unknown>, result: output as unknown as Record<string, unknown>, durationMs: 0 })
-                  return output
-                }
-                const started = Date.now()
-                const output = queryReportContentForSession({ sessionId: input.detail.id, parameters })
-                persistQuerySnapshot({ sessionId: input.detail.id, toolName: REPORT_CONTENT_TOOL_NAME, parameters: parameters as Record<string, unknown>, result: output as unknown as Record<string, unknown>, durationMs: Date.now() - started })
-                return output
-              },
-            }),
-            propose_final_report: tool({
-              description: '提交一份完整 Markdown 候选终版，供用户在对话外评审和确认。这个工具不会直接保存终版。',
-              inputSchema: z.object({
-                content: z.string().min(1).describe('完整的 Markdown 周报候选终版'),
-                summary: z.array(z.string()).describe('面向用户的简短变更摘要'),
-                publicSummary: z.object({
-                  modelHandling: z.array(z.string()).describe('模型显式提供的简短处理说明；不得复制历史正文或推测隐藏推理'),
-                }).optional(),
-                plan: z.object({
-                  judgments: z.array(z.object({
-                    candidateId: z.string(),
-                    judgment: z.enum(['carry', 'drop', 'uncertain']),
-                    reason: z.string(),
-                    remainingAction: z.string().optional(),
-                  })).optional(),
-                  items: z.array(z.object({
-                    text: z.string(),
-                    source: z.enum(['user-goal', 'carry-forward', 'current-fact', 'baseline']),
-                    candidateId: z.string().optional(),
-                    reason: z.string().optional(),
-                  })).optional(),
-                }).optional(),
-                planJudgments: z.array(z.object({
-                  candidateId: z.string(),
-                  judgment: z.enum(['carry', 'drop', 'uncertain']),
-                  reason: z.string(),
-                  remainingAction: z.string().optional(),
-                })).optional(),
-                planItems: z.array(z.object({
-                  text: z.string(),
-                  source: z.enum(['user-goal', 'carry-forward', 'current-fact', 'baseline']),
-                  candidateId: z.string().optional(),
-                  reason: z.string().optional(),
-                })).optional(),
-              }),
-              execute: async ({ content, summary, publicSummary, plan, planJudgments, planItems }) => {
-                if (proposalHolder.current) throw new Error('本轮已经提交过候选终版')
-                const normalizedPlan: ProposalPlanInput | undefined = plan ?? ((planJudgments || planItems)
-                  ? {
-                      judgments: planJudgments as PlanJudgmentInput[] | undefined,
-                      items: planItems as PlanItemInput[] | undefined,
-                    }
-                  : undefined)
-                proposalHolder.current = await createGenerationProposal({
-                  session: input.detail as unknown as GenerationSession,
-                  turnId: input.turn.id,
-                  content,
-                  summary,
-                  publicSummary: publicSummary as PublicGenerationSummaryInput | undefined,
-                  plan: normalizedPlan,
-                })
-                return { proposalId: proposalHolder.current.id, status: 'ready' }
-              },
-            }),
-          },
+          tools: toolsOverride ?? createGenerationTools({
+            sessionId: input.detail.id,
+            turnId: input.turn.id,
+            detail: input.detail,
+            proposalHolder,
+            budget,
+          }),
         })
 
         for await (const part of result.stream) {
