@@ -12,13 +12,13 @@ import {
 } from '@/lib/db/schema'
 import {
   acceptGenerationProposal,
-  appendPlanOverride,
   createGenerationProposal,
   createGenerationSession,
   finishGenerationTurn,
   getGenerationSessionDetail,
   startGenerationTurn,
 } from './service'
+import { appendPlanOverride } from './plan-override'
 
 vi.mock('@/lib/scoring', () => ({
   triggerAsyncVariantScoring: vi.fn(() => Promise.resolve({ success: true })),

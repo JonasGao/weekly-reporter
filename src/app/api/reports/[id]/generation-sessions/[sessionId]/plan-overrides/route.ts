@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { appendPlanOverride, GenerationServiceError } from '@/lib/generation/service'
+import { appendPlanOverride } from '@/lib/generation/plan-override'
+import { GenerationServiceError } from '@/lib/generation/service'
 import type { PlanOverrideAction } from '@/lib/generation/plan'
 
 type RouteContext = { params: Promise<{ id: string; sessionId: string }> }
