@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
@@ -27,7 +27,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { DEFAULT_GENERATION_INSTRUCTION } from '@/lib/generation/context'
 import {
-  appendRevealedMarkdown,
   finalizeStreamingMarkdown,
   type StreamingMarkdown,
 } from '@/lib/generation/streaming-markdown'
@@ -45,6 +44,7 @@ import {
 import { isReportContentToolResult, REPORT_CONTENT_TOOL_NAME, type ReportContentToolResult } from '@/lib/generation/report-content-contract'
 import type { GenerationStreamEvent, ReviewableProposal } from '@/lib/generation/stream'
 import { ProposalReviewPanel } from './generation/ProposalReviewPanel'
+import { useStreamingReveal } from './generation/useStreamingReveal'
 
 interface TemplateOption {
   id: string
@@ -147,37 +147,12 @@ interface PlanOverrideItemState {
   included: boolean
 }
 
-const REVEAL_INTERVAL_MS = 50
-const REVEAL_CHARACTERS_PER_SECOND = 160
-
 function toolStatusMessage(eventType: 'tool-input-delta' | 'tool-call' | 'tool-result', toolName: string): string {
   const reportList = toolName === REPORT_LIST_TOOL_NAME
   const reportContent = toolName === REPORT_CONTENT_TOOL_NAME
   if (eventType === 'tool-input-delta') return reportList ? 'Preparing report list query...' : reportContent ? 'Preparing report content query...' : 'Preparing proposed final version...'
   if (eventType === 'tool-call') return reportList ? 'Querying same-audience historical reports...' : reportContent ? 'Reading same-audience historical report...' : 'Calling propose_final_report...'
   return reportList ? 'Historical report list query completed.' : reportContent ? 'Historical report content query completed.' : 'Proposed final version submitted; awaiting review.'
-}
-const FOLLOW_BOTTOM_THRESHOLD = 64
-
-function emptyStreamingMarkdown(): StreamingMarkdown {
-  return { markdownBlocks: [], pendingChunks: [] }
-}
-
-function takeCharacters(value: string, count: number): [string, string] {
-  let end = 0
-  let taken = 0
-  for (const character of value) {
-    if (taken === count) break
-    end += character.length
-    taken += 1
-  }
-  return [value.slice(0, end), value.slice(end)]
-}
-
-function prefersReducedMotion() {
-  return typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 function SystemContextCard({ detail, onRefresh }: { detail: SessionDetail; onRefresh?: (snapshotId: number) => void }) {
@@ -579,152 +554,24 @@ export function GenerationWorkspace({
   const [streaming, setStreaming] = useState(false)
   const [liveTurnId, setLiveTurnId] = useState<number | null>(null)
   const [liveUser, setLiveUser] = useState('')
-  const [liveReasoning, setLiveReasoning] = useState('')
-  const [liveText, setLiveText] = useState<StreamingMarkdown>(emptyStreamingMarkdown)
-  const [liveToolState, setLiveToolState] = useState('')
   const [liveProposal, setLiveProposal] = useState<ReviewableProposal | null>(null)
   const [accepting, setAccepting] = useState(false)
   const [savingOverride, setSavingOverride] = useState(false)
-  const transcriptRef = useRef<HTMLDivElement>(null)
-  const textQueueRef = useRef('')
-  const textRevealFrameRef = useRef<number | null>(null)
-  const lastTextRevealAtRef = useRef(0)
-  const nextTextChunkIdRef = useRef(0)
-  const textQueueDrainedRef = useRef<(() => void) | null>(null)
-  const reasoningQueueRef = useRef('')
-  const reasoningFlushTimerRef = useRef<number | null>(null)
-  const shouldFollowTranscriptRef = useRef(true)
-  const transcriptFollowFrameRef = useRef<number | null>(null)
-  const autoScrollTopRef = useRef<number | null>(null)
-  const initiallyScrolledSessionRef = useRef<number | null>(null)
 
-  const revealTextChunk = useCallback((text: string) => {
-    const id = nextTextChunkIdRef.current
-    nextTextChunkIdRef.current += 1
-    setLiveText((current) => appendRevealedMarkdown(current, { id, text }))
-  }, [])
-
-  const scheduleTextReveal = useCallback(() => {
-    if (textRevealFrameRef.current !== null) return
-
-    const reveal = (now: number) => {
-      textRevealFrameRef.current = null
-      if (!textQueueRef.current) {
-        const resolve = textQueueDrainedRef.current
-        textQueueDrainedRef.current = null
-        resolve?.()
-        return
-      }
-
-      const elapsed = lastTextRevealAtRef.current === 0
-        ? REVEAL_INTERVAL_MS
-        : now - lastTextRevealAtRef.current
-      if (elapsed < REVEAL_INTERVAL_MS) {
-        textRevealFrameRef.current = requestAnimationFrame(reveal)
-        return
-      }
-
-      const backlogMultiplier = textQueueRef.current.length > REVEAL_CHARACTERS_PER_SECOND * 2
-        ? Math.min(4, 1 + textQueueRef.current.length / (REVEAL_CHARACTERS_PER_SECOND * 2))
-        : 1
-      const characterCount = Math.max(1, Math.round((elapsed / 1_000) * REVEAL_CHARACTERS_PER_SECOND * backlogMultiplier))
-      const [visibleText, remainingText] = takeCharacters(textQueueRef.current, characterCount)
-      textQueueRef.current = remainingText
-      lastTextRevealAtRef.current = now
-      revealTextChunk(visibleText)
-      textRevealFrameRef.current = requestAnimationFrame(reveal)
-    }
-
-    textRevealFrameRef.current = requestAnimationFrame(reveal)
-  }, [revealTextChunk])
-
-  const queueLiveText = useCallback((text: string) => {
-    textQueueRef.current += text
-    scheduleTextReveal()
-  }, [scheduleTextReveal])
-
-  const waitForTextQueue = useCallback(async () => {
-    if (!textQueueRef.current && textRevealFrameRef.current === null) return
-    await new Promise<void>((resolve) => {
-      textQueueDrainedRef.current = resolve
-      scheduleTextReveal()
-    })
-  }, [scheduleTextReveal])
-
-  const cancelTextReveal = useCallback(() => {
-    if (textRevealFrameRef.current !== null) cancelAnimationFrame(textRevealFrameRef.current)
-    textRevealFrameRef.current = null
-    textQueueRef.current = ''
-    lastTextRevealAtRef.current = 0
-    const resolve = textQueueDrainedRef.current
-    textQueueDrainedRef.current = null
-    resolve?.()
-  }, [])
-
-  const flushLiveReasoning = useCallback(() => {
-    if (reasoningFlushTimerRef.current !== null) clearTimeout(reasoningFlushTimerRef.current)
-    reasoningFlushTimerRef.current = null
-    const text = reasoningQueueRef.current
-    reasoningQueueRef.current = ''
-    if (text) setLiveReasoning((current) => current + text)
-  }, [])
-
-  const queueLiveReasoning = useCallback((text: string) => {
-    reasoningQueueRef.current += text
-    if (reasoningFlushTimerRef.current !== null) return
-    reasoningFlushTimerRef.current = window.setTimeout(flushLiveReasoning, REVEAL_INTERVAL_MS)
-  }, [flushLiveReasoning])
-
-  const resetLiveOutput = useCallback(() => {
-    cancelTextReveal()
-    if (reasoningFlushTimerRef.current !== null) clearTimeout(reasoningFlushTimerRef.current)
-    reasoningFlushTimerRef.current = null
-    reasoningQueueRef.current = ''
-    nextTextChunkIdRef.current = 0
-    setLiveReasoning('')
-    setLiveText(emptyStreamingMarkdown())
-    setLiveToolState('')
-  }, [cancelTextReveal])
-
-  const cancelTranscriptFollow = useCallback(() => {
-    if (transcriptFollowFrameRef.current !== null) cancelAnimationFrame(transcriptFollowFrameRef.current)
-    transcriptFollowFrameRef.current = null
-  }, [])
-
-  const scheduleTranscriptFollow = useCallback(() => {
-    if (!shouldFollowTranscriptRef.current || transcriptFollowFrameRef.current !== null) return
-
-    const follow = () => {
-      transcriptFollowFrameRef.current = null
-      const transcript = transcriptRef.current
-      if (!transcript || !shouldFollowTranscriptRef.current) return
-
-      const target = Math.max(0, transcript.scrollHeight - transcript.clientHeight)
-      const distance = target - transcript.scrollTop
-      if (prefersReducedMotion() || Math.abs(distance) < 1) {
-        autoScrollTopRef.current = target
-        transcript.scrollTop = target
-        return
-      }
-
-      const nextPosition = transcript.scrollTop + distance * 0.35
-      autoScrollTopRef.current = nextPosition
-      transcript.scrollTop = nextPosition
-      transcriptFollowFrameRef.current = requestAnimationFrame(follow)
-    }
-
-    transcriptFollowFrameRef.current = requestAnimationFrame(follow)
-  }, [])
-
-  const handleTranscriptScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    const transcript = event.currentTarget
-    if (autoScrollTopRef.current !== null && Math.abs(transcript.scrollTop - autoScrollTopRef.current) < 1) return
-
-    const distanceFromBottom = transcript.scrollHeight - transcript.clientHeight - transcript.scrollTop
-    shouldFollowTranscriptRef.current = distanceFromBottom <= FOLLOW_BOTTOM_THRESHOLD
-    if (shouldFollowTranscriptRef.current) scheduleTranscriptFollow()
-    else cancelTranscriptFollow()
-  }, [cancelTranscriptFollow, scheduleTranscriptFollow])
+  const {
+    liveText,
+    liveReasoning,
+    liveToolState,
+    transcriptRef,
+    handleTranscriptScroll,
+    queueLiveText,
+    queueLiveReasoning,
+    flushLiveReasoning,
+    waitForTextQueue,
+    resetLiveOutput,
+    setLiveToolState,
+    setLiveText,
+  } = useStreamingReveal({ detail, streaming, liveUser })
 
   const loadSessions = useCallback(async (preferredId?: number) => {
     const response = await fetch(`/api/reports/${reportId}/generation-sessions?variant=${variant}`)
@@ -790,31 +637,6 @@ export function GenerationWorkspace({
     void fetchDetail()
     return () => { cancelled = true }
   }, [activeSessionId, reportId])
-
-  useLayoutEffect(() => {
-    const transcript = transcriptRef.current
-    if (!transcript || !detail) return
-
-    if (initiallyScrolledSessionRef.current !== detail.id) {
-      const target = Math.max(0, transcript.scrollHeight - transcript.clientHeight)
-      autoScrollTopRef.current = target
-      transcript.scrollTop = target
-      shouldFollowTranscriptRef.current = true
-      initiallyScrolledSessionRef.current = detail.id
-      return
-    }
-
-    scheduleTranscriptFollow()
-  }, [detail, liveReasoning, liveText, liveToolState, liveUser, scheduleTranscriptFollow, streaming])
-
-  useEffect(() => () => {
-    cancelTextReveal()
-    if (reasoningFlushTimerRef.current !== null) clearTimeout(reasoningFlushTimerRef.current)
-    const resolve = textQueueDrainedRef.current
-    textQueueDrainedRef.current = null
-    resolve?.()
-    cancelTranscriptFollow()
-  }, [cancelTextReveal, cancelTranscriptFollow])
 
   async function streamTurn(sessionId: number, message: string) {
     setStreaming(true)
