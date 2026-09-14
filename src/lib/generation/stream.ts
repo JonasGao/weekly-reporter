@@ -29,6 +29,18 @@ import { isReportContentToolResult, REPORT_CONTENT_TOOL_NAME, CONTENT_REFERENCE_
 import { queryReportContentForSession } from './report-content-tool'
 import { persistQuerySnapshot } from './query-snapshots'
 
+export type GenerationStreamProposal = {
+  id: number
+  content: string
+  summary: string[]
+  status: string
+  sourceRevision: number
+  createdAt: Date
+  planState?: PlanState | null
+  publicSummary?: PublicGenerationSummary | null
+  baselineContent?: string | null
+}
+
 export type GenerationStreamEvent =
   | { type: 'start'; turnId: number; protocol: string; model: string }
   | { type: 'working'; label: string }
@@ -37,7 +49,7 @@ export type GenerationStreamEvent =
   | { type: 'tool-input-delta'; toolName: string }
   | { type: 'tool-call'; toolName: string; toolCallId: string }
   | { type: 'tool-result'; toolName: string; toolCallId: string }
-  | { type: 'proposal'; proposal: { id: number; content: string; summary: string[]; status: string; sourceRevision: number; createdAt: Date; planState?: PlanState | null; publicSummary?: PublicGenerationSummary | null; baselineContent?: string | null } }
+  | { type: 'proposal'; proposal: GenerationStreamProposal }
   | { type: 'finish'; status: 'completed' | 'aborted' }
   | { type: 'error'; message: string }
 

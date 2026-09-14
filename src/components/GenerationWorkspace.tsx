@@ -47,6 +47,7 @@ import {
   type ReportListToolResult,
 } from '@/lib/generation/report-list-contract'
 import { isReportContentToolResult, REPORT_CONTENT_TOOL_NAME, type ReportContentToolResult } from '@/lib/generation/report-content-contract'
+import type { GenerationStreamEvent } from '@/lib/generation/stream'
 
 interface TemplateOption {
   id: string
@@ -107,6 +108,24 @@ interface Proposal {
   referenceChanged?: boolean
 }
 
+/**
+ * Shared renderable proposal type. Both the DB `Proposal` shape and the
+ * wire proposal shape (from `GenerationStreamEvent`) satisfy this interface,
+ * so `ProposalReview` and the live-proposal state can consume either source.
+ */
+type ReviewableProposal = {
+  id: number
+  content: string
+  summary: string[]
+  status: string
+  sourceRevision: number
+  createdAt: string | Date
+  planState?: PlanState | null
+  publicSummary?: PublicGenerationSummary | null
+  baselineContent?: string | null
+  referenceChanged?: boolean
+}
+
 interface SessionDetail extends SessionSummary {
   sourceDraftSnapshot: string
   sourceOverview: string
@@ -148,18 +167,6 @@ interface PlanOverrideItemState {
   latestAction: 'keep' | 'drop' | 'rewrite' | 're-add'
   included: boolean
 }
-
-type StreamEvent =
-  | { type: 'start'; turnId: number; protocol: string; model: string }
-  | { type: 'working'; label: string }
-  | { type: 'reasoning-delta'; text: string }
-  | { type: 'text-delta'; text: string }
-  | { type: 'tool-input-delta'; toolName: string }
-  | { type: 'tool-call'; toolName: string; toolCallId: string }
-  | { type: 'tool-result'; toolName: string; toolCallId: string }
-  | { type: 'proposal'; proposal: Proposal }
-  | { type: 'finish'; status: 'completed' | 'aborted' }
-  | { type: 'error'; message: string }
 
 type ReviewTab = 'preview' | 'source' | 'diff'
 
@@ -616,7 +623,7 @@ function ProposalReview({
   accepting,
   onAccept,
 }: {
-  proposal: Proposal | null
+  proposal: ReviewableProposal | null
   editable: boolean
   accepting: boolean
   onAccept: () => void
@@ -745,7 +752,7 @@ export function GenerationWorkspace({
   const [liveReasoning, setLiveReasoning] = useState('')
   const [liveText, setLiveText] = useState<StreamingMarkdown>(emptyStreamingMarkdown)
   const [liveToolState, setLiveToolState] = useState('')
-  const [liveProposal, setLiveProposal] = useState<Proposal | null>(null)
+  const [liveProposal, setLiveProposal] = useState<ReviewableProposal | null>(null)
   const [accepting, setAccepting] = useState(false)
   const [savingOverride, setSavingOverride] = useState(false)
   const transcriptRef = useRef<HTMLDivElement>(null)
@@ -998,7 +1005,7 @@ export function GenerationWorkspace({
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let pending = ''
-      const handle = (event: StreamEvent) => {
+      const handle = (event: GenerationStreamEvent) => {
         if (event.type === 'start') setLiveTurnId(event.turnId)
         else if (event.type === 'reasoning-delta') queueLiveReasoning(event.text)
         else if (event.type === 'text-delta') queueLiveText(event.text)
@@ -1014,9 +1021,9 @@ export function GenerationWorkspace({
         pending += decoder.decode(value, { stream: true })
         const lines = pending.split('\n')
         pending = lines.pop() ?? ''
-        for (const line of lines) if (line.trim()) handle(JSON.parse(line) as StreamEvent)
+        for (const line of lines) if (line.trim()) handle(JSON.parse(line) as GenerationStreamEvent)
       }
-      if (pending.trim()) handle(JSON.parse(pending) as StreamEvent)
+      if (pending.trim()) handle(JSON.parse(pending) as GenerationStreamEvent)
       flushLiveReasoning()
       await waitForTextQueue()
       setLiveText((current) => finalizeStreamingMarkdown(current))
@@ -1074,7 +1081,7 @@ export function GenerationWorkspace({
     if (!response.ok) toast.error('Failed to stop generation')
   }
 
-  async function acceptProposal(proposal: Proposal) {
+  async function acceptProposal(proposal: ReviewableProposal) {
     if (!activeSessionId) return
     if (reportVariant.finalContent && !confirm('Accepting will replace the current final version. Continue?')) return
     setAccepting(true)
