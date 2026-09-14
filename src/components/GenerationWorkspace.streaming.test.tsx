@@ -95,7 +95,7 @@ describe('GenerationWorkspace streaming output', () => {
     )
 
     await screen.findByRole('heading', { name: '本周终版' })
-    fireEvent.click(screen.getByRole('button', { name: '发送' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     const completedParagraph = await screen.findByText('已完成段落。')
     const pendingBlock = await screen.findByText('末尾 **未完成')
