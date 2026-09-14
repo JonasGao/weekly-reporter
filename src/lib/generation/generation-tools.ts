@@ -8,7 +8,6 @@ import { queryReportContentForSession } from './report-content-tool'
 import { persistQuerySnapshot } from './query-snapshots'
 import { REPORT_LIST_TOOL_NAME, REFERENCE_BOUNDARY, type ReportListToolResult } from './report-list-contract'
 import { REPORT_CONTENT_TOOL_NAME, CONTENT_REFERENCE_BOUNDARY, type ReportContentToolResult } from './report-content-contract'
-import type { PlanItemInput, PlanJudgmentInput, ProposalPlanInput } from './plan'
 import type { PublicGenerationSummaryInput } from './public-summary'
 
 export const MAX_HISTORY_QUERIES_PER_TURN = 10
@@ -31,6 +30,31 @@ function toolBudgetExceeded(toolName: string): ReportListToolResult | ReportCont
   const referenceBoundary = toolName === REPORT_CONTENT_TOOL_NAME ? CONTENT_REFERENCE_BOUNDARY : REFERENCE_BOUNDARY
   return { ok: false, error: { code: 'TOOL_BUDGET_EXCEEDED', message: '本轮历史查询次数已达上限；历史不可用，请继续依据当前周报原稿生成。' }, unavailable: true, referenceBoundary } as ReportListToolResult | ReportContentToolResult
 }
+
+export const proposeFinalReportInputSchema = z.strictObject({
+  content: z.string().min(1).describe('完整的 Markdown 周报候选终版'),
+  summary: z.preprocess(v => Array.isArray(v) ? v : [v], z.array(z.string()).describe('面向用户的简短变更摘要')),
+  publicSummary: z.preprocess(
+    v => Array.isArray(v) ? { modelHandling: v } : v,
+    z.object({
+      modelHandling: z.array(z.string()).describe('模型显式提供的简短处理说明；不得复制历史正文或推测隐藏推理'),
+    }),
+  ).optional(),
+  plan: z.object({
+    judgments: z.array(z.object({
+      candidateId: z.string(),
+      judgment: z.enum(['carry', 'drop', 'uncertain']),
+      reason: z.string(),
+      remainingAction: z.string().optional(),
+    })).optional(),
+    items: z.array(z.object({
+      text: z.string(),
+      source: z.enum(['user-goal', 'carry-forward', 'current-fact', 'baseline']),
+      candidateId: z.string().optional(),
+      reason: z.string().optional(),
+    })).optional(),
+  }).describe('下周计划对象（优先使用）；judgments 为候选判断数组，items 为计划事项数组').optional(),
+})
 
 export function createGenerationTools(ctx: GenerationToolContext) {
   return {
@@ -87,54 +111,16 @@ export function createGenerationTools(ctx: GenerationToolContext) {
     }),
     propose_final_report: tool({
       description: '提交一份完整 Markdown 候选终版，供用户在对话外评审和确认。这个工具不会直接保存终版。',
-      inputSchema: z.object({
-        content: z.string().min(1).describe('完整的 Markdown 周报候选终版'),
-        summary: z.array(z.string()).describe('面向用户的简短变更摘要'),
-        publicSummary: z.object({
-          modelHandling: z.array(z.string()).describe('模型显式提供的简短处理说明；不得复制历史正文或推测隐藏推理'),
-        }).optional(),
-        plan: z.object({
-          judgments: z.array(z.object({
-            candidateId: z.string(),
-            judgment: z.enum(['carry', 'drop', 'uncertain']),
-            reason: z.string(),
-            remainingAction: z.string().optional(),
-          })).optional(),
-          items: z.array(z.object({
-            text: z.string(),
-            source: z.enum(['user-goal', 'carry-forward', 'current-fact', 'baseline']),
-            candidateId: z.string().optional(),
-            reason: z.string().optional(),
-          })).optional(),
-        }).optional(),
-        planJudgments: z.array(z.object({
-          candidateId: z.string(),
-          judgment: z.enum(['carry', 'drop', 'uncertain']),
-          reason: z.string(),
-          remainingAction: z.string().optional(),
-        })).optional(),
-        planItems: z.array(z.object({
-          text: z.string(),
-          source: z.enum(['user-goal', 'carry-forward', 'current-fact', 'baseline']),
-          candidateId: z.string().optional(),
-          reason: z.string().optional(),
-        })).optional(),
-      }),
-      execute: async ({ content, summary, publicSummary, plan, planJudgments, planItems }) => {
+      inputSchema: proposeFinalReportInputSchema,
+      execute: async ({ content, summary, publicSummary, plan }) => {
         if (ctx.proposalHolder.current) throw new Error('本轮已经提交过候选终版')
-        const normalizedPlan: ProposalPlanInput | undefined = plan ?? ((planJudgments || planItems)
-          ? {
-              judgments: planJudgments as PlanJudgmentInput[] | undefined,
-              items: planItems as PlanItemInput[] | undefined,
-            }
-          : undefined)
         ctx.proposalHolder.current = await createGenerationProposal({
           session: ctx.detail as unknown as import('@/lib/db/schema').GenerationSession,
           turnId: ctx.turnId,
           content,
           summary,
           publicSummary: publicSummary as PublicGenerationSummaryInput | undefined,
-          plan: normalizedPlan,
+          plan,
         })
         return { proposalId: ctx.proposalHolder.current.id, status: 'ready' }
       },
