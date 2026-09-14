@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/select'
 import { Pencil, Trash2, Plus, Star, RotateCcw } from 'lucide-react'
 import type { AIStyleRow, SystemPromptRow } from '@/lib/db/schema'
+import { useAIStyles } from './useAIStyles'
+import type { StyleFormData } from './useAIStyles'
 
 const RANDOM_WORDS = [
   'nova', 'apex', 'zen', 'flux', 'core', 'sage', 'echo', 'pulse',
@@ -26,16 +28,6 @@ const RANDOM_WORDS = [
 
 function randomWord(): string {
   return RANDOM_WORDS[Math.floor(Math.random() * RANDOM_WORDS.length)]
-}
-
-interface StyleFormData {
-  key: string
-  label: string
-  systemPrompt: string
-  temperature: number
-  detailLevel: string
-  resultOriented: string
-  isDefault: boolean
 }
 
 function emptyStyleForm(key = ''): StyleFormData {
@@ -91,28 +83,13 @@ export function PromptManager() {
 /** ==================== 风格管理 Tab ==================== */
 
 function StyleTab() {
-  const [styles, setStyles] = useState<AIStyleRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const { styles, loading, create, update, remove, setDefault } = useAIStyles()
   const [editing, setEditing] = useState<AIStyleRow | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   // Keep the server-rendered initial form deterministic. Random keys are only
   // generated after the user opens the create dialog in the browser.
   const [form, setForm] = useState<StyleFormData>(() => emptyStyleForm())
   const [showAdvanced, setShowAdvanced] = useState(false)
-
-  async function fetchStyles() {
-    try {
-      const res = await fetch('/api/prompts/styles')
-      const data = await res.json()
-      setStyles(data.styles || [])
-    } catch {
-      toast.error('Failed to load styles')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchStyles() }, [])
 
   function openCreate() {
     setEditing(null)
@@ -143,73 +120,24 @@ function StyleTab() {
       ...form,
       detailLevel: form.detailLevel || undefined,
       resultOriented: form.resultOriented || undefined,
-    }
+    } as StyleFormData
 
-    try {
-      if (editing) {
-        const res = await fetch(`/api/prompts/styles/${editing.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-        if (res.ok) {
-          toast.success('Style updated')
-          setDialogOpen(false)
-          fetchStyles()
-        } else {
-          const err = await res.json()
-          toast.error(err.error || 'Update failed')
-        }
-      } else {
-        const res = await fetch('/api/prompts/styles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-        if (res.ok) {
-          toast.success('Style created')
-          setDialogOpen(false)
-          fetchStyles()
-        } else {
-          const err = await res.json()
-          toast.error(err.error || 'Creation failed')
-        }
-      }
-    } catch {
-      toast.error('Operation failed')
+    const ok = editing
+      ? await update(editing.id, payload)
+      : await create(payload)
+
+    if (ok) {
+      setDialogOpen(false)
     }
   }
 
   async function handleDelete(style: AIStyleRow) {
     if (!confirm(`Delete style “${style.label}”?`)) return
-
-    try {
-      const res = await fetch(`/api/prompts/styles/${style.id}`, { method: 'DELETE' })
-      if (res.ok) {
-        toast.success('Style deleted')
-        fetchStyles()
-      } else {
-        const err = await res.json()
-        toast.error(err.error || 'Delete failed')
-      }
-    } catch {
-      toast.error('Delete failed')
-    }
+    await remove(style.id)
   }
 
   async function handleSetDefault(style: AIStyleRow) {
-    try {
-      const res = await fetch(`/api/prompts/styles/${style.id}`, { method: 'PATCH' })
-      if (res.ok) {
-        toast.success(`“${style.label}” is now the default style`)
-        fetchStyles()
-      } else {
-        const err = await res.json()
-        toast.error(err.error || 'Update failed')
-      }
-    } catch {
-      toast.error('Update failed')
-    }
+    await setDefault(style.id)
   }
 
   if (loading) return <div className="text-center py-8 text-muted-foreground">Loading...</div>
