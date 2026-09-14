@@ -25,25 +25,25 @@ describe('AIAssistantPanel', () => {
     it('should render the panel with all operations', () => {
       render(<AIAssistantPanel reportId={1} />)
 
-      expect(screen.getByText('选择事件')).toBeInTheDocument()
-      expect(screen.getByText('润色文本')).toBeInTheDocument()
-      expect(screen.getByText('扩展内容')).toBeInTheDocument()
-      expect(screen.getByText('统一风格')).toBeInTheDocument()
+      expect(screen.getByText('Select event')).toBeInTheDocument()
+      expect(screen.getByText('Polish text')).toBeInTheDocument()
+      expect(screen.getByText('Expand content')).toBeInTheDocument()
+      expect(screen.getByText('Unify style')).toBeInTheDocument()
     })
 
     it('should render textarea for event selection', () => {
       render(<AIAssistantPanel reportId={1} />)
 
-      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
+      const textarea = screen.getByPlaceholderText(/Select text in the editor/)
       expect(textarea).toBeInTheDocument()
     })
 
     it('should render all operation buttons with descriptions', () => {
       render(<AIAssistantPanel reportId={1} />)
 
-      expect(screen.getByText('优化表达，提升专业度')).toBeInTheDocument()
-      expect(screen.getByText('补充细节，丰富描述')).toBeInTheDocument()
-      expect(screen.getByText('整体调整，风格一致')).toBeInTheDocument()
+      expect(screen.getByText('Improve wording and professionalism')).toBeInTheDocument()
+      expect(screen.getByText('Add detail and richer descriptions')).toBeInTheDocument()
+      expect(screen.getByText('Adjust the whole report for consistency')).toBeInTheDocument()
     })
   })
 
@@ -52,11 +52,11 @@ describe('AIAssistantPanel', () => {
       const { toast } = await import('sonner')
       render(<AIAssistantPanel reportId={1} />)
 
-      const polishButton = screen.getByRole('button', { name: /润色文本/i })
+      const polishButton = screen.getByRole('button', { name: /Polish text/i })
       fireEvent.click(polishButton)
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith('请选择或输入要润色的文本')
+        expect(toast.error).toHaveBeenCalledWith('Select or enter text to polish')
       })
     })
 
@@ -68,10 +68,10 @@ describe('AIAssistantPanel', () => {
 
       render(<AIAssistantPanel reportId={1} templateId={2} />)
 
-      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
+      const textarea = screen.getByPlaceholderText(/Select text in the editor/)
       fireEvent.change(textarea, { target: { value: 'Test event' } })
 
-      const polishButton = screen.getByRole('button', { name: /润色文本/i })
+      const polishButton = screen.getByRole('button', { name: /Polish text/i })
       fireEvent.click(polishButton)
 
       await waitFor(() => {
@@ -101,10 +101,10 @@ describe('AIAssistantPanel', () => {
         />
       )
 
-      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
+      const textarea = screen.getByPlaceholderText(/Select text in the editor/)
       fireEvent.change(textarea, { target: { value: 'Test event' } })
 
-      const polishButton = screen.getByRole('button', { name: /润色文本/i })
+      const polishButton = screen.getByRole('button', { name: /Polish text/i })
       fireEvent.click(polishButton)
 
       await waitFor(() => {
@@ -130,14 +130,14 @@ describe('AIAssistantPanel', () => {
 
       render(<AIAssistantPanel reportId={1} />)
 
-      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
+      const textarea = screen.getByPlaceholderText(/Select text in the editor/)
       fireEvent.change(textarea, { target: { value: 'Test event' } })
 
-      const polishButton = screen.getByRole('button', { name: /润色文本/i })
+      const polishButton = screen.getByRole('button', { name: /Polish text/i })
       fireEvent.click(polishButton)
 
       await waitFor(() => {
-        expect(toast.success).toHaveBeenCalledWith('润色成功！文本已优化')
+        expect(toast.success).toHaveBeenCalledWith('Polished successfully!')
       })
     })
 
@@ -150,10 +150,10 @@ describe('AIAssistantPanel', () => {
 
       render(<AIAssistantPanel reportId={1} />)
 
-      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
+      const textarea = screen.getByPlaceholderText(/Select text in the editor/)
       fireEvent.change(textarea, { target: { value: 'Test event' } })
 
-      const polishButton = screen.getByRole('button', { name: /润色文本/i })
+      const polishButton = screen.getByRole('button', { name: /Polish text/i })
       fireEvent.click(polishButton)
 
       await waitFor(() => {
@@ -167,11 +167,11 @@ describe('AIAssistantPanel', () => {
       const { toast } = await import('sonner')
       render(<AIAssistantPanel reportId={1} />)
 
-      const expandButton = screen.getByRole('button', { name: /扩展内容/i })
+      const expandButton = screen.getByRole('button', { name: /Expand content/i })
       fireEvent.click(expandButton)
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith('请选择或输入要扩展的文本')
+        expect(toast.error).toHaveBeenCalledWith('Select or enter text to expand')
       })
     })
 
@@ -183,10 +183,10 @@ describe('AIAssistantPanel', () => {
 
       render(<AIAssistantPanel reportId={1} templateId={2} />)
 
-      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
+      const textarea = screen.getByPlaceholderText(/Select text in the editor/)
       fireEvent.change(textarea, { target: { value: 'Test event' } })
 
-      const expandButton = screen.getByRole('button', { name: /扩展内容/i })
+      const expandButton = screen.getByRole('button', { name: /Expand content/i })
       fireEvent.click(expandButton)
 
       await waitFor(() => {
@@ -212,14 +212,14 @@ describe('AIAssistantPanel', () => {
 
       render(<AIAssistantPanel reportId={1} />)
 
-      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
+      const textarea = screen.getByPlaceholderText(/Select text in the editor/)
       fireEvent.change(textarea, { target: { value: 'Test event' } })
 
-      const expandButton = screen.getByRole('button', { name: /扩展内容/i })
+      const expandButton = screen.getByRole('button', { name: /Expand content/i })
       fireEvent.click(expandButton)
 
       await waitFor(() => {
-        expect(toast.success).toHaveBeenCalledWith('扩展成功！内容已丰富')
+        expect(toast.success).toHaveBeenCalledWith('Expanded successfully!')
       })
     })
 
@@ -232,10 +232,10 @@ describe('AIAssistantPanel', () => {
 
       render(<AIAssistantPanel reportId={1} />)
 
-      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
+      const textarea = screen.getByPlaceholderText(/Select text in the editor/)
       fireEvent.change(textarea, { target: { value: 'Test event' } })
 
-      const expandButton = screen.getByRole('button', { name: /扩展内容/i })
+      const expandButton = screen.getByRole('button', { name: /Expand content/i })
       fireEvent.click(expandButton)
 
       await waitFor(() => {
@@ -253,7 +253,7 @@ describe('AIAssistantPanel', () => {
 
       render(<AIAssistantPanel reportId={1} templateId={2} />)
 
-      const unifyButton = screen.getByRole('button', { name: /统一风格/i })
+      const unifyButton = screen.getByRole('button', { name: /Unify style/i })
       fireEvent.click(unifyButton)
 
       await waitFor(() => {
@@ -279,11 +279,11 @@ describe('AIAssistantPanel', () => {
 
       render(<AIAssistantPanel reportId={1} />)
 
-      const unifyButton = screen.getByRole('button', { name: /统一风格/i })
+      const unifyButton = screen.getByRole('button', { name: /Unify style/i })
       fireEvent.click(unifyButton)
 
       await waitFor(() => {
-        expect(toast.success).toHaveBeenCalledWith('风格统一成功！整体风格已调整')
+        expect(toast.success).toHaveBeenCalledWith('Style unified successfully!')
       })
     })
 
@@ -296,7 +296,7 @@ describe('AIAssistantPanel', () => {
 
       render(<AIAssistantPanel reportId={1} />)
 
-      const unifyButton = screen.getByRole('button', { name: /统一风格/i })
+      const unifyButton = screen.getByRole('button', { name: /Unify style/i })
       fireEvent.click(unifyButton)
 
       await waitFor(() => {
@@ -316,12 +316,12 @@ describe('AIAssistantPanel', () => {
 
       render(<AIAssistantPanel reportId={1} />)
 
-      const textarea = screen.getByPlaceholderText(/在编辑器中选择文本/)
+      const textarea = screen.getByPlaceholderText(/Select text in the editor/)
       fireEvent.change(textarea, { target: { value: 'Test event' } })
 
-      const polishButton = screen.getByRole('button', { name: /润色文本/i })
-      const expandButton = screen.getByRole('button', { name: /扩展内容/i })
-      const unifyButton = screen.getByRole('button', { name: /统一风格/i })
+      const polishButton = screen.getByRole('button', { name: /Polish text/i })
+      const expandButton = screen.getByRole('button', { name: /Expand content/i })
+      const unifyButton = screen.getByRole('button', { name: /Unify style/i })
 
       fireEvent.click(polishButton)
 

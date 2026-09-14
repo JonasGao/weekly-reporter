@@ -1,15 +1,13 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sparkles, Expand, Palette, Loader2, RefreshCw } from 'lucide-react'
-import { toast } from 'sonner'
-import type { AIStyle } from '@/lib/db/schema'
+import { useAIActions } from './useAIActions'
 
 interface AIAssistantPanelProps {
   reportId: number
   templateId?: number
-  styleOverride?: AIStyle
+  styleOverride?: string
   // Editor integration callbacks
   onPolish?: (polishedContent: string) => void
   onExpand?: (expandedContent: string) => void
@@ -18,255 +16,24 @@ interface AIAssistantPanelProps {
   getEditorContent?: () => string
 }
 
-interface ErrorState {
-  operation: string
-  message: string
-  canRetry: boolean
-}
-
-export function AIAssistantPanel({ 
-  reportId, 
-  templateId, 
+export function AIAssistantPanel({
+  reportId,
+  templateId,
   styleOverride,
   onPolish,
   onExpand,
   onUnify,
   getEditorContent,
 }: AIAssistantPanelProps) {
-  const [selectedEvent, setSelectedEvent] = useState('')
-  const [loading, setLoading] = useState<string | null>(null)
-  const [error, setError] = useState<ErrorState | null>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
-    }
-  }, [])
-
-  // Helper to get content to process
-  const getContentToProcess = () => {
-    // If there's selected text in the textarea, use it
-    if (selectedEvent.trim()) {
-      return selectedEvent
-    }
-    // Otherwise, try to get from editor
-    if (getEditorContent) {
-      const editorContent = getEditorContent()
-      if (editorContent.trim()) {
-        return editorContent
-      }
-    }
-    return ''
-  }
-
-  const clearError = () => setError(null)
-
-  const handlePolish = async () => {
-    const contentToPolish = getContentToProcess()
-    
-    if (!contentToPolish.trim()) {
-      toast.error('Select or enter text to polish')
-      return
-    }
-
-    // Cancel any pending request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-
-    // Create new AbortController
-    abortControllerRef.current = new AbortController()
-
-    setLoading('polish')
-    setError(null)
-    
-    try {
-      const response = await fetch('/api/ai/polish-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventContent: contentToPolish,
-          templateId,
-          styleOverride,
-        }),
-        signal: abortControllerRef.current.signal,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Polish service is temporarily unavailable' }))
-        throw new Error(errorData.error || 'Polish failed')
-      }
-
-      const data = await response.json()
-      toast.success('Polished successfully!')
-      
-      // Call the callback to update editor
-      if (onPolish) {
-        onPolish(data.polishedContent)
-      }
-      
-      // Clear the textarea after successful polish
-      setSelectedEvent('')
-    } catch (error) {
-      // Ignore abort errors
-      if (error instanceof Error && error.name === 'AbortError') {
-        return
-      }
-      
-      const errorMessage = error instanceof Error ? error.message : 'Network error. Check your connection.'
-      setError({
-        operation: 'polish',
-        message: errorMessage,
-        canRetry: true,
-      })
-      toast.error(errorMessage)
-      console.error('Polish error:', error)
-    } finally {
-      setLoading(null)
-      abortControllerRef.current = null
-    }
-  }
-
-  const handleExpand = async () => {
-    const contentToExpand = getContentToProcess()
-    
-    if (!contentToExpand.trim()) {
-      toast.error('Select or enter text to expand')
-      return
-    }
-
-    // Cancel any pending request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-
-    // Create new AbortController
-    abortControllerRef.current = new AbortController()
-
-    setLoading('expand')
-    setError(null)
-    
-    try {
-      const response = await fetch('/api/ai/expand-section', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: contentToExpand,
-          templateId,
-          styleOverride,
-        }),
-        signal: abortControllerRef.current.signal,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Expansion service is temporarily unavailable' }))
-        throw new Error(errorData.error || 'Expansion failed')
-      }
-
-      const data = await response.json()
-      toast.success('Expanded successfully!')
-      
-      // Call the callback to update editor
-      if (onExpand) {
-        onExpand(data.expandedContent)
-      }
-      
-      // Clear the textarea after successful expand
-      setSelectedEvent('')
-    } catch (error) {
-      // Ignore abort errors
-      if (error instanceof Error && error.name === 'AbortError') {
-        return
-      }
-      
-      const errorMessage = error instanceof Error ? error.message : 'Network error. Check your connection.'
-      setError({
-        operation: 'expand',
-        message: errorMessage,
-        canRetry: true,
-      })
-      toast.error(errorMessage)
-      console.error('Expand error:', error)
-    } finally {
-      setLoading(null)
-      abortControllerRef.current = null
-    }
-  }
-
-  const handleUnify = async () => {
-    // Cancel any pending request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-
-    // Create new AbortController
-    abortControllerRef.current = new AbortController()
-
-    setLoading('unify')
-    setError(null)
-    
-    try {
-      const response = await fetch('/api/ai/unify-style', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reportId,
-          templateId,
-          styleOverride,
-        }),
-        signal: abortControllerRef.current.signal,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Style service is temporarily unavailable' }))
-        throw new Error(errorData.error || 'Style unification failed')
-      }
-
-      const data = await response.json()
-      toast.success('Style unified successfully!')
-      
-      // Call the callback to update editor
-      if (onUnify) {
-        onUnify(data.unifiedContent)
-      }
-    } catch (error) {
-      // Ignore abort errors
-      if (error instanceof Error && error.name === 'AbortError') {
-        return
-      }
-      
-      const errorMessage = error instanceof Error ? error.message : 'Network error. Check your connection.'
-      setError({
-        operation: 'unify',
-        message: errorMessage,
-        canRetry: true,
-      })
-      toast.error(errorMessage)
-      console.error('Unify error:', error)
-    } finally {
-      setLoading(null)
-      abortControllerRef.current = null
-    }
-  }
-
-  const handleRetry = () => {
-    if (!error) return
-    
-    clearError()
-    
-    // Retry the failed operation
-    if (error.operation === 'polish') {
-      handlePolish()
-    } else if (error.operation === 'expand') {
-      handleExpand()
-    } else if (error.operation === 'unify') {
-      handleUnify()
-    }
-  }
+  const { selectedEvent, setSelectedEvent, loading, error, run, retry } = useAIActions({
+    reportId,
+    templateId,
+    styleOverride,
+    onPolish,
+    onExpand,
+    onUnify,
+    getEditorContent,
+  })
 
   return (
     <div className="space-y-4">
@@ -295,7 +62,7 @@ export function AIAssistantPanel({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleRetry}
+                onClick={retry}
                 className="h-7 text-xs gap-1"
               >
                 <RefreshCw className="h-3 w-3" />
@@ -314,7 +81,7 @@ export function AIAssistantPanel({
           <Button
             variant="outline"
             size="sm"
-            onClick={handlePolish}
+            onClick={() => run('polish')}
             disabled={loading !== null}
             className="justify-start h-auto py-2.5"
           >
@@ -336,7 +103,7 @@ export function AIAssistantPanel({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExpand}
+            onClick={() => run('expand')}
             disabled={loading !== null}
             className="justify-start h-auto py-2.5"
           >
@@ -358,7 +125,7 @@ export function AIAssistantPanel({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleUnify}
+            onClick={() => run('unify')}
             disabled={loading !== null}
             className="justify-start h-auto py-2.5"
           >
