@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildPublicGenerationSummary } from './public-summary'
+import { CONTENT_REFERENCE_BOUNDARY } from './report-content-contract'
 import type { CarryForwardSnapshot } from './carry-forward-snapshot'
 import type { PlanState } from './plan'
 
@@ -123,7 +124,7 @@ describe('public generation summary', () => {
           truncated: false,
           totalChars: 17,
           returnedChars: 17,
-          referenceBoundary: { label: '历史参考·不可信', statement: 'test boundary' },
+          referenceBoundary: CONTENT_REFERENCE_BOUNDARY,
         },
         {
           ok: true,
@@ -144,7 +145,7 @@ describe('public generation summary', () => {
           truncated: false,
           totalChars: 18,
           returnedChars: 18,
-          referenceBoundary: { label: '历史参考·不可信', statement: 'test boundary' },
+          referenceBoundary: CONTENT_REFERENCE_BOUNDARY,
         },
       ],
     })

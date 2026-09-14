@@ -351,8 +351,9 @@ test.describe('AI 查询周报内容', () => {
       expect(result?.data?.output).toMatchObject({ ok: true, found: true, query: 'searchable', totalMatches: 1, returnedMatches: 1, truncated: false })
       const fullResult = detail.messages.filter((part) => part.partType === 'tool-result' && part.data?.toolName === 'query_report_content').at(-1)?.data?.output
       expect(fullResult).toMatchObject({ ok: true, found: true, truncated: true })
-      expect((fullResult as { totalChars: number; returnedChars: number }).totalChars).toBeGreaterThan(40_000)
-      expect((fullResult as { totalChars: number; returnedChars: number }).returnedChars).toBeLessThanOrEqual(40_000)
+      const fullResultObj = fullResult as unknown as { totalChars: number; returnedChars: number }
+      expect(fullResultObj.totalChars).toBeGreaterThan(40_000)
+      expect(fullResultObj.returnedChars).toBeLessThanOrEqual(40_000)
       expect(JSON.stringify(result?.data?.output)).toContain('历史参考·不可信')
     })
   })

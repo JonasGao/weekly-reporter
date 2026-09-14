@@ -1,29 +1,25 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { GET } from './route'
 
-vi.mock('@/lib/db', () => {
-  const mockFindMany = vi.fn()
-  const mockFrom = vi.fn()
-  const mockSelect = vi.fn().mockReturnValue({ from: mockFrom })
+const mockDb = {
+  query: {
+    reports: {
+      findMany: vi.fn(),
+    },
+  },
+  select: vi.fn(),
+  from: vi.fn(),
+}
 
-  return {
-    getDb: vi.fn(() => ({
-      query: {
-        reports: {
-          findMany: mockFindMany,
-        },
-      },
-      select: mockSelect,
-    })),
-    __mockFindMany: mockFindMany,
-    __mockFrom: mockFrom,
-    __mockSelect: mockSelect,
-  }
-})
+vi.mock('@/lib/db', () => ({
+  getDb: vi.fn(() => mockDb),
+}))
 
 describe('/api/reports', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Set up default chain: db.select().from()
+    mockDb.select.mockReturnValue({ from: mockDb.from })
   })
 
   afterEach(() => {
@@ -53,9 +49,8 @@ describe('/api/reports', () => {
         },
       ]
 
-      const { __mockFindMany, __mockFrom } = await import('@/lib/db')
-      __mockFindMany.mockResolvedValueOnce(mockReports)
-      __mockFrom.mockResolvedValueOnce(mockReports)
+      mockDb.query.reports.findMany.mockResolvedValueOnce(mockReports)
+      mockDb.from.mockResolvedValueOnce([])
 
       const request = new Request('http://localhost/api/reports')
       const response = await GET(request)
@@ -75,7 +70,7 @@ describe('/api/reports', () => {
         weekStart: '2024-01-01',
         weekEnd: '2024-01-07',
       })
-      expect(__mockFindMany).toHaveBeenCalledWith(
+      expect(mockDb.query.reports.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           limit: 10,
           offset: 0,
@@ -84,9 +79,8 @@ describe('/api/reports', () => {
     })
 
     it('should support pagination', async () => {
-      const { __mockFindMany, __mockFrom } = await import('@/lib/db')
-      __mockFindMany.mockResolvedValueOnce([])
-      __mockFrom.mockResolvedValueOnce([])
+      mockDb.query.reports.findMany.mockResolvedValueOnce([])
+      mockDb.from.mockResolvedValueOnce([])
 
       const request = new Request('http://localhost/api/reports?page=2&pageSize=5')
       const response = await GET(request)
@@ -95,7 +89,7 @@ describe('/api/reports', () => {
       expect(response.status).toBe(200)
       expect(data.page).toBe(2)
       expect(data.pageSize).toBe(5)
-      expect(__mockFindMany).toHaveBeenCalledWith(
+      expect(mockDb.query.reports.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           limit: 5,
           offset: 5,
@@ -104,15 +98,14 @@ describe('/api/reports', () => {
     })
 
     it('should handle database errors', async () => {
-      const { __mockFindMany } = await import('@/lib/db')
-      __mockFindMany.mockRejectedValueOnce(new Error('Database error'))
+      mockDb.query.reports.findMany.mockRejectedValueOnce(new Error('Database error'))
 
       const request = new Request('http://localhost/api/reports')
       const response = await GET(request)
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toBe('获取周报列表失败')
+      expect(data.error).toBe('Failed to fetch reports')
       expect(data.code).toBe('FETCH_ERROR')
     })
   })

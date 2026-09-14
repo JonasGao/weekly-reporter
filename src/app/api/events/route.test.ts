@@ -7,66 +7,30 @@ vi.mock('@/lib/tags', async (importOriginal) => {
   return { ...actual, syncEventTags: vi.fn() }
 })
 
-const createMockChain = () => {
-  const mockLimit = vi.fn()
-  const mockGetReturning = vi.fn()
-  // orderBy() returns an object with limit(); limit() returns the final events
-  const mockOrderByResult = { limit: mockLimit }
-  const mockOrderBy = vi.fn().mockReturnValue(mockOrderByResult)
-  const mockWhereResult = { orderBy: mockOrderBy, limit: mockLimit }
-  const mockWhere = vi.fn().mockReturnValue(mockWhereResult)
-  const mockDynamicResult = { where: mockWhere, orderBy: mockOrderBy, limit: mockLimit }
-  const mockDynamic = vi.fn().mockReturnValue(mockDynamicResult)
-  const mockFromResult = { $dynamic: mockDynamic, where: mockWhere, orderBy: mockOrderBy, limit: mockLimit }
-  const mockFrom = vi.fn().mockReturnValue(mockFromResult)
-  const mockSelect = vi.fn().mockReturnValue({ from: mockFrom })
-  // For POST: tx.insert(...).values(...).returning().get() — get() returns a single row.
-  const mockReturningInsert = vi.fn().mockReturnValue({ get: mockGetReturning })
-  const mockValuesResult = { returning: mockReturningInsert }
-  const mockValues = vi.fn().mockReturnValue(mockValuesResult)
-  const mockInsert = vi.fn().mockReturnValue({ values: mockValues })
-  const mockFindMany = vi.fn().mockResolvedValue([])
-  const mockQuery = {
-    collectSources: {
-      findMany: mockFindMany,
+const mocks = vi.hoisted(() => ({
+  select: vi.fn(),
+  insert: vi.fn(),
+  transaction: vi.fn(),
+  get: vi.fn(),
+  findMany: vi.fn(),
+}))
+
+vi.mock('@/lib/db', () => ({
+  getDb: () => ({
+    select: mocks.select,
+    insert: mocks.insert,
+    transaction: mocks.transaction,
+    query: {
+      collectSources: {
+        findMany: mocks.findMany,
+      },
     },
-  }
-
-  const chain = {
-    select: mockSelect,
-    from: mockFrom,
-    $dynamic: mockDynamic,
-    where: mockWhere,
-    orderBy: mockOrderBy,
-    limit: mockLimit,
-    insert: mockInsert,
-    values: mockValues,
-    returning: mockReturningInsert,
-    get: mockGetReturning,
-    query: mockQuery,
-    transaction: null as unknown as ReturnType<typeof vi.fn>,
-  }
-  chain.transaction = vi.fn((cb: (tx: typeof chain) => unknown) => cb(chain))
-  return chain
-}
-
-let mockChain: ReturnType<typeof createMockChain> | null = null
-
-vi.mock('@/lib/db', () => {
-  return {
-    getDb: vi.fn(() => {
-      if (!mockChain) {
-        mockChain = createMockChain()
-      }
-      return mockChain
-    }),
-  }
-})
+  }),
+}))
 
 describe('/api/events', () => {
   beforeEach(() => {
-    // Reset chain so each test gets a fresh set of mocks
-    mockChain = null
+    vi.clearAllMocks()
   })
 
   afterEach(() => {
@@ -94,9 +58,15 @@ describe('/api/events', () => {
         },
       ]
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce(mockEvents)
+      const mockLimit = vi.fn().mockResolvedValue(mockEvents)
+      const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit })
+      const mockDynamicResult = { orderBy: mockOrderBy, limit: mockLimit }
+      const mockDynamic = vi.fn().mockReturnValue(mockDynamicResult)
+      const mockFromResult = { $dynamic: mockDynamic, orderBy: mockOrderBy, limit: mockLimit }
+      const mockFrom = vi.fn().mockReturnValue(mockFromResult)
+      mocks.select.mockReturnValue({ from: mockFrom })
+
+      mocks.findMany.mockResolvedValue([])
 
       const request = new Request('http://localhost/api/events')
       const response = await GET(request)
@@ -119,9 +89,15 @@ describe('/api/events', () => {
         },
       ]
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce(mockEvents)
+      const mockLimit = vi.fn().mockResolvedValue(mockEvents)
+      const mockWhere = vi.fn().mockReturnValue({ orderBy: vi.fn().mockReturnValue({ limit: mockLimit }), limit: mockLimit })
+      const mockDynamicResult = { where: mockWhere, orderBy: vi.fn().mockReturnValue({ limit: mockLimit }), limit: mockLimit }
+      const mockDynamic = vi.fn().mockReturnValue(mockDynamicResult)
+      const mockFromResult = { $dynamic: mockDynamic, where: mockWhere, orderBy: vi.fn(), limit: mockLimit }
+      const mockFrom = vi.fn().mockReturnValue(mockFromResult)
+      mocks.select.mockReturnValue({ from: mockFrom })
+
+      mocks.findMany.mockResolvedValue([])
 
       const request = new Request('http://localhost/api/events?weekStart=2024-01-08&weekEnd=2024-01-14')
       const response = await GET(request)
@@ -129,13 +105,19 @@ describe('/api/events', () => {
 
       expect(response.status).toBe(200)
       expect(data.events).toHaveLength(1)
-      expect(db.where).toHaveBeenCalled()
+      expect(mockWhere).toHaveBeenCalled()
     })
 
     it('should handle database error', async () => {
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockRejectedValueOnce(new Error('Database error'))
+      const mockLimit = vi.fn().mockRejectedValue(new Error('Database error'))
+      const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit })
+      const mockDynamicResult = { orderBy: mockOrderBy, limit: mockLimit }
+      const mockDynamic = vi.fn().mockReturnValue(mockDynamicResult)
+      const mockFromResult = { $dynamic: mockDynamic, orderBy: mockOrderBy, limit: mockLimit }
+      const mockFrom = vi.fn().mockReturnValue(mockFromResult)
+      mocks.select.mockReturnValue({ from: mockFrom })
+
+      mocks.findMany.mockResolvedValue([])
 
       const request = new Request('http://localhost/api/events')
       const response = await GET(request)
@@ -158,9 +140,15 @@ describe('/api/events', () => {
         },
       ]
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce(mockEvents)
+      const mockLimit = vi.fn().mockResolvedValue(mockEvents)
+      const mockWhere = vi.fn().mockReturnValue({ orderBy: vi.fn().mockReturnValue({ limit: mockLimit }), limit: mockLimit })
+      const mockDynamicResult = { where: mockWhere, orderBy: vi.fn().mockReturnValue({ limit: mockLimit }), limit: mockLimit }
+      const mockDynamic = vi.fn().mockReturnValue(mockDynamicResult)
+      const mockFromResult = { $dynamic: mockDynamic, where: mockWhere, orderBy: vi.fn(), limit: mockLimit }
+      const mockFrom = vi.fn().mockReturnValue(mockFromResult)
+      mocks.select.mockReturnValue({ from: mockFrom })
+
+      mocks.findMany.mockResolvedValue([])
 
       const request = new Request('http://localhost/api/events?weekStart=2024-01-08&weekEnd=2024-01-14&status=processed')
       const response = await GET(request)
@@ -182,9 +170,15 @@ describe('/api/events', () => {
         },
       ]
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce(mockEvents)
+      const mockLimit = vi.fn().mockResolvedValue(mockEvents)
+      const mockWhere = vi.fn().mockReturnValue({ orderBy: vi.fn().mockReturnValue({ limit: mockLimit }), limit: mockLimit })
+      const mockDynamicResult = { where: mockWhere, orderBy: vi.fn().mockReturnValue({ limit: mockLimit }), limit: mockLimit }
+      const mockDynamic = vi.fn().mockReturnValue(mockDynamicResult)
+      const mockFromResult = { $dynamic: mockDynamic, where: mockWhere, orderBy: vi.fn(), limit: mockLimit }
+      const mockFrom = vi.fn().mockReturnValue(mockFromResult)
+      mocks.select.mockReturnValue({ from: mockFrom })
+
+      mocks.findMany.mockResolvedValue([])
 
       const request = new Request('http://localhost/api/events?date=2024-01-10')
       const response = await GET(request)
@@ -192,7 +186,7 @@ describe('/api/events', () => {
 
       expect(response.status).toBe(200)
       expect(data.events).toHaveLength(1)
-      expect(db.where).toHaveBeenCalled()
+      expect(mockWhere).toHaveBeenCalled()
     })
 
     it('should combine date filter with other filters', async () => {
@@ -207,9 +201,15 @@ describe('/api/events', () => {
         },
       ]
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce(mockEvents)
+      const mockLimit = vi.fn().mockResolvedValue(mockEvents)
+      const mockWhere = vi.fn().mockReturnValue({ orderBy: vi.fn().mockReturnValue({ limit: mockLimit }), limit: mockLimit })
+      const mockDynamicResult = { where: mockWhere, orderBy: vi.fn().mockReturnValue({ limit: mockLimit }), limit: mockLimit }
+      const mockDynamic = vi.fn().mockReturnValue(mockDynamicResult)
+      const mockFromResult = { $dynamic: mockDynamic, where: mockWhere, orderBy: vi.fn(), limit: mockLimit }
+      const mockFrom = vi.fn().mockReturnValue(mockFromResult)
+      mocks.select.mockReturnValue({ from: mockFrom })
+
+      mocks.findMany.mockResolvedValue([])
 
       const request = new Request('http://localhost/api/events?date=2024-01-10&source=manual')
       const response = await GET(request)
@@ -231,15 +231,20 @@ describe('/api/events', () => {
         },
       ]
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce(mockEvents)
+      const mockLimit = vi.fn().mockResolvedValue(mockEvents)
+      const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit })
+      const mockDynamicResult = { orderBy: mockOrderBy, limit: mockLimit }
+      const mockDynamic = vi.fn().mockReturnValue(mockDynamicResult)
+      const mockFromResult = { $dynamic: mockDynamic, orderBy: mockOrderBy, limit: mockLimit }
+      const mockFrom = vi.fn().mockReturnValue(mockFromResult)
+      mocks.select.mockReturnValue({ from: mockFrom })
+
+      mocks.findMany.mockResolvedValue([])
 
       const request = new Request('http://localhost/api/events?date=invalid-date')
       const response = await GET(request)
 
       expect(response.status).toBe(200)
-      // Invalid date should not add a between condition, so only the default status filter applies
     })
   })
 
@@ -257,9 +262,17 @@ describe('/api/events', () => {
         updatedAt: new Date('2024-01-10T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.get.mockReturnValueOnce(mockEvent)
+      mocks.get.mockReturnValue(mockEvent)
+      mocks.transaction.mockImplementation((cb: (tx: unknown) => unknown) => {
+        const tx = {
+          insert: mocks.insert.mockReturnValue({
+            values: vi.fn().mockReturnValue({
+              returning: vi.fn().mockReturnValue({ get: mocks.get }),
+            }),
+          }),
+        }
+        return cb(tx)
+      })
 
       const request = new Request('http://localhost/api/events', {
         method: 'POST',
@@ -275,8 +288,8 @@ describe('/api/events', () => {
       expect(response.status).toBe(201)
       expect(data.content).toBe('完成评审 #成果 #工作')
       expect(data.source).toBe('manual')
-      expect(db.insert).toHaveBeenCalled()
-      expect(db.transaction).toHaveBeenCalled()
+      expect(mocks.insert).toHaveBeenCalled()
+      expect(mocks.transaction).toHaveBeenCalled()
       expect(syncEventTags).toHaveBeenCalledWith(expect.anything(), 1, ['成果', '工作'])
     })
 
@@ -284,9 +297,7 @@ describe('/api/events', () => {
       const request = new Request('http://localhost/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: '',
-        }),
+        body: JSON.stringify({ content: '' }),
       })
       const response = await POST(request)
       const data = await response.json()
@@ -300,9 +311,7 @@ describe('/api/events', () => {
       const request = new Request('http://localhost/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: '   ',
-        }),
+        body: JSON.stringify({ content: '   ' }),
       })
       const response = await POST(request)
       const data = await response.json()
@@ -316,9 +325,7 @@ describe('/api/events', () => {
       const request = new Request('http://localhost/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventTime: '2024-01-10T10:00:00',
-        }),
+        body: JSON.stringify({ eventTime: '2024-01-10T10:00:00' }),
       })
       const response = await POST(request)
       const data = await response.json()
@@ -358,9 +365,17 @@ describe('/api/events', () => {
         updatedAt: new Date('2024-01-10T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.get.mockReturnValueOnce(mockEvent)
+      mocks.get.mockReturnValue(mockEvent)
+      mocks.transaction.mockImplementation((cb: (tx: unknown) => unknown) => {
+        const tx = {
+          insert: mocks.insert.mockReturnValue({
+            values: vi.fn().mockReturnValue({
+              returning: vi.fn().mockReturnValue({ get: mocks.get }),
+            }),
+          }),
+        }
+        return cb(tx)
+      })
 
       const request = new Request('http://localhost/api/events', {
         method: 'POST',
@@ -373,7 +388,7 @@ describe('/api/events', () => {
       const response = await POST(request)
 
       expect(response.status).toBe(201)
-      expect(db.insert).toHaveBeenCalled()
+      expect(mocks.insert).toHaveBeenCalled()
     })
 
     it('should accept content without eventTime', async () => {
@@ -389,21 +404,27 @@ describe('/api/events', () => {
         updatedAt: new Date(),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.get.mockReturnValueOnce(mockEvent)
+      mocks.get.mockReturnValue(mockEvent)
+      mocks.transaction.mockImplementation((cb: (tx: unknown) => unknown) => {
+        const tx = {
+          insert: mocks.insert.mockReturnValue({
+            values: vi.fn().mockReturnValue({
+              returning: vi.fn().mockReturnValue({ get: mocks.get }),
+            }),
+          }),
+        }
+        return cb(tx)
+      })
 
       const request = new Request('http://localhost/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: 'Test event',
-        }),
+        body: JSON.stringify({ content: 'Test event' }),
       })
       const response = await POST(request)
 
       expect(response.status).toBe(201)
-      expect(db.insert).toHaveBeenCalled()
+      expect(mocks.insert).toHaveBeenCalled()
     })
   })
 })

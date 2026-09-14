@@ -33,7 +33,6 @@ describe('generation session lifecycle', () => {
       content: '- 完成会话持久化',
       weekStart: '2026-08-10',
       weekEnd: '2026-08-16',
-      scoreStatus: 'completed',
       createdAt: now,
       updatedAt: now,
     }).returning().get()
@@ -43,7 +42,6 @@ describe('generation session lifecycle', () => {
       sourceDraft: '- **weekly-reporter**\n  - 完成会话持久化',
       sourceRevision: 3,
       finalStatus: 'none',
-      scoreStatus: 'pending',
       createdAt: now,
       updatedAt: now,
     }).returning().get()

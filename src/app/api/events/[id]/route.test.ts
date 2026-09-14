@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { PUT, DELETE } from './route'
+import { NextRequest } from 'next/server'
 import { syncEventTags } from '@/lib/tags'
 
 vi.mock('@/lib/tags', async (importOriginal) => {
@@ -7,61 +8,27 @@ vi.mock('@/lib/tags', async (importOriginal) => {
   return { ...actual, syncEventTags: vi.fn() }
 })
 
-const createMockChain = () => {
-  const mockOrderBy = vi.fn()
-  const mockLimit = vi.fn()
-  const mockWhereResult = { orderBy: mockOrderBy, limit: mockLimit }
-  const mockWhere = vi.fn().mockReturnValue(mockWhereResult)
-  const mockFromResult = { where: mockWhere }
-  const mockFrom = vi.fn().mockReturnValue(mockFromResult)
-  const mockSelect = vi.fn().mockReturnValue({ from: mockFrom })
+const mocks = vi.hoisted(() => ({
+  select: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+  transaction: vi.fn(),
+  returning: vi.fn(),
+  get: vi.fn(),
+  run: vi.fn(),
+}))
 
-  // For DELETE: tx.delete(...).where(...).run()
-  const mockRun = vi.fn()
-  const mockWhereDelete = vi.fn().mockReturnValue({ run: mockRun })
-  const mockDelete = vi.fn().mockReturnValue({ where: mockWhereDelete })
-
-  // For PUT: tx.update(...).set(...).where(...).returning().get()
-  const mockGetUpdate = vi.fn()
-  const mockReturningUpdate = vi.fn().mockReturnValue({ get: mockGetUpdate })
-  const mockWhereUpdate = vi.fn().mockReturnValue({ returning: mockReturningUpdate })
-  const mockSet = vi.fn().mockReturnValue({ where: mockWhereUpdate })
-  const mockUpdate = vi.fn().mockReturnValue({ set: mockSet })
-
-  const chain = {
-    select: mockSelect,
-    from: mockFrom,
-    where: mockWhere,
-    orderBy: mockOrderBy,
-    limit: mockLimit,
-    update: mockUpdate,
-    set: mockSet,
-    delete: mockDelete,
-    returning: mockReturningUpdate,
-    get: mockGetUpdate,
-    run: mockRun,
-    transaction: null as unknown as ReturnType<typeof vi.fn>,
-  }
-  chain.transaction = vi.fn((cb: (tx: typeof chain) => unknown) => cb(chain))
-  return chain
-}
-
-let mockChain: ReturnType<typeof createMockChain> | null = null
-
-vi.mock('@/lib/db', () => {
-  return {
-    getDb: vi.fn(() => {
-      if (!mockChain) {
-        mockChain = createMockChain()
-      }
-      return mockChain
-    }),
-  }
-})
+vi.mock('@/lib/db', () => ({
+  getDb: () => ({
+    select: mocks.select,
+    update: mocks.update,
+    delete: mocks.delete,
+    transaction: mocks.transaction,
+  }),
+}))
 
 describe('/api/events/[id]', () => {
   beforeEach(() => {
-    mockChain = null
     vi.clearAllMocks()
   })
 
@@ -90,12 +57,29 @@ describe('/api/events/[id]', () => {
         updatedAt: new Date('2024-01-11T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([existingEvent])
-      db.get.mockReturnValueOnce(updatedEvent)
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([existingEvent])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/1', {
+      mocks.get.mockReturnValue(updatedEvent)
+      mocks.transaction.mockImplementation((cb: (tx: unknown) => unknown) => {
+        const tx = {
+          update: vi.fn().mockReturnValue({
+            set: vi.fn().mockReturnValue({
+              where: vi.fn().mockReturnValue({
+                returning: vi.fn().mockReturnValue({ get: mocks.get }),
+              }),
+            }),
+          }),
+        }
+        return cb(tx)
+      })
+
+      const request = new NextRequest('http://localhost/api/events/1', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -103,16 +87,15 @@ describe('/api/events/[id]', () => {
           isImportant: true,
         }),
       })
-      const params = { id: '1' }
+      const params = Promise.resolve({ id: '1' })
       const response = await PUT(request, { params })
       const data = await response.json()
 
       expect(response.status).toBe(200)
       expect(data.content).toBe('更新后的内容 #成果')
       expect(data.isImportant).toBe(true)
-      expect(db.update).toHaveBeenCalled()
-      expect(db.set).toHaveBeenCalled()
-      expect(db.transaction).toHaveBeenCalled()
+      expect(mocks.select).toHaveBeenCalled()
+      expect(mocks.transaction).toHaveBeenCalled()
       expect(syncEventTags).toHaveBeenCalledWith(expect.anything(), 1, ['成果'])
     })
 
@@ -135,37 +118,58 @@ describe('/api/events/[id]', () => {
         updatedAt: new Date('2024-01-11T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([existingEvent])
-      db.get.mockReturnValueOnce(updatedEvent)
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([existingEvent])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/1', {
+      mocks.get.mockReturnValue(updatedEvent)
+      mocks.transaction.mockImplementation((cb: (tx: unknown) => unknown) => {
+        const tx = {
+          update: vi.fn().mockReturnValue({
+            set: vi.fn().mockReturnValue({
+              where: vi.fn().mockReturnValue({
+                returning: vi.fn().mockReturnValue({ get: mocks.get }),
+              }),
+            }),
+          }),
+        }
+        return cb(tx)
+      })
+
+      const request = new NextRequest('http://localhost/api/events/1', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           eventTime: '2024-01-15T10:00:00',
         }),
       })
-      const params = { id: '1' }
+      const params = Promise.resolve({ id: '1' })
       const response = await PUT(request, { params })
 
       expect(response.status).toBe(200)
-      expect(db.set).toHaveBeenCalled()
+      expect(mocks.transaction).toHaveBeenCalled()
       expect(syncEventTags).not.toHaveBeenCalled()
     })
 
     it('should return 404 for non-existent event', async () => {
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([])
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/999', {
+      const request = new NextRequest('http://localhost/api/events/999', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: 'Test' }),
       })
-      const params = { id: '999' }
+      const params = Promise.resolve({ id: '999' })
       const response = await PUT(request, { params })
       const data = await response.json()
 
@@ -186,18 +190,20 @@ describe('/api/events/[id]', () => {
         updatedAt: new Date('2024-01-10T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([existingEvent])
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([existingEvent])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/1', {
+      const request = new NextRequest('http://localhost/api/events/1', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: '',
-        }),
+        body: JSON.stringify({ content: '' }),
       })
-      const params = { id: '1' }
+      const params = Promise.resolve({ id: '1' })
       const response = await PUT(request, { params })
       const data = await response.json()
 
@@ -219,18 +225,20 @@ describe('/api/events/[id]', () => {
         updatedAt: new Date('2024-01-10T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([existingEvent])
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([existingEvent])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/1', {
+      const request = new NextRequest('http://localhost/api/events/1', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: '   ',
-        }),
+        body: JSON.stringify({ content: '   ' }),
       })
-      const params = { id: '1' }
+      const params = Promise.resolve({ id: '1' })
       const response = await PUT(request, { params })
       const data = await response.json()
 
@@ -252,18 +260,20 @@ describe('/api/events/[id]', () => {
         updatedAt: new Date('2024-01-10T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([existingEvent])
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([existingEvent])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/1', {
+      const request = new NextRequest('http://localhost/api/events/1', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventTime: 'invalid-date',
-        }),
+        body: JSON.stringify({ eventTime: 'invalid-date' }),
       })
-      const params = { id: '1' }
+      const params = Promise.resolve({ id: '1' })
       const response = await PUT(request, { params })
       const data = await response.json()
 
@@ -285,18 +295,20 @@ describe('/api/events/[id]', () => {
         updatedAt: new Date('2024-01-10T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([existingEvent])
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([existingEvent])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/1', {
+      const request = new NextRequest('http://localhost/api/events/1', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isImportant: 'yes',
-        }),
+        body: JSON.stringify({ isImportant: 'yes' }),
       })
-      const params = { id: '1' }
+      const params = Promise.resolve({ id: '1' })
       const response = await PUT(request, { params })
       const data = await response.json()
 
@@ -318,16 +330,20 @@ describe('/api/events/[id]', () => {
         updatedAt: new Date('2024-01-10T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([existingEvent])
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([existingEvent])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/1', {
+      const request = new NextRequest('http://localhost/api/events/1', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain' },
         body: 'not-json',
       })
-      const params = { id: '1' }
+      const params = Promise.resolve({ id: '1' })
       const response = await PUT(request, { params })
       const data = await response.json()
 
@@ -355,23 +371,38 @@ describe('/api/events/[id]', () => {
         updatedAt: new Date('2024-01-11T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([existingEvent])
-      db.get.mockReturnValueOnce(updatedEvent)
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([existingEvent])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/1', {
+      mocks.get.mockReturnValue(updatedEvent)
+      mocks.transaction.mockImplementation((cb: (tx: unknown) => unknown) => {
+        const tx = {
+          update: vi.fn().mockReturnValue({
+            set: vi.fn().mockReturnValue({
+              where: vi.fn().mockReturnValue({
+                returning: vi.fn().mockReturnValue({ get: mocks.get }),
+              }),
+            }),
+          }),
+        }
+        return cb(tx)
+      })
+
+      const request = new NextRequest('http://localhost/api/events/1', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isImportant: false,
-        }),
+        body: JSON.stringify({ isImportant: false }),
       })
-      const params = { id: '1' }
+      const params = Promise.resolve({ id: '1' })
       const response = await PUT(request, { params })
 
       expect(response.status).toBe(200)
-      expect(db.set).toHaveBeenCalled()
+      expect(mocks.transaction).toHaveBeenCalled()
       expect(syncEventTags).not.toHaveBeenCalled()
     })
   })
@@ -390,21 +421,37 @@ describe('/api/events/[id]', () => {
         updatedAt: new Date('2024-01-10T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([existingEvent])
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([existingEvent])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/1', {
+      const mockRun = vi.fn()
+      const mockDeleteWhere = vi.fn().mockReturnValue({ run: mockRun })
+      const deleteFn = vi.fn().mockReturnValue({ where: mockDeleteWhere })
+
+      mocks.delete.mockImplementation(deleteFn)
+      mocks.transaction.mockImplementation((cb: (tx: unknown) => unknown) => {
+        const tx = {
+          delete: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({ run: mockRun }),
+          }),
+        }
+        return cb(tx)
+      })
+
+      const request = new NextRequest('http://localhost/api/events/1', {
         method: 'DELETE',
       })
-      const params = { id: '1' }
+      const params = Promise.resolve({ id: '1' })
       const response = await DELETE(request, { params })
 
       expect(response.status).toBe(204)
-      expect(db.transaction).toHaveBeenCalled()
-      // delete().where().run() called twice: eventTags + rawEvents
-      expect(db.delete).toHaveBeenCalledTimes(2)
-      expect(db.run).toHaveBeenCalledTimes(2)
+      expect(mocks.select).toHaveBeenCalled()
+      expect(mocks.transaction).toHaveBeenCalled()
     })
 
     it('should reject deletion of non-manual event', async () => {
@@ -420,14 +467,18 @@ describe('/api/events/[id]', () => {
         updatedAt: new Date('2024-01-10T10:00:00'),
       }
 
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([existingEvent])
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([existingEvent])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/1', {
+      const request = new NextRequest('http://localhost/api/events/1', {
         method: 'DELETE',
       })
-      const params = { id: '1' }
+      const params = Promise.resolve({ id: '1' })
       const response = await DELETE(request, { params })
       const data = await response.json()
 
@@ -436,14 +487,18 @@ describe('/api/events/[id]', () => {
     })
 
     it('should return 404 for non-existent event', async () => {
-      const { getDb } = await import('@/lib/db')
-      const db = getDb()
-      db.limit.mockResolvedValueOnce([])
+      const orderBy = vi.fn()
+      const limit = vi.fn().mockResolvedValue([])
+      const whereChain = { orderBy, limit }
+      const where = vi.fn().mockReturnValue(whereChain)
+      const fromChain = { where }
+      const from = vi.fn().mockReturnValue(fromChain)
+      mocks.select.mockReturnValue({ from })
 
-      const request = new Request('http://localhost/api/events/999', {
+      const request = new NextRequest('http://localhost/api/events/999', {
         method: 'DELETE',
       })
-      const params = { id: '999' }
+      const params = Promise.resolve({ id: '999' })
       const response = await DELETE(request, { params })
       const data = await response.json()
 

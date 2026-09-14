@@ -11,11 +11,11 @@ describe('carry-forward snapshots', () => {
     const marker = `carry-forward-${Date.now()}`
     const previous = db.insert(reports).values({
       title: `${marker} previous`, content: 'legacy content', weekStart: '2027-01-04', weekEnd: '2027-01-10',
-      scoreStatus: 'completed', createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: now,
     }).returning().get()
     const target = db.insert(reports).values({
       title: `${marker} target`, content: 'target content', weekStart: '2027-01-11', weekEnd: '2027-01-17',
-      scoreStatus: 'completed', createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: now,
     }).returning().get()
     db.insert(reportVariants).values([
       { reportId: previous.id, variant: 'leadership' as const, sourceDraft: 'source', finalContent: `## 下周计划\n- ${marker} leadership`, finalStatus: 'current' as const, acceptedProposalId: 1, sourceRevision: 1 as const, createdAt: now, updatedAt: now },
@@ -41,14 +41,14 @@ describe('carry-forward snapshots', () => {
     const marker = `carry-forward-empty-${Date.now()}`
     const older = db.insert(reports).values({
       title: `${marker} older`, content: 'older content', weekStart: '2026-12-21', weekEnd: '2026-12-27',
-      scoreStatus: 'completed', createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: now,
     }).returning().get()
     db.insert(reportVariants).values({
       reportId: older.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: '## 下周计划\n- must not backfill', finalStatus: 'current' as const, acceptedProposalId: 3, sourceRevision: 1 as const, createdAt: now, updatedAt: now,
     }).run()
     const target = db.insert(reports).values({
       title: `${marker} target`, content: 'target content', weekStart: '2027-01-11', weekEnd: '2027-01-17',
-      scoreStatus: 'completed', createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: now,
     }).returning().get()
 
     const snapshot = await createCarryForwardSnapshot(target, 'personal', now)
@@ -65,11 +65,11 @@ describe('carry-forward snapshots', () => {
     const marker = `carry-forward-state-${Date.now()}`
     const previous = db.insert(reports).values({
       title: `${marker} previous`, content: 'content', weekStart: '2027-01-04', weekEnd: '2027-01-10',
-      scoreStatus: 'completed', createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: now,
     }).returning().get()
     const emptyTarget = db.insert(reports).values({
       title: `${marker} empty target`, content: 'content', weekStart: '2027-01-11', weekEnd: '2027-01-17',
-      scoreStatus: 'completed', createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: now,
     }).returning().get()
     db.insert(reportVariants).values({
       reportId: previous.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: `## 下周计划\n\n## 其他\n- ${marker} ignored`, finalStatus: 'current' as const, acceptedProposalId: 4, sourceRevision: 1 as const, createdAt: now, updatedAt: now,
@@ -79,11 +79,11 @@ describe('carry-forward snapshots', () => {
 
     const failedPrevious = db.insert(reports).values({
       title: `${marker} failed previous`, content: 'content', weekStart: '2027-02-01', weekEnd: '2027-02-07',
-      scoreStatus: 'completed', createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: now,
     }).returning().get()
     const failedTarget = db.insert(reports).values({
       title: `${marker} failed target`, content: 'content', weekStart: '2027-02-08', weekEnd: '2027-02-14',
-      scoreStatus: 'completed', createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: now,
     }).returning().get()
     db.insert(reportVariants).values({
       reportId: failedPrevious.id, variant: 'personal' as const, sourceDraft: 'source', finalContent: `## 下周计划\n${marker} prose only`, finalStatus: 'current' as const, acceptedProposalId: 5, sourceRevision: 1 as const, createdAt: now, updatedAt: now,
