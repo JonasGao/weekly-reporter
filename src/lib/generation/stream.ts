@@ -41,6 +41,25 @@ export type GenerationStreamProposal = {
   baselineContent?: string | null
 }
 
+/**
+ * Shared renderable proposal type. Both the DB `Proposal` shape and the
+ * wire proposal shape (from `GenerationStreamEvent`) satisfy this interface,
+ * so proposal review panels and the live-proposal state can consume either
+ * source.
+ */
+export type ReviewableProposal = {
+  id: number
+  content: string
+  summary: string[]
+  status: string
+  sourceRevision: number
+  createdAt: string | Date
+  planState?: PlanState | null
+  publicSummary?: PublicGenerationSummary | null
+  baselineContent?: string | null
+  referenceChanged?: boolean
+}
+
 export type GenerationStreamEvent =
   | { type: 'start'; turnId: number; protocol: string; model: string }
   | { type: 'working'; label: string }
