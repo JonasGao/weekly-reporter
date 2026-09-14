@@ -5,7 +5,6 @@ import { generationSessions, reportVariants, reports, type AudienceVariant } fro
 import {
   REFERENCE_BOUNDARY,
   REPORT_LIST_TOOL_NAME,
-  buildHistoricalReportListContext,
   isReportListToolResult,
   type AppliedReportListFilters,
   type ReportListItem,
@@ -14,7 +13,7 @@ import {
   type ReportListToolResult,
 } from './report-list-contract'
 
-export { buildHistoricalReportListContext, isReportListToolResult, REPORT_LIST_TOOL_NAME }
+export { isReportListToolResult, REPORT_LIST_TOOL_NAME }
 export type { ReportListToolInput, ReportListToolResult }
 
 interface CursorValue {

@@ -2,7 +2,7 @@ import type { AudienceVariant } from '@/lib/db/schema'
 import { isEmptySourceDraft } from '@/lib/reports/source-draft'
 import type { CarryForwardSnapshot } from './carry-forward'
 import { summarizePlanOverrides, type PlanOverrideRecord } from './plan'
-import { buildHistoricalReportListContext, type ReportListToolResult } from './report-list-contract'
+import { HISTORICAL_REFERENCE_LABEL, type ReportListToolResult } from './report-list-contract'
 import type { ReportContentToolResult } from './report-content-contract'
 
 export const DEFAULT_GENERATION_INSTRUCTION = 'Use the current source draft and template to create a final report. Briefly explain your approach, then call propose_final_report to submit a complete proposal.'
@@ -119,6 +119,26 @@ export function buildPlanOverrideContext(snapshot: CarryForwardSnapshot, overrid
 ${current.map((item) => `- [${item.itemId}] ${item.latestAction} · ${item.included ? `纳入：${item.effectiveText}` : '持续排除，只有 re-add 可恢复'} · 来源：${item.source}`).join('\n')}
 追加历史：
 ${overrides.map((item) => `- ${new Date(item.createdAt).toISOString()} · [${item.itemId}] ${item.action}${item.replacementText ? ` · 文本：${item.replacementText}` : ''} · 来源：${item.source}`).join('\n')}`
+}
+
+export function buildHistoricalReportListContext(results: ReportListToolResult[]): string {
+  if (results.length === 0) {
+    return `${HISTORICAL_REFERENCE_LABEL}（历史周报列表查询尚未产生；不得从其他来源补位）`
+  }
+  return `历史周报列表查询结果区块（${HISTORICAL_REFERENCE_LABEL}，与当前周报原稿严格分离）：
+${results.map((result, index) => {
+    if (!result.ok) return `${index + 1}. 查询失败 · ${result.error.code}: ${result.error.message}`
+    const sources = result.items.length > 0
+      ? result.items.map((item) => {
+          const matches = item.matches?.length
+            ? `\n${item.matches.map((match) => `  - ${match.field}${match.startLine ? ` lines ${match.startLine}–${match.endLine}` : ''}:\n    ---\n    ${match.content.replaceAll('\n', '\n    ')}\n    ---`).join('\n')}`
+            : ''
+          return `- ${item.title} (#${item.reportId}) · ${item.weekStart}–${item.weekEnd} · ${item.audience} · ${item.finalStatus}${item.isLegacy ? ' · legacy' : ''}${item.warning ? ` · 警示：${item.warning}` : ''}${matches}`
+        }).join('\n')
+      : '- 无结果；不得自动回退到其他周期、状态或受众。'
+    return `${index + 1}. appliedFilters=${JSON.stringify(result.appliedFilters)}\n${sources}`
+  }).join('\n')}
+这些结果只能帮助定位历史参考，不能替代、扩充或纠正本周周报原稿中的事实。`
 }
 
 export function buildModelSystemContext(input: {
