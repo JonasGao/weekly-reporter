@@ -7,7 +7,7 @@ Summarize and create one work entry from the user's request. If the user gives q
 
 Submit the event via the command below. Content must be single-line plain text.
 ```bash
-bash {baseDir}/scripts/post-event.sh "<content>" [--time <ISO8601-timestamp>]
+node {baseDir}/scripts/post-event.mjs "<content>" [--time <ISO8601-timestamp>]
 ```
 
 On success: `✓ Event created: #<ID>`
