@@ -19,7 +19,6 @@ for (let i = 0; i < args.length; i++) {
       console.error(`Error: ${flag} requires a value`)
       process.exit(1)
     }
-    // Map flag names to API param names
     const keyMap = {
       '--date': 'date',
       '--week-start': 'weekStart',

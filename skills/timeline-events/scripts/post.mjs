@@ -65,7 +65,6 @@ if (status === 200 || status === 201) {
 }
 
 if (status === 0) {
-  // fetch already threw for connection errors above, but handle just in case
   console.error(`Error: Cannot reach weekly-reporter at ${WEEKLY_REPORTER_URL}`)
   console.error('Is the server running? Try: npm run dev')
   process.exit(1)
