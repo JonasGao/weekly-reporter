@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Post an event to the weekly-reporter timeline API
-// Usage: post-event.mjs "<content>" [--time <ISO8601-timestamp>]
+// Usage: post.mjs "<content>" [--time <ISO8601-timestamp>]
 
 const WEEKLY_REPORTER_URL = process.env.WEEKLY_REPORTER_URL || 'http://localhost:6868'
 const API_ENDPOINT = `${WEEKLY_REPORTER_URL}/api/events`
@@ -18,14 +18,14 @@ for (let i = 0; i < args.length; i++) {
     content = args[i]
   } else {
     console.error(`Error: unexpected argument '${args[i]}'`)
-    console.error('Usage: post-event.mjs "<content>" [--time <ISO8601-timestamp>]')
+    console.error('Usage: post.mjs "<content>" [--time <ISO8601-timestamp>]')
     process.exit(1)
   }
 }
 
 if (!content) {
   console.error('Error: content is required')
-  console.error('Usage: post-event.mjs "<content>" [--time <ISO8601-timestamp>]')
+  console.error('Usage: post.mjs "<content>" [--time <ISO8601-timestamp>]')
   process.exit(1)
 }
 
