@@ -60,3 +60,6 @@ playwright-report/
 blob-report/
 *.yml
 *.yaml
+
+# skill eval workspaces (transient artifacts from skill-creator runs)
+skills/*-workspace/
