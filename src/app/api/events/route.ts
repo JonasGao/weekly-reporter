@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { desc, eq, between, sql } from 'drizzle-orm'
+import { desc, eq, between, sql, inArray } from 'drizzle-orm'
 import { rawEvents, eventTags } from '@/lib/db/schema'
 import { parseTags, syncEventTags, TAG_CHARSET_REGEX } from '@/lib/tags'
 
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
       }
     } else {
       conditions.push(
-        sql`EXISTS (SELECT 1 FROM ${eventTags} WHERE ${eventTags.eventId} = ${rawEvents.id} AND ${eventTags.tagName} IN ${sql.join(filterTags.map(t => sql`${t}`), sql`, `)})`
+        sql`EXISTS (SELECT 1 FROM ${eventTags} WHERE ${eventTags.eventId} = ${rawEvents.id} AND ${inArray(eventTags.tagName, filterTags)})`
       )
     }
 
