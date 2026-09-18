@@ -1,8 +1,8 @@
 // Built via `new RegExp` so TypeScript's ES2017 regex parser doesn't reject `\p{Script=Han}`.
 // (`\p{Han}` bare form is rejected by the Node 24 / V8 runtime — must use `Script=Han`.)
-export const TAG_CHARSET_REGEX = new RegExp('^[\\p{Script=Han}A-Za-z0-9]+$', 'u')
+export const TAG_CHARSET_REGEX = new RegExp('^(?=[\\p{Script=Han}A-Za-z0-9]*[\\p{Script=Han}A-Za-z])[\\p{Script=Han}A-Za-z0-9]+$', 'u')
 
-const TAG_MATCH_REGEX = new RegExp('(?:^|\\s)#([\\p{Script=Han}A-Za-z0-9]+)(?=\\s|$)', 'gu')
+const TAG_MATCH_REGEX = new RegExp('(?:^|\\s)#((?=[\\p{Script=Han}A-Za-z0-9]*[\\p{Script=Han}A-Za-z])[\\p{Script=Han}A-Za-z0-9]+)(?=\\s|$)', 'gu')
 
 export function parseTags(content: string): string[] {
   const set = new Set<string>()

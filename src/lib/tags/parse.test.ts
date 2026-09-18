@@ -13,6 +13,15 @@ describe('TAG_CHARSET_REGEX', () => {
     expect(TAG_CHARSET_REGEX.test('tag name')).toBe(false)
     expect(TAG_CHARSET_REGEX.test('')).toBe(false)
   })
+  it('rejects pure-digit strings', () => {
+    expect(TAG_CHARSET_REGEX.test('12345')).toBe(false)
+    expect(TAG_CHARSET_REGEX.test('0')).toBe(false)
+  })
+  it('accepts mixed digit+letter and digit+Chinese', () => {
+    expect(TAG_CHARSET_REGEX.test('123abc')).toBe(true)
+    expect(TAG_CHARSET_REGEX.test('tag123')).toBe(true)
+    expect(TAG_CHARSET_REGEX.test('工作1')).toBe(true)
+  })
 })
 
 describe('parseTags', () => {
@@ -52,6 +61,19 @@ describe('parseTags', () => {
   })
   it('handles leading/trailing newlines', () => {
     expect(parseTags('\n#tag\n')).toEqual(['tag'])
+  })
+  it('rejects pure-digit tags (#12345)', () => {
+    expect(parseTags('#12345')).toEqual([])
+    expect(parseTags('issue #99 fixed')).toEqual([])
+  })
+  it('accepts mixed tags with digits (#123abc)', () => {
+    expect(parseTags('#123abc')).toEqual(['123abc'])
+  })
+  it('accepts Chinese numeral tags (#一二三)', () => {
+    expect(parseTags('#一二三')).toEqual(['一二三'])
+  })
+  it('filters out pure-digit tags but keeps valid ones', () => {
+    expect(parseTags('#12345 #work #67890 #工作2')).toEqual(['work', '工作2'])
   })
 })
 
